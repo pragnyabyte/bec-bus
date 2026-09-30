@@ -283,6 +283,22 @@ button {
   animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
+.pulse-dot.blue {
+  background: #0284c7;
+  box-shadow: 0 0 8px #0284c7;
+}
+.pulse-dot.blue::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid #0284c7;
+  animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
 .pulse-dot.danger {
   background: var(--accent-red);
   box-shadow: 0 0 8px var(--accent-red);

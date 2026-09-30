@@ -18,7 +18,7 @@ export default function DriverConsole({
   onDataRefresh,
   onLogout
 }) {
-  const [activeTab, setActiveTab] = useState('console'); // 'console' | 'passengers' | 'schedule'
+  const [activeTab, setActiveTab] = useState('passengers'); // 'passengers' | 'schedule'
   const [isTripActive, setIsTripActive] = useState(false);
   const [isSimulatingGps, setIsSimulatingGps] = useState(true);
   const [useDeviceGps, setUseDeviceGps] = useState(false);
@@ -31,11 +31,34 @@ export default function DriverConsole({
   const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [tripDirection, setTripDirection] = useState('morning'); // 'morning' | 'evening'
+  const [lastUpdatedTime, setLastUpdatedTime] = useState(() => new Date().toLocaleTimeString());
 
   // Find Driver's Assigned Bus & Route (Bus 1 permanently Pragnya, Bus 2 permanently Jitendra)
   const bus = buses.find(b => b.id === driver?.busId) || (driver?.id === 'PRAGNYA01' ? buses[0] : buses[1]) || buses[0];
   const route = routes.find(r => r.id === (driver?.routeId || bus?.routeId)) || routes[0];
   const routeStudents = students.filter(s => s.routeId === route?.id);
+
+  // Check valid GPS availability
+  const hasValidGps = Boolean(
+    bus?.currentLat && 
+    bus?.currentLng && 
+    !isNaN(bus.currentLat) && 
+    !isNaN(bus.currentLng) && 
+    (bus.currentLat !== 0 || bus.currentLng !== 0)
+  );
+
+  // Sync Last updated timestamp when telemetry changes
+  useEffect(() => {
+    if (bus?.lastUpdated) {
+      try {
+        setLastUpdatedTime(new Date(bus.lastUpdated).toLocaleTimeString());
+      } catch (e) {
+        setLastUpdatedTime(new Date().toLocaleTimeString());
+      }
+    } else {
+      setLastUpdatedTime(new Date().toLocaleTimeString());
+    }
+  }, [bus?.lastUpdated, bus?.currentLat, bus?.currentLng]);
 
   // Trip Direction Labels for Bus 1 and Bus 2
   const destination = bus?.id === 'BUS-02' || route?.id === 'R-102' ? 'Patia' : 'Baramunda';
@@ -43,12 +66,43 @@ export default function DriverConsole({
   const eveningLabel = `From ${destination} → BEC College`;
 
   // Bidirectional active stops
-  // Morning: From BEC College → Destination
-  // Evening: From Destination → BEC College
   const activeStops = useMemo(() => {
     if (!route?.stops) return [];
     return tripDirection === 'morning' ? [...route.stops].reverse() : route.stops;
   }, [route, tripDirection]);
+
+  // Next stop calculation
+  const nextStop = useMemo(() => {
+    if (bus?.nextStopId && route?.stops) {
+      const found = route.stops.find(s => s.id === bus.nextStopId);
+      if (found) return found;
+    }
+    if (activeStops.length > 0) {
+      return activeStops[currentWaypointIndex % activeStops.length];
+    }
+    return null;
+  }, [bus?.nextStopId, route, activeStops, currentWaypointIndex]);
+
+  // Nearest stop and readable location
+  const nearestStop = useMemo(() => {
+    if (!hasValidGps || !route?.stops?.length) return null;
+    let closest = null;
+    let minDist = Infinity;
+    for (const stop of route.stops) {
+      const dist = Math.hypot(stop.lat - bus.currentLat, stop.lng - bus.currentLng);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = stop;
+      }
+    }
+    return minDist < 0.015 ? closest : null;
+  }, [hasValidGps, route, bus?.currentLat, bus?.currentLng]);
+
+  const locationDisplay = hasValidGps 
+    ? (nearestStop ? `${nearestStop.name} (${bus.currentLat.toFixed(4)}, ${bus.currentLng.toFixed(4)})` : `${bus.currentLat.toFixed(4)}, ${bus.currentLng.toFixed(4)}`)
+    : 'Location unavailable';
+
+  const busTitle = `${bus?.fleetNumber || (driver?.id === 'PRAGNYA01' ? 'Bus 1' : 'Bus 2')} - Live Location`;
 
   // Identify Co-Driver
   const coDriver = useMemo(() => {
@@ -62,7 +116,7 @@ export default function DriverConsole({
     }
   }, [bus]);
 
-  // GPS Simulation Loop (works in chosen direction!)
+  // GPS Simulation Loop (works in chosen direction)
   useEffect(() => {
     let intervalId = null;
 
@@ -177,8 +231,6 @@ export default function DriverConsole({
     }
   };
 
-
-
   // Report Traffic / Breakdown Incident
   const handleReportIncident = async (e) => {
     e.preventDefault();
@@ -200,7 +252,7 @@ export default function DriverConsole({
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
-      {/* SOS Alert Banner if in emergency */}
+      {/* SOS Alert Banner if in emergency (Preserve warning/danger purpose) */}
       {bus?.status === 'emergency' && (
         <div style={{
           background: '#fef2f2',
@@ -236,7 +288,7 @@ export default function DriverConsole({
         </div>
       )}
 
-      {/* Driver Header Card with Complete Profile & Call Controls */}
+      {/* Driver Header Card with Profile, Phone Call & Controls (SINGLE Logout in top header) */}
       <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -262,7 +314,7 @@ export default function DriverConsole({
                 <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontWeight: 800 }}>
                   ID: {driver?.id}
                 </span>
-                <span className="badge badge-green">On Duty</span>
+                <span className="badge badge-blue">On Duty</span>
               </div>
               <div style={{ color: '#64748b', fontSize: '0.85rem', display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginTop: '3px' }}>
                 <span>Assigned Bus: <b style={{ color: '#0284c7' }}>{bus?.fleetNumber} ({bus?.busNo})</b></span>
@@ -272,11 +324,11 @@ export default function DriverConsole({
             </div>
           </div>
 
-          {/* Right Action Buttons: Driver Phone Call */}
+          {/* Right Action Buttons: Driver Phone Call (Only ONE Logout button exists in top navbar) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <div style={{
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
               borderRadius: 'var(--radius-md)',
               padding: '0.45rem 0.85rem',
               display: 'flex',
@@ -284,14 +336,14 @@ export default function DriverConsole({
               gap: '0.65rem'
             }}>
               <div>
-                <div style={{ fontSize: '0.65rem', color: '#166534', fontWeight: 700 }}>YOUR PHONE</div>
+                <div style={{ fontSize: '0.65rem', color: '#0369a1', fontWeight: 700 }}>YOUR PHONE</div>
                 <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>{driver?.phone || (driver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}</div>
               </div>
               <a
                 href={`tel:${(driver?.phone || (driver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                 className="btn btn-sm"
                 style={{
-                  background: '#16a34a',
+                  background: '#0284c7',
                   color: '#ffffff',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -307,26 +359,6 @@ export default function DriverConsole({
                 <Phone size={13} /> Call
               </a>
             </div>
-
-            {onLogout && (
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={onLogout}
-                id="btn-driver-logout"
-                style={{
-                  borderColor: '#fca5a5',
-                  color: '#dc2626',
-                  background: '#fef2f2',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-                title="Log out and return to Driver Sign In"
-              >
-                <LogOut size={14} /> Logout
-              </button>
-            )}
           </div>
         </div>
 
@@ -341,7 +373,7 @@ export default function DriverConsole({
           alignItems: 'center',
           gap: '1rem'
         }}>
-          {/* Direction Switcher */}
+          {/* Direction Switcher (Blue Theme) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>Trip Direction:</span>
             <div style={{
@@ -380,9 +412,9 @@ export default function DriverConsole({
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  background: tripDirection === 'evening' ? '#7c3aed' : 'transparent',
+                  background: tripDirection === 'evening' ? '#0369a1' : 'transparent',
                   color: tripDirection === 'evening' ? '#ffffff' : '#475569',
-                  boxShadow: tripDirection === 'evening' ? '0 2px 6px rgba(124, 58, 237, 0.3)' : 'none',
+                  boxShadow: tripDirection === 'evening' ? '0 2px 6px rgba(3, 105, 161, 0.3)' : 'none',
                   transition: 'all 0.2s'
                 }}
               >
@@ -397,13 +429,13 @@ export default function DriverConsole({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: '#f8fafc',
-              border: '1px solid #cbd5e1',
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
               borderRadius: 'var(--radius-md)',
               padding: '0.35rem 0.75rem',
               fontSize: '0.75rem'
             }}>
-              <span style={{ color: '#64748b' }}>Co-Driver ({coDriver.busName || (coDriver.id === 'PRAGNYA01' ? 'Bus 1' : 'Bus 2')}):</span>
+              <span style={{ color: '#0369a1', fontWeight: 600 }}>Co-Driver ({coDriver.busName || (coDriver.id === 'PRAGNYA01' ? 'Bus 1' : 'Bus 2')}):</span>
               <b style={{ color: '#0f172a' }}>{coDriver.name}</b>
               <span style={{ color: '#475569' }}>{coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}</span>
               <a
@@ -448,14 +480,296 @@ export default function DriverConsole({
         </div>
       )}
 
-      {/* Driver Tabs */}
-      <div className="tabs-container" style={{ marginBottom: '1.5rem' }}>
-        <button
-          className={`tab-btn ${activeTab === 'console' ? 'active' : ''}`}
-          onClick={() => setActiveTab('console')}
-        >
-          <Radio size={16} /> Live Trip Console & Telemetry
-        </button>
+      {/* ========================================================
+          BUS LIVE TRACKER SECTION (Dedicated prominent card)
+          ======================================================== */}
+      <div className="glass-card" style={{ marginBottom: '1.5rem', borderTop: '4px solid #0284c7' }}>
+        {/* Section Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <div style={{
+                background: '#e0f2fe',
+                color: '#0284c7',
+                padding: '6px',
+                borderRadius: '8px',
+                display: 'inline-flex'
+              }}>
+                <Radio size={20} />
+              </div>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                Bus Live Tracker
+              </h3>
+              <span className="badge badge-blue" style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}>
+                {busTitle}
+              </span>
+            </div>
+            <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+              Real-time GPS transit monitoring and live telemetry broadcast for {bus?.fleetNumber || 'Bus'}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            {/* Clean Blue "Live" Indicator */}
+            {hasValidGps ? (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#e0f2fe',
+                border: '1.5px solid #bae6fd',
+                borderRadius: 'var(--radius-full)',
+                padding: '0.4rem 0.9rem',
+                color: '#0284c7',
+                fontWeight: 800,
+                fontSize: '0.8rem',
+                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.15)'
+              }}>
+                <span className="pulse-dot blue" />
+                <span>{isTripActive ? 'LIVE TRACKING ACTIVE' : 'LIVE'}</span>
+              </div>
+            ) : (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#fef3c7',
+                border: '1.5px solid #fde68a',
+                borderRadius: 'var(--radius-full)',
+                padding: '0.4rem 0.9rem',
+                color: '#b45309',
+                fontWeight: 800,
+                fontSize: '0.8rem'
+              }}>
+                <AlertTriangle size={14} style={{ color: '#d97706' }} />
+                <span>Location unavailable</span>
+              </div>
+            )}
+
+            {/* Last Updated Timestamp */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '0.4rem 0.75rem',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.775rem',
+              color: '#475569',
+              fontWeight: 600
+            }}>
+              <Clock size={13} style={{ color: '#0284c7' }} />
+              <span>Last updated: <b style={{ color: '#0f172a' }}>{lastUpdatedTime}</b></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Telemetry Stats Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '0.75rem',
+          marginBottom: '1rem'
+        }}>
+          {/* 1. Bus Name & Plate */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>BUS</div>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', marginTop: '2px' }}>
+              {bus?.fleetNumber || 'Bus'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>{bus?.busNo}</div>
+          </div>
+
+          {/* 2. Current Location */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT LOCATION</div>
+            <div style={{
+              fontWeight: 800,
+              fontSize: '0.875rem',
+              color: hasValidGps ? '#0284c7' : '#d97706',
+              marginTop: '2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }} title={hasValidGps ? locationDisplay : 'Location unavailable'}>
+              {hasValidGps ? locationDisplay : 'Location unavailable'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              {hasValidGps ? `Lat: ${bus.currentLat.toFixed(4)}, Lng: ${bus.currentLng.toFixed(4)}` : 'Awaiting GPS acquisition'}
+            </div>
+          </div>
+
+          {/* 3. Current Speed */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT SPEED</div>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', marginTop: '2px' }}>
+              {bus?.speed || 0} km/h
+            </div>
+            <div style={{ fontSize: '0.75rem', color: isTripActive ? '#0284c7' : '#64748b', fontWeight: 600 }}>
+              {isTripActive ? 'En Route (Broadcasting)' : 'Stationary / Standby'}
+            </div>
+          </div>
+
+          {/* 4. Current Route */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT ROUTE</div>
+            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: '#0f172a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={route?.name}>
+              {route?.name || 'Assigned Transit Corridor'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              {tripDirection === 'morning' ? `☀️ ${morningLabel}` : `🌙 ${eveningLabel}`}
+            </div>
+          </div>
+
+          {/* 5. Next Stop */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>NEXT STOP</div>
+            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: '#0284c7', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {nextStop ? nextStop.name : 'BEC College Campus'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              Upcoming Waypoint
+            </div>
+          </div>
+
+          {/* 6. Fuel & Transmitter */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>FUEL & TRANSMITTER</div>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0284c7', marginTop: '2px' }}>
+              {bus?.fuelPercent || 88}% Fuel
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              Mode: {useDeviceGps ? 'Phone GPS' : `Sim ${simSpeed}x`}
+            </div>
+          </div>
+        </div>
+
+        {/* Live Map Area (Responsive map showing current bus location automatically) */}
+        <div style={{ marginBottom: '1.25rem', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+          {hasValidGps ? (
+            <LiveMap
+              routes={route ? [route] : []}
+              buses={bus ? [bus] : []}
+              highlightBusId={bus?.id}
+              height="430px"
+              autoCenterBus={true}
+            />
+          ) : (
+            <div style={{
+              height: '350px',
+              background: '#f8fafc',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              padding: '2rem',
+              textAlign: 'center'
+            }}>
+              <AlertTriangle size={44} style={{ color: '#d97706' }} />
+              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0f172a' }}>
+                Location unavailable
+              </div>
+              <div style={{ color: '#64748b', fontSize: '0.875rem', maxWidth: '400px' }}>
+                GPS coordinates are currently offline or awaiting signal. Press <b>Start Trip & Share Location</b> below to broadcast live coordinates.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Trip Operations & Telemetry Transmitter Bar */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          padding: '1rem',
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: 'var(--radius-md)'
+        }}>
+          {/* Primary Start / End Trip Button (Blue primary for start, Red warning for end) */}
+          <div style={{ flex: '1 1 280px' }}>
+            {!isTripActive ? (
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={handleStartTrip}
+                style={{ width: '100%', gap: '0.75rem', fontWeight: 800, padding: '0.85rem 1.5rem' }}
+              >
+                <Play size={22} fill="white" /> START TRIP & SHARE LOCATION
+              </button>
+            ) : (
+              <button
+                className="btn btn-danger btn-lg"
+                onClick={handleEndTrip}
+                style={{ width: '100%', gap: '0.75rem', fontWeight: 800, padding: '0.85rem 1.5rem' }}
+              >
+                <Square size={20} fill="white" /> END TRIP & CONCLUDE ROUTE
+              </button>
+            )}
+          </div>
+
+          {/* Quick Delay Report Button */}
+          <button
+            className="btn btn-outline"
+            onClick={() => setShowIncidentModal(true)}
+            style={{ fontWeight: 700, borderColor: '#cbd5e1', padding: '0.75rem 1.1rem' }}
+          >
+            <AlertTriangle size={16} style={{ color: '#d97706' }} /> Report Traffic / Delay
+          </button>
+
+          {/* GPS Transmitter Toggle (Simulation vs Phone GPS) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>GPS Mode:</span>
+            <div style={{
+              display: 'inline-flex',
+              background: '#f1f5f9',
+              padding: '3px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid #cbd5e1',
+              gap: '4px'
+            }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${!useDeviceGps ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setUseDeviceGps(false)}
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
+              >
+                Simulation
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${useDeviceGps ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setUseDeviceGps(true)}
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
+              >
+                Device GPS (Phone)
+              </button>
+            </div>
+
+            {!useDeviceGps && (
+              <div style={{ display: 'inline-flex', gap: '3px', marginLeft: '4px' }}>
+                {[1, 2, 4].map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`btn btn-sm ${simSpeed === s ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setSimSpeed(s)}
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                  >
+                    {s}x
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Driver Operations Tabs: Passengers & Schedule */}
+      <div className="tabs-container" style={{ marginBottom: '1.25rem' }}>
         <button
           className={`tab-btn ${activeTab === 'passengers' ? 'active' : ''}`}
           onClick={() => setActiveTab('passengers')}
@@ -470,147 +784,7 @@ export default function DriverConsole({
         </button>
       </div>
 
-      {activeTab === 'console' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-          {/* Left Column: Trip Controller & GPS Simulation Controls */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Trip Controller Card */}
-            <div className="glass-card" style={{ borderLeft: `5px solid ${isTripActive ? '#059669' : '#0284c7'}` }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                Trip Operations Controller
-              </span>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', marginBottom: '1.25rem' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.5rem', color: isTripActive ? '#059669' : '#0f172a' }}>
-                    {isTripActive ? 'Trip In Progress' : 'Bus Idle / Ready'}
-                  </h3>
-                  <div style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                    {isTripActive ? 'GPS location stream is active' : 'Press Start Trip to begin telemetry broadcast'}
-                  </div>
-                </div>
-                <span className={`badge ${isTripActive ? 'badge-green' : 'badge-blue'}`} style={{ padding: '0.4rem 0.8rem' }}>
-                  <span className={`pulse-dot ${isTripActive ? 'online' : ''}`} />
-                  {isTripActive ? 'Broadcasting Live' : 'Standby'}
-                </span>
-              </div>
-
-              {/* Start / End Trip Big Button */}
-              {!isTripActive ? (
-                <button
-                  className="btn btn-success btn-lg"
-                  onClick={handleStartTrip}
-                  style={{ width: '100%', gap: '0.75rem', fontWeight: 800 }}
-                >
-                  <Play size={22} fill="white" /> START TRIP & SHARE LOCATION
-                </button>
-              ) : (
-                <button
-                  className="btn btn-danger btn-lg"
-                  onClick={handleEndTrip}
-                  style={{ width: '100%', gap: '0.75rem', fontWeight: 800 }}
-                >
-                  <Square size={20} fill="white" /> END TRIP & CONCLUDE ROUTE
-                </button>
-              )}
-
-              {/* Quick Incident Reporting Button */}
-              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.6rem' }}>
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={() => setShowIncidentModal(true)}
-                  style={{ flex: 1 }}
-                >
-                  <AlertTriangle size={15} style={{ color: '#d97706' }} /> Report Traffic / Delay
-                </button>
-              </div>
-            </div>
-
-            {/* GPS Telemetry & Simulation Controls */}
-            <div className="glass-card">
-              <h4 style={{ fontSize: '1.1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-                <Navigation2 size={18} style={{ color: '#0284c7' }} /> GPS & Transmitter Controls
-              </h4>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                <div style={{ background: '#f0f9ff', border: '1px solid #e0f2fe', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>CURRENT SPEED</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0284c7' }}>
-                    {bus?.speed || 0} <span style={{ fontSize: '0.8rem' }}>km/h</span>
-                  </div>
-                </div>
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>FUEL STATUS</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#059669' }}>
-                    {bus?.fuelPercent || 88}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Mode Toggle: Auto Simulator vs Real Mobile GPS */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.85rem', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>GPS Mode:</span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                      className={`btn btn-sm ${!useDeviceGps ? 'btn-primary' : 'btn-outline'}`}
-                      onClick={() => setUseDeviceGps(false)}
-                      style={{ fontSize: '0.75rem' }}
-                    >
-                      Route Simulation
-                    </button>
-                    <button
-                      className={`btn btn-sm ${useDeviceGps ? 'btn-primary' : 'btn-outline'}`}
-                      onClick={() => setUseDeviceGps(true)}
-                      style={{ fontSize: '0.75rem' }}
-                    >
-                      Device GPS (Phone)
-                    </button>
-                  </div>
-                </div>
-
-                {!useDeviceGps && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Simulation Pace:</span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {[1, 2, 4].map(s => (
-                        <button
-                          key={s}
-                          className={`btn btn-sm ${simSpeed === s ? 'btn-primary' : 'btn-outline'}`}
-                          onClick={() => setSimSpeed(s)}
-                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}
-                        >
-                          {s}x
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Driver Route Map View */}
-          <div className="glass-card" style={{ padding: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.5rem' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>
-                Assigned Route Map: {route?.name}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                Lat: {bus?.currentLat.toFixed(4)}, Lng: {bus?.currentLng.toFixed(4)}
-              </div>
-            </div>
-            <LiveMap
-              routes={route ? [route] : []}
-              buses={bus ? [bus] : []}
-              highlightBusId={bus?.id}
-              height="380px"
-              autoCenterBus={true}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Tab 2: Student Attendance & QR Scan */}
+      {/* Tab 1: Student Attendance & QR Scan */}
       {activeTab === 'passengers' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {/* Quick QR Scanner Simulator Card */}
@@ -679,8 +853,8 @@ export default function DriverConsole({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '0.75rem 1rem',
-                    background: student.boardedToday ? '#f0fdf4' : '#f8fafc',
-                    border: `1px solid ${student.boardedToday ? '#bbf7d0' : '#e2e8f0'}`,
+                    background: student.boardedToday ? '#f0f9ff' : '#f8fafc',
+                    border: `1px solid ${student.boardedToday ? '#bae6fd' : '#e2e8f0'}`,
                     borderRadius: 'var(--radius-md)'
                   }}
                 >
@@ -692,14 +866,14 @@ export default function DriverConsole({
                   </div>
 
                   {student.boardedToday ? (
-                    <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>
+                    <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
                       <CheckCircle size={12} /> {student.boardedTime || 'Boarded'}
                     </span>
                   ) : (
                     <button
                       className="btn btn-outline btn-sm"
                       onClick={() => handleBoardStudent(student.id, 'manual')}
-                      style={{ fontSize: '0.75rem', borderColor: '#bbf7d0', color: '#059669', background: '#ffffff' }}
+                      style={{ fontSize: '0.75rem', borderColor: '#bae6fd', color: '#0284c7', background: '#ffffff' }}
                     >
                       Mark Boarded
                     </button>
@@ -711,14 +885,14 @@ export default function DriverConsole({
         </div>
       )}
 
-      {/* Tab 3: Route Schedule & Stops */}
+      {/* Tab 2: Route Schedule & Stops */}
       {activeTab === 'schedule' && (
         <div className="glass-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h4 style={{ fontSize: '1.2rem', color: '#0f172a' }}>
               Schedule & Stops: {route?.name}
             </h4>
-            <span style={{ fontSize: '0.75rem', padding: '3px 8px', background: tripDirection === 'morning' ? '#e0f2fe' : '#f5f3ff', color: tripDirection === 'morning' ? '#0369a1' : '#6d28d9', borderRadius: '4px', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.75rem', padding: '3px 8px', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', fontWeight: 700 }}>
               {tripDirection === 'morning' ? `☀️ Morning: ${morningLabel}` : `🌙 Evening: ${eveningLabel}`}
             </span>
           </div>
@@ -763,7 +937,7 @@ export default function DriverConsole({
                 <div style={{ display: 'flex', gap: '2rem', textAlign: 'right' }}>
                   <div>
                     <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Morning Schedule</div>
-                    <div style={{ fontWeight: 700, color: '#059669' }}>{stop.morningTime}</div>
+                    <div style={{ fontWeight: 700, color: '#0284c7' }}>{stop.morningTime}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Evening Return</div>

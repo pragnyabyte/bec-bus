@@ -131,9 +131,9 @@ export default function Navbar({
                 borderRadius: 'var(--radius-md)',
                 fontSize: '0.825rem',
                 fontWeight: 700,
-                background: currentRole === 'driver' ? 'linear-gradient(135deg, #7c3aed, #9333ea)' : 'transparent',
+                background: currentRole === 'driver' ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'transparent',
                 color: currentRole === 'driver' ? '#ffffff' : '#334155',
-                boxShadow: currentRole === 'driver' ? '0 2px 8px rgba(124, 58, 237, 0.3)' : 'none'
+                boxShadow: currentRole === 'driver' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
               }}
             >
               <Compass size={15} /> Driver
@@ -166,14 +166,14 @@ export default function Navbar({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: '#f5f3ff',
-                border: '1.5px solid #ddd6fe',
+                background: '#f0f9ff',
+                border: '1.5px solid #bae6fd',
                 borderRadius: 'var(--radius-md)',
                 padding: '0.3rem 0.65rem',
                 fontSize: '0.8rem'
               }}>
-                <Compass size={14} style={{ color: '#7c3aed', flexShrink: 0 }} />
-                <span style={{ color: '#6d28d9', fontSize: '0.75rem', fontWeight: 700 }}>Active Driver:</span>
+                <Compass size={14} style={{ color: '#0284c7', flexShrink: 0 }} />
+                <span style={{ color: '#0369a1', fontSize: '0.75rem', fontWeight: 700 }}>Active Driver:</span>
                 <select
                   value={currentDriver?.id || ''}
                   onChange={e => onDriverChange && onDriverChange(e.target.value)}
