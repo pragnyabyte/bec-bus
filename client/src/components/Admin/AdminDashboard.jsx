@@ -352,7 +352,7 @@ export default function AdminDashboard({
                               {driverObj?.phone || (bus.id === 'BUS-01' ? '+919040833547' : '+916370998587')}
                             </span>
                             <a
-                              href={`tel:${(driverObj?.phone || '').replace(/\s+/g, '')}`}
+                              href={`tel:${(driverObj?.phone || (bus.id === 'BUS-01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                               className="btn btn-sm"
                               style={{
                                 background: '#16a34a',

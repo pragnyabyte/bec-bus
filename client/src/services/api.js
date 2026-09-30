@@ -1,7 +1,21 @@
 import { io } from 'socket.io-client';
 
-const API_BASE = 'http://localhost:5000/api';
-const SOCKET_URL = 'http://localhost:5000';
+// Determine backend URL for production or local environment:
+// In production: uses import.meta.env.VITE_API_URL or current origin (relative /api)
+// In local dev on localhost: defaults to http://localhost:5000
+const envApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL;
+const isLocalhost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' || 
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname.endsWith('.local')
+);
+
+export const BACKEND_URL = envApiUrl 
+  ? envApiUrl.replace(/\/$/, '') 
+  : (isLocalhost ? 'http://localhost:5000' : (typeof window !== 'undefined' ? window.location.origin : ''));
+
+const API_BASE = BACKEND_URL ? `${BACKEND_URL}/api` : '/api';
+const SOCKET_URL = BACKEND_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
 
 export const socket = io(SOCKET_URL, {
   reconnectionDelay: 1000,

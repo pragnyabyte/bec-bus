@@ -1217,6 +1217,18 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 5000;
 
+// Serve static frontend assets in production if client/dist exists
+const clientDistPath = path.join(__dirname, '..', '..', 'client', 'dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 // Connect to MongoDB Atlas and start HTTP/Socket Server
 async function startServer() {
   await connectMongoDB();

@@ -239,10 +239,12 @@ export default function StudentDashboard({
             }}>
               <div>
                 <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>DRIVER PHONE</div>
-                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>{assignedDriver?.phone}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>
+                  {assignedDriver?.phone || (assignedBus?.id === 'BUS-01' || assignedDriver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}
+                </div>
               </div>
               <a
-                href={`tel:${assignedDriver?.phone ? assignedDriver.phone.replace(/\s+/g, '') : ''}`}
+                href={`tel:${(assignedDriver?.phone || (assignedBus?.id === 'BUS-01' || assignedDriver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                 className="btn btn-sm"
                 style={{
                   background: '#16a34a',
@@ -257,7 +259,7 @@ export default function StudentDashboard({
                   textDecoration: 'none',
                   boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)'
                 }}
-                title={`Call ${assignedDriver?.name} (${assignedDriver?.phone})`}
+                title={`Call ${assignedDriver?.name || 'Driver'}`}
               >
                 <Phone size={14} /> Call Driver
               </a>

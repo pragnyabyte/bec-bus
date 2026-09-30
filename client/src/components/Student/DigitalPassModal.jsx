@@ -127,10 +127,12 @@ export default function DigitalPassModal({ student, route, stop, bus, driver, on
                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
                   {driver.name} <span style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 700 }}>({driver.id})</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#475569' }}>{driver.phone}</div>
+                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                  {driver.phone || (driver?.id === 'PRAGNYA01' || bus?.id === 'BUS-01' ? '+919040833547' : '+916370998587')}
+                </div>
               </div>
               <a
-                href={`tel:${driver.phone ? driver.phone.replace(/\s+/g, '') : ''}`}
+                href={`tel:${(driver.phone || (driver?.id === 'PRAGNYA01' || bus?.id === 'BUS-01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                 className="btn btn-sm"
                 style={{
                   background: '#16a34a',

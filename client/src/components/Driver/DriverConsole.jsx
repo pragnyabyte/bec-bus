@@ -284,10 +284,10 @@ export default function DriverConsole({
             }}>
               <div>
                 <div style={{ fontSize: '0.65rem', color: '#166534', fontWeight: 700 }}>YOUR PHONE</div>
-                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>{driver?.phone}</div>
+                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>{driver?.phone || (driver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}</div>
               </div>
               <a
-                href={`tel:${driver?.phone ? driver.phone.replace(/\s+/g, '') : ''}`}
+                href={`tel:${(driver?.phone || (driver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                 className="btn btn-sm"
                 style={{
                   background: '#16a34a',
@@ -384,9 +384,9 @@ export default function DriverConsole({
             }}>
               <span style={{ color: '#64748b' }}>Co-Driver ({coDriver.busName || (coDriver.id === 'PRAGNYA01' ? 'Bus 1' : 'Bus 2')}):</span>
               <b style={{ color: '#0f172a' }}>{coDriver.name}</b>
-              <span style={{ color: '#475569' }}>{coDriver.phone}</span>
+              <span style={{ color: '#475569' }}>{coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}</span>
               <a
-                href={`tel:${coDriver.phone.replace(/\s+/g, '')}`}
+                href={`tel:${(coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                 className="btn btn-sm"
                 style={{
                   background: '#0284c7',
