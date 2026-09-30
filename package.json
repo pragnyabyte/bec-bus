@@ -1,0 +1,21 @@
+{
+  "name": "college-bus-management-system",
+  "version": "1.0.0",
+  "description": "Smart College Bus Management & Live GPS Tracking System",
+  "scripts": {
+    "dev:server": "cd server && npm start",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "install:all": "cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": [
+    "college-bus",
+    "gps-tracking",
+    "leaflet",
+    "socketio",
+    "react",
+    "nodejs"
+  ],
+  "author": "Apex Transit System",
+  "license": "MIT"
+}
