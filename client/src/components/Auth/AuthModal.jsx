@@ -32,6 +32,17 @@ export default function AuthModal({ routes = [], onRegistered, onClose }) {
     }
   }, [selectedRouteId, selectedRouteObj, selectedStopId]);
 
+  // Close modal when Escape key is pressed
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const validate = () => {
     if (!name.trim()) {
       return 'Please enter your Full Name.';

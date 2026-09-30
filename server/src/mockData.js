@@ -96,9 +96,9 @@ export const initialData = {
     {
       id: "PRAGNYA01",
       name: "Pragnya",
-      phone: "+91 98610 12345",
+      phone: "+919040833547",
       licenseNo: "OD-02-2016-004581",
-      experienceYears: 8,
+      experienceYears: 2,
       rating: 4.9,
       busId: "BUS-01",
       busName: "Bus 1",
@@ -110,9 +110,9 @@ export const initialData = {
     {
       id: "JITENDRA01",
       name: "Jitendra",
-      phone: "+91 98610 67890",
+      phone: "+916370998587",
       licenseNo: "OD-02-2014-009122",
-      experienceYears: 11,
+      experienceYears: 3,
       rating: 4.8,
       busId: "BUS-02",
       busName: "Bus 2",

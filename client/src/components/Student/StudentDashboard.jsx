@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Bus, MapPin, Clock, ShieldCheck, UserCheck, AlertTriangle, 
   QrCode, ArrowRightLeft, MessageSquare, Phone, BellRing, 
@@ -18,9 +18,18 @@ export default function StudentDashboard({
   notifications = [],
   onDataRefresh
 }) {
+  // Modal states strictly initialized as closed (false)
   const [showPassModal, setShowPassModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showRouteChangeModal, setShowRouteChangeModal] = useState(false);
+
+  // Explicitly ensure Student Dashboard loads directly with NO pop-ups or overlays covering the view
+  useEffect(() => {
+    setShowPassModal(false);
+    setShowComplaintModal(false);
+    setShowRouteChangeModal(false);
+  }, []);
+
   const [activeTab, setActiveTab] = useState('live_track'); // 'live_track' | 'route_details' | 'history'
   const [userLiveLocation, setUserLiveLocation] = useState(null); // Real device GPS from browser
   const [routeDirection, setRouteDirection] = useState('morning'); // 'morning' (To BEC College) | 'evening' (From BEC College)
@@ -80,9 +89,9 @@ export default function StudentDashboard({
   }, [userLiveLocation, assignedStop, assignedBus]);
 
   // Dynamic ETA & Distance calculation
-  const { etaMinutes, distanceKm, isApproaching5Min } = useMemo(() => {
+  const { etaMinutes, distanceKm } = useMemo(() => {
     if (!assignedBus || !assignedStop) {
-      return { etaMinutes: 12, distanceKm: 4.2, isApproaching5Min: false };
+      return { etaMinutes: 12, distanceKm: 4.2 };
     }
 
     // Haversine formula
@@ -99,12 +108,10 @@ export default function StudentDashboard({
     // Estimate based on current bus speed (or default 30 km/h)
     const effectiveSpeed = (assignedBus.speed && assignedBus.speed > 5) ? assignedBus.speed : 28;
     const minutes = Math.max(1, Math.round((dist / effectiveSpeed) * 60));
-    const approaching = minutes <= 6 || dist <= 1.5;
 
     return {
       etaMinutes: minutes,
-      distanceKm: dist.toFixed(1),
-      isApproaching5Min: approaching
+      distanceKm: dist.toFixed(1)
     };
   }, [assignedBus, assignedStop]);
 
@@ -115,53 +122,6 @@ export default function StudentDashboard({
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
-      {/* 5-Min Proximity Alert Banner */}
-      {isApproaching5Min && assignedBus?.status === 'on_trip' && !student?.boardedToday && (
-        <div style={{
-          background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
-          border: '1.5px solid #f59e0b',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1rem 1.5rem',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 4px 18px rgba(245, 158, 11, 0.2)',
-          animation: 'pulse-ring 2s infinite'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '50%',
-              background: '#f59e0b',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800
-            }}>
-              <BellRing size={24} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#92400e' }}>
-                🔔 Bus Approaching: ~{etaMinutes} Mins Away!
-              </div>
-              <div style={{ color: '#b45309', fontSize: '0.875rem' }}>
-                {assignedBus?.fleetNumber} is within {distanceKm} km of your stop ({assignedStop?.name}). Please proceed to the boarding area.
-              </div>
-            </div>
-          </div>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowPassModal(true)}
-            style={{ background: '#f59e0b', color: '#ffffff', fontWeight: 700 }}
-          >
-            <QrCode size={16} /> Open QR Pass
-          </button>
-        </div>
-      )}
-
       {/* Main Student Header Card */}
       <div className="glass-card" style={{ marginBottom: '1.5rem', position: 'relative', overflow: 'hidden' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1.25rem' }}>

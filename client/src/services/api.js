@@ -154,5 +154,13 @@ export const api = {
       body: JSON.stringify(data)
     });
     return res.json();
+  },
+  getDbStatus: async () => {
+    const res = await fetch(`${API_BASE}/db-status`);
+    return res.json();
+  },
+  reconnectDb: async () => {
+    const res = await fetch(`${API_BASE}/reconnect-db`, { method: 'POST' });
+    return res.json();
   }
 };

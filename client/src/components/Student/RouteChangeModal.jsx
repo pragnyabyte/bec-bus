@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ArrowRightLeft, Send, CheckCircle2 } from 'lucide-react';
 import { api } from '../../services/api';
 
 export default function RouteChangeModal({ student, currentRoute, routes = [], onRequestSubmitted, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const [targetRouteId, setTargetRouteId] = useState(routes[1]?.id || routes[0]?.id || '');
   const selectedRouteObj = routes.find(r => r.id === targetRouteId) || routes[0];
   const [targetStopId, setTargetStopId] = useState(selectedRouteObj?.stops?.[0]?.id || '');

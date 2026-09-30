@@ -1,17 +1,28 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { QrCode, X, CheckCircle, ShieldCheck, Phone, Bus } from 'lucide-react';
 
 export default function DigitalPassModal({ student, route, stop, bus, driver, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!student) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', textAlign: 'center' }}>
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', color: '#64748b' }}
+          style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', color: '#64748b', cursor: 'pointer', padding: '4px', border: 'none' }}
+          title="Close Pass"
         >
-          <X size={20} />
+          <X size={22} />
         </button>
 
         {/* Card Header */}

@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, MessageSquare, AlertCircle, CheckCircle2, Clock, Send } from 'lucide-react';
 import { api } from '../../services/api';
 
 export default function ComplaintModal({ student, complaints = [], onComplaintSubmitted, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const [activeTab, setActiveTab] = useState('new'); // 'new' | 'history'
   const [category, setCategory] = useState('Timing & Punctuality');
   const [subject, setSubject] = useState('');

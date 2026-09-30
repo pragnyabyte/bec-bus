@@ -165,7 +165,7 @@
       "heading": 220,
       "fuelPercent": 82,
       "nextStopId": "S-104",
-      "lastUpdated": "2026-09-30T03:46:45.968Z"
+      "lastUpdated": "2026-09-30T04:17:53.845Z"
     },
     {
       "id": "BUS-02",
@@ -178,22 +178,22 @@
       "routeId": "R-102",
       "routeName": "BEC College ↔ Patia",
       "status": "on_trip",
-      "currentLat": 20.3015,
-      "currentLng": 85.822,
-      "speed": 32,
-      "heading": 205,
+      "currentLat": 20.3541,
+      "currentLng": 85.8198,
+      "speed": 39,
+      "heading": 95,
       "fuelPercent": 88,
-      "nextStopId": "S-204",
-      "lastUpdated": "2026-09-30T03:44:01.210Z"
+      "nextStopId": "S-201",
+      "lastUpdated": "2026-09-30T05:17:14.715Z"
     }
   ],
   "drivers": [
     {
       "id": "PRAGNYA01",
       "name": "Pragnya",
-      "phone": "+91 98610 12345",
+      "phone": "+919040833547",
       "licenseNo": "OD-02-2016-004581",
-      "experienceYears": 8,
+      "experienceYears": 2,
       "rating": 4.9,
       "busId": "BUS-01",
       "busName": "Bus 1",
@@ -205,9 +205,9 @@
     {
       "id": "JITENDRA01",
       "name": "Jitendra",
-      "phone": "+91 98610 67890",
+      "phone": "+916370998587",
       "licenseNo": "OD-02-2014-009122",
-      "experienceYears": 11,
+      "experienceYears": 3,
       "rating": 4.8,
       "busId": "BUS-02",
       "busName": "Bus 2",
@@ -277,67 +277,58 @@
       "routeId": "R-102",
       "busId": "BUS-02",
       "stopId": "S-201",
-      "status": "pending_approval",
+      "status": "rejected",
       "boardedToday": false,
       "boardedTime": null,
       "qrToken": "BEC-STU-04-IT118"
     },
     {
       "id": "STU-05",
-      "name": "Soumya Ranjan",
-      "email": "cse-2024-001@apex.edu",
-      "rollNo": "CSE-2024-001",
+      "name": "Pragnya Parida",
+      "email": "pragnya.parida@bec.edu.in",
+      "rollNo": "CS-2024-999",
       "department": "Computer Science",
-      "year": "2nd Year",
-      "phone": "+91 94370 12345",
+      "year": "3rd Year",
+      "phone": "+91 98610 11111",
       "routeId": "R-101",
       "busId": "BUS-01",
-      "stopId": "S-103",
+      "stopId": "S-101",
       "status": "approved",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "APEX-STU-05-CSE-2024-001"
+      "qrToken": "BEC-STU-05-CS-2024-999"
     },
     {
       "id": "STU-06",
-      "name": "Tanmay Mohanty",
-      "email": "ece-2024-002@apex.edu",
-      "rollNo": "ECE-2024-002",
-      "department": "Electronics & Comm",
+      "name": "puja",
+      "email": "fgh@gmail.com",
+      "rollNo": "3456",
+      "department": "Computer Science",
       "year": "1st Year",
-      "phone": "+91 94370 54321",
-      "routeId": "R-102",
-      "busId": "BUS-02",
-      "stopId": "S-201",
+      "phone": "3456789",
+      "routeId": "R-101",
+      "busId": "BUS-01",
+      "stopId": "S-101",
       "status": "approved",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "APEX-STU-06-ECE-2024-002"
+      "qrToken": "BEC-STU-06-3456"
     }
   ],
   "notifications": [
     {
-      "id": "NOTIF-1790739998182",
-      "title": "🚨 EMERGENCY SOS TRIGGERED: Bus 1",
-      "message": "Driver triggered emergency SOS near coordinates (20.2612, 85.7745). Transport control and campus security alerted!",
-      "type": "emergency",
-      "target": "all",
+      "id": "NOTIF-1790741922551",
+      "title": "New Student Complaint Received",
+      "message": "[Cleanliness] Bus AC inspection from Pragnya Parida",
+      "type": "warning",
+      "target": "admin",
       "timestamp": "Just now",
       "read": false
     },
     {
-      "id": "NOTIF-1790739985255",
+      "id": "NOTIF-1790741916940",
       "title": "New Student Registration Successful",
-      "message": "Tanmay Mohanty (ECE-2024-002) registered for Route RT-02. Digital Bus Pass is active.",
-      "type": "info",
-      "target": "all",
-      "timestamp": "Just now",
-      "read": false
-    },
-    {
-      "id": "NOTIF-1790739971735",
-      "title": "New Student Registration Successful",
-      "message": "Soumya Ranjan (CSE-2024-001) registered for Route RT-01. Digital Bus Pass is active.",
+      "message": "Pragnya Parida (CS-2024-999) registered for Route RT-01. Digital Bus Pass is active.",
       "type": "info",
       "target": "all",
       "timestamp": "Just now",
@@ -364,6 +355,18 @@
   ],
   "complaints": [
     {
+      "id": "CMP-02",
+      "studentId": "STU-05",
+      "studentName": "Pragnya Parida",
+      "studentRoll": "CS-2024-999",
+      "category": "Cleanliness",
+      "subject": "Bus AC inspection",
+      "message": "Please inspect the air conditioning in Bus 1.",
+      "status": "resolved",
+      "adminReply": "Scheduled for technician maintenance this evening.",
+      "createdAtString": "Just now"
+    },
+    {
       "id": "CMP-01",
       "studentId": "STU-02",
       "studentName": "Priya Sharma",
@@ -377,6 +380,17 @@
     }
   ],
   "routeChangeRequests": [
+    {
+      "id": "REQ-02",
+      "studentId": "STU-05",
+      "studentName": "Pragnya Parida",
+      "studentRoll": "CS-2024-999",
+      "currentRoute": "RT-01 (BEC College ↔ Baramunda)",
+      "requestedRoute": "RT-02 (BEC College ↔ Patia)",
+      "reason": "Shifted closer to Patia campus",
+      "status": "pending",
+      "submittedAtString": "Just now"
+    },
     {
       "id": "REQ-01",
       "studentId": "STU-01",

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Play, Square, AlertOctagon, CheckCircle, QrCode, 
   MapPin, Clock, Users, Fuel, AlertTriangle, Radio, 
-  Navigation2, ShieldAlert, Send, Sparkles, Phone, 
+  Navigation2, Send, Sparkles, Phone, 
   ArrowRightLeft, ShieldCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -28,19 +28,25 @@ export default function DriverConsole({
   const [incidentDelay, setIncidentDelay] = useState(15);
   const [incidentDesc, setIncidentDesc] = useState('');
   const [showIncidentModal, setShowIncidentModal] = useState(false);
-  const [showSosModal, setShowSosModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
-  const [tripDirection, setTripDirection] = useState('to_campus'); // 'to_campus' | 'from_campus'
+  const [tripDirection, setTripDirection] = useState('morning'); // 'morning' | 'evening'
 
   // Find Driver's Assigned Bus & Route (Bus 1 permanently Pragnya, Bus 2 permanently Jitendra)
   const bus = buses.find(b => b.id === driver?.busId) || (driver?.id === 'PRAGNYA01' ? buses[0] : buses[1]) || buses[0];
   const route = routes.find(r => r.id === (driver?.routeId || bus?.routeId)) || routes[0];
   const routeStudents = students.filter(s => s.routeId === route?.id);
 
+  // Trip Direction Labels for Bus 1 and Bus 2
+  const destination = bus?.id === 'BUS-02' || route?.id === 'R-102' ? 'Patia' : 'Baramunda';
+  const morningLabel = `From BEC College → ${destination}`;
+  const eveningLabel = `From ${destination} → BEC College`;
+
   // Bidirectional active stops
+  // Morning: From BEC College → Destination
+  // Evening: From Destination → BEC College
   const activeStops = useMemo(() => {
     if (!route?.stops) return [];
-    return tripDirection === 'from_campus' ? [...route.stops].reverse() : route.stops;
+    return tripDirection === 'morning' ? [...route.stops].reverse() : route.stops;
   }, [route, tripDirection]);
 
   // Identify Co-Driver
@@ -124,10 +130,10 @@ export default function DriverConsole({
         busId: bus.id,
         routeId: route.id,
         driverId: driver.id,
-        tripType: tripDirection === 'from_campus' ? 'evening_drop' : 'morning_pickup'
+        tripType: tripDirection === 'morning' ? 'morning_pickup' : 'evening_drop'
       });
       setIsTripActive(true);
-      setStatusMessage(`Trip started towards ${tripDirection === 'to_campus' ? 'BEC Campus' : (route?.startPoint || 'City')}! Live GPS broadcasting active.`);
+      setStatusMessage(`Trip started (${tripDirection === 'morning' ? morningLabel : eveningLabel})! Live GPS broadcasting active.`);
       if (onDataRefresh) onDataRefresh();
       setTimeout(() => setStatusMessage(''), 4000);
     } catch (err) {
@@ -170,23 +176,7 @@ export default function DriverConsole({
     }
   };
 
-  // Trigger Emergency SOS
-  const handleTriggerSos = async () => {
-    try {
-      await api.triggerSOS({
-        busId: bus.id,
-        driverId: driver.id,
-        lat: bus.currentLat,
-        lng: bus.currentLng,
-        reason: 'Driver triggered priority Emergency SOS alert from mobile console'
-      });
-      setShowSosModal(false);
-      setStatusMessage('🚨 EMERGENCY SOS SENT TO CAMPUS SECURITY & DISPATCH!');
-      if (onDataRefresh) onDataRefresh();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+
 
   // Report Traffic / Breakdown Incident
   const handleReportIncident = async (e) => {
@@ -281,7 +271,7 @@ export default function DriverConsole({
             </div>
           </div>
 
-          {/* Right Action Buttons: Driver Phone Call & SOS Button */}
+          {/* Right Action Buttons: Driver Phone Call */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <div style={{
               background: '#f0fdf4',
@@ -316,20 +306,6 @@ export default function DriverConsole({
                 <Phone size={13} /> Call
               </a>
             </div>
-
-            {/* Big SOS Emergency Button */}
-            <button
-              className="btn btn-danger"
-              onClick={() => setShowSosModal(true)}
-              style={{
-                padding: '0.75rem 1.4rem',
-                fontSize: '0.95rem',
-                fontWeight: 800,
-                boxShadow: '0 2px 10px rgba(220, 38, 38, 0.3)'
-              }}
-            >
-              <ShieldAlert size={18} /> EMERGENCY SOS
-            </button>
           </div>
         </div>
 
@@ -357,35 +333,39 @@ export default function DriverConsole({
             }}>
               <button
                 type="button"
-                onClick={() => setTripDirection('to_campus')}
+                onClick={() => setTripDirection('morning')}
                 style={{
-                  padding: '0.35rem 0.75rem',
-                  fontSize: '0.75rem',
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.8rem',
                   fontWeight: 700,
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  background: tripDirection === 'to_campus' ? '#0284c7' : 'transparent',
-                  color: tripDirection === 'to_campus' ? '#ffffff' : '#475569'
+                  background: tripDirection === 'morning' ? '#0284c7' : 'transparent',
+                  color: tripDirection === 'morning' ? '#ffffff' : '#475569',
+                  boxShadow: tripDirection === 'morning' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
+                  transition: 'all 0.2s'
                 }}
               >
-                ☀️ Morning: Towards BEC College
+                ☀️ Morning: {morningLabel}
               </button>
               <button
                 type="button"
-                onClick={() => setTripDirection('from_campus')}
+                onClick={() => setTripDirection('evening')}
                 style={{
-                  padding: '0.35rem 0.75rem',
-                  fontSize: '0.75rem',
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.8rem',
                   fontWeight: 700,
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  background: tripDirection === 'from_campus' ? '#7c3aed' : 'transparent',
-                  color: tripDirection === 'from_campus' ? '#ffffff' : '#475569'
+                  background: tripDirection === 'evening' ? '#7c3aed' : 'transparent',
+                  color: tripDirection === 'evening' ? '#ffffff' : '#475569',
+                  boxShadow: tripDirection === 'evening' ? '0 2px 6px rgba(124, 58, 237, 0.3)' : 'none',
+                  transition: 'all 0.2s'
                 }}
               >
-                🌙 Evening: Towards City Drop
+                🌙 Evening: {eveningLabel}
               </button>
             </div>
           </div>
@@ -717,8 +697,8 @@ export default function DriverConsole({
             <h4 style={{ fontSize: '1.2rem', color: '#0f172a' }}>
               Schedule & Stops: {route?.name}
             </h4>
-            <span style={{ fontSize: '0.75rem', padding: '3px 8px', background: tripDirection === 'to_campus' ? '#e0f2fe' : '#f5f3ff', color: tripDirection === 'to_campus' ? '#0369a1' : '#6d28d9', borderRadius: '4px', fontWeight: 700 }}>
-              {tripDirection === 'to_campus' ? '☀️ Direction: Towards BEC College Main Campus' : '🌙 Direction: Towards City Drop'}
+            <span style={{ fontSize: '0.75rem', padding: '3px 8px', background: tripDirection === 'morning' ? '#e0f2fe' : '#f5f3ff', color: tripDirection === 'morning' ? '#0369a1' : '#6d28d9', borderRadius: '4px', fontWeight: 700 }}>
+              {tripDirection === 'morning' ? `☀️ Morning: ${morningLabel}` : `🌙 Evening: ${eveningLabel}`}
             </span>
           </div>
 
@@ -832,46 +812,7 @@ export default function DriverConsole({
         </div>
       )}
 
-      {/* High-Priority SOS Confirmation Modal */}
-      {showSosModal && (
-        <div className="modal-overlay" onClick={() => setShowSosModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', textAlign: 'center', border: '2px solid #ef4444' }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              background: '#fee2e2',
-              color: '#dc2626',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem'
-            }}>
-              <ShieldAlert size={36} />
-            </div>
 
-            <h3 style={{ fontSize: '1.4rem', color: '#991b1b', marginBottom: '0.5rem' }}>
-              Confirm EMERGENCY SOS?
-            </h3>
-            <p style={{ color: '#475569', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              This will immediately send high-priority alerts with your exact GPS location to the Campus Police, Transport Command Center, and all passengers on this route.
-            </p>
-
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button className="btn btn-outline" onClick={() => setShowSosModal(false)} style={{ flex: 1 }}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={handleTriggerSos}
-                style={{ flex: 1.5, fontWeight: 800, background: '#dc2626' }}
-              >
-                YES, TRIGGER SOS!
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

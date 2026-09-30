@@ -84,6 +84,7 @@ export default function App() {
   }, [loadData]);
 
   useEffect(() => {
+    setShowRegisterModal(false);
     loadData();
 
     // Socket.IO event listeners for real-time synchronization
@@ -242,12 +243,10 @@ export default function App() {
         boxShadow: '0 -2px 10px rgba(2, 132, 199, 0.03)'
       }}>
         <div>
-          <b style={{ color: '#0f172a' }}>BECTransit™</b> • Bhubaneswar Engineering College • 2 Buses & 2 Drivers Live Fleet
+          <b style={{ color: '#0f172a' }}>BECTransit</b> • Bhubaneswar Engineering College • 2 Buses & 2 Drivers Live Fleet
         </div>
-        <div style={{ display: 'flex', gap: '1.5rem', color: '#475569' }}>
+        <div style={{ color: '#475569' }}>
           <span>Campus Transport Office: <b style={{ color: '#0284c7' }}>+91 674 246 8000</b></span>
-          <span>Security Emergency: <b style={{ color: '#dc2626' }}>1800-425-9999</b></span>
-          <span>Node.js + Socket.IO + OpenStreetMap + React</span>
         </div>
       </footer>
 

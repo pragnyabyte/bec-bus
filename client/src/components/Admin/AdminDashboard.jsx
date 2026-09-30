@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Bus, Users, MapPin, AlertCircle, ShieldAlert, CheckCircle2, 
-  XCircle, Send, Plus, BarChart3, BellRing, Settings, 
+  XCircle, Plus, BarChart3, Settings, 
   FileText, Activity, Compass, ArrowRightLeft, MessageSquare,
   Phone, ShieldCheck
 } from 'lucide-react';
@@ -19,7 +19,7 @@ export default function AdminDashboard({
   notifications = [],
   onDataRefresh
 }) {
-  const [activeTab, setActiveTab] = useState('monitoring'); // 'monitoring' | 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'broadcast' | 'analytics'
+  const [activeTab, setActiveTab] = useState('monitoring'); // 'monitoring' | 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'analytics'
   const [statusMsg, setStatusMsg] = useState('');
 
   // Add Bus Form State
@@ -29,12 +29,6 @@ export default function AdminDashboard({
   const [capacity, setCapacity] = useState(45);
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [selectedRouteId, setSelectedRouteId] = useState('');
-
-  // Broadcast Alert Form State
-  const [broadcastTitle, setBroadcastTitle] = useState('');
-  const [broadcastMsg, setBroadcastMsg] = useState('');
-  const [broadcastType, setBroadcastType] = useState('info');
-  const [broadcastTarget, setBroadcastTarget] = useState('all');
 
   // Complaint Reply State
   const [replyComplaintId, setReplyComplaintId] = useState(null);
@@ -84,26 +78,6 @@ export default function AdminDashboard({
     }
   };
 
-  // Handle Send Broadcast
-  const handleSendBroadcast = async (e) => {
-    e.preventDefault();
-    if (!broadcastTitle.trim() || !broadcastMsg.trim()) return;
-    try {
-      await api.broadcastNotification({
-        title: broadcastTitle,
-        message: broadcastMsg,
-        type: broadcastType,
-        target: broadcastTarget
-      });
-      setBroadcastTitle('');
-      setBroadcastMsg('');
-      setStatusMsg('Fleet broadcast successfully dispatched to recipients.');
-      if (onDataRefresh) onDataRefresh();
-      setTimeout(() => setStatusMsg(''), 3000);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   // Handle Add Bus
   const handleCreateBus = async (e) => {
@@ -177,26 +151,10 @@ export default function AdminDashboard({
             </div>
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>
-            {students.filter(s => s.boardedToday).length} <span style={{ fontSize: '0.9rem', color: '#64748b' }}>/ {students.length}</span>
+            {students.filter(s => s.boardedToday).length || students.length} <span style={{ fontSize: '0.9rem', color: '#64748b' }}>/ 40</span>
           </div>
           <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '4px', fontWeight: 600 }}>
-            {students.length > 0 ? Math.round((students.filter(s => s.boardedToday).length / students.length) * 100) : 0}% Boarded Today
-          </div>
-        </div>
-
-        {/* KPI 4: Pending Tasks */}
-        <div className="glass-card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>PENDING DESK</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BellRing size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#b45309' }}>
-            {pendingStudents.length + pendingRequests.length + openComplaints.length}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-            {pendingStudents.length} approvals • {openComplaints.length} complaints
+            {Math.round(((students.filter(s => s.boardedToday).length || students.length) / 40) * 100)}% Boarded Today
           </div>
         </div>
       </div>
@@ -256,12 +214,6 @@ export default function AdminDashboard({
           onClick={() => setActiveTab('requests')}
         >
           <ArrowRightLeft size={16} /> Route Changes {pendingRequests.length > 0 && <span className="badge badge-amber" style={{ padding: '0.1rem 0.4rem', fontSize: '0.65rem' }}>{pendingRequests.length}</span>}
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'broadcast' ? 'active' : ''}`}
-          onClick={() => setActiveTab('broadcast')}
-        >
-          <Send size={16} /> Alert Broadcast
         </button>
         <button
           className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
@@ -397,7 +349,7 @@ export default function AdminDashboard({
                         <td style={{ padding: '0.75rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '0.825rem', color: '#334155', fontWeight: 600 }}>
-                              {driverObj?.phone || '+91 98610 12345'}
+                              {driverObj?.phone || (bus.id === 'BUS-01' ? '+919040833547' : '+916370998587')}
                             </span>
                             <a
                               href={`tel:${(driverObj?.phone || '').replace(/\s+/g, '')}`}
@@ -501,7 +453,7 @@ export default function AdminDashboard({
                           </span>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
-                          License: <b style={{ color: '#334155' }}>{drv.licenseNo}</b> • ★ {drv.rating}
+                          Experience: <b style={{ color: '#0f172a' }}>{drv.id === 'PRAGNYA01' ? '2 Years Exp' : drv.id === 'JITENDRA01' ? '3 Years Exp' : `${drv.experienceYears || 2} Years Exp`}</b> • License: <b style={{ color: '#334155' }}>{drv.licenseNo}</b> • ★ {drv.rating}
                         </div>
                       </div>
                       <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>Active</span>
@@ -542,10 +494,10 @@ export default function AdminDashboard({
                     }}>
                       <div>
                         <div style={{ fontSize: '0.7rem', color: '#166534', fontWeight: 700 }}>PHONE NUMBER</div>
-                        <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>{drv.phone}</div>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>{drv.phone || (drv.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}</div>
                       </div>
                       <a
-                        href={`tel:${drv.phone ? drv.phone.replace(/\s+/g, '') : ''}`}
+                        href={`tel:${(drv.phone || (drv.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                         className="btn btn-sm"
                         style={{
                           background: '#16a34a',
@@ -886,68 +838,6 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* TAB 7: ALERT BROADCAST CENTER */}
-      {activeTab === 'broadcast' && (
-        <div className="glass-card" style={{ maxWidth: '680px', margin: '0 auto' }}>
-          <h3 style={{ fontSize: '1.3rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-            <Send style={{ color: '#0284c7' }} /> Push Notification Broadcast
-          </h3>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-            Send instant alerts, route adjustments, or weather warnings to mobile phones of students and drivers.
-          </p>
-
-          <form onSubmit={handleSendBroadcast}>
-            <div className="form-group">
-              <label className="form-label">Alert Severity Type</label>
-              <select className="form-select" value={broadcastType} onChange={e => setBroadcastType(e.target.value)}>
-                <option value="info">Informational Announcement</option>
-                <option value="delay">Transit Delay Alert</option>
-                <option value="warning">Route Change Advisory</option>
-                <option value="emergency">High-Priority Emergency Notice</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Recipient Target Audience</label>
-              <select className="form-select" value={broadcastTarget} onChange={e => setBroadcastTarget(e.target.value)}>
-                <option value="all">Everyone (All Students & Drivers)</option>
-                <option value="students">All Registered Students</option>
-                <option value="drivers">All Drivers Only</option>
-                {routes.map(r => (
-                  <option key={r.id} value={r.id}>Specific Corridor: {r.code} - {r.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Alert Headline</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Weather Advisory: Evening Buses Depart 15 mins Early"
-                value={broadcastTitle}
-                onChange={e => setBroadcastTitle(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Detailed Notice Message</label>
-              <textarea
-                className="form-textarea"
-                placeholder="Enter complete message for student and driver app push notifications..."
-                value={broadcastMsg}
-                onChange={e => setBroadcastMsg(e.target.value)}
-                required
-              />
-            </div>
-
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', fontWeight: 700 }}>
-              <Send size={16} /> Broadcast Fleet Alert Now
-            </button>
-          </form>
-        </div>
-      )}
 
       {/* TAB 8: REPORTS & ANALYTICS */}
       {activeTab === 'analytics' && (
@@ -980,7 +870,7 @@ export default function AdminDashboard({
                 <div key={drv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{drv.name}</div>
-                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{drv.experienceYears} Years Exp • {drv.licenseNo}</div>
+                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{drv.id === 'PRAGNYA01' ? '2 Years Exp' : drv.id === 'JITENDRA01' ? '3 Years Exp' : `${drv.experienceYears || 2} Years Exp`} • {drv.licenseNo}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 800, color: '#d97706' }}>★ {drv.rating}</div>
