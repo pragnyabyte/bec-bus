@@ -26,11 +26,11 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
 
   // Driver Login State
   const [driverId, setDriverId] = useState('PRAGNYA01');
-  const [driverPin, setDriverPin] = useState('2026');
+  const [driverPin, setDriverPin] = useState('');
 
   // Admin Login State
-  const [adminUsername, setAdminUsername] = useState('admin');
-  const [adminPassword, setAdminPassword] = useState('admin123');
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
 
   // Common UI State
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
     setSuccessMsg('');
     const id = studentIdentifier.trim();
     if (!id) {
-      setErrorMsg('Please enter your College Roll Number or Email.');
+      setErrorMsg('Please enter your Registered ID.');
       return;
     }
 
@@ -64,7 +64,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Login failed. Please verify your Roll Number.');
+      setErrorMsg(err.message || 'Login failed. Please verify your Registered ID.');
     } finally {
       setLoading(false);
     }
@@ -123,10 +123,14 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    if (!driverPin.trim()) {
+      setErrorMsg('Please enter Driver Access PIN.');
+      return;
+    }
     setLoading(true);
 
     try {
-      const res = await api.driverLogin({ driverId, pin: driverPin });
+      const res = await api.driverLogin({ driverId, pin: driverPin.trim() });
       if (res && res.driver) {
         setSuccessMsg(`Welcome, Driver ${res.driver.name}!`);
         setTimeout(() => {
@@ -151,6 +155,14 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    if (!adminUsername.trim()) {
+      setErrorMsg('Please enter Admin Username.');
+      return;
+    }
+    if (!adminPassword) {
+      setErrorMsg('Please enter Admin Password.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -168,7 +180,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Invalid administrator credentials. (Default: admin / admin123)');
+      setErrorMsg(err.message || 'Invalid administrator credentials.');
     } finally {
       setLoading(false);
     }
@@ -272,9 +284,9 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               gap: '6px',
               border: 'none',
               cursor: 'pointer',
-              background: selectedRole === 'driver' ? 'linear-gradient(135deg, #7c3aed, #9333ea)' : 'transparent',
+              background: selectedRole === 'driver' ? 'linear-gradient(135deg, #0284c7, #0ea5e9)' : 'transparent',
               color: selectedRole === 'driver' ? '#ffffff' : '#64748b',
-              boxShadow: selectedRole === 'driver' ? '0 4px 12px rgba(124, 58, 237, 0.25)' : 'none',
+              boxShadow: selectedRole === 'driver' ? '0 4px 12px rgba(2, 132, 199, 0.25)' : 'none',
               transition: 'all 0.2s ease'
             }}
           >
@@ -297,9 +309,9 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               gap: '6px',
               border: 'none',
               cursor: 'pointer',
-              background: selectedRole === 'admin' ? 'linear-gradient(135deg, #059669, #10b981)' : 'transparent',
+              background: selectedRole === 'admin' ? 'linear-gradient(135deg, #0284c7, #0ea5e9)' : 'transparent',
               color: selectedRole === 'admin' ? '#ffffff' : '#64748b',
-              boxShadow: selectedRole === 'admin' ? '0 4px 12px rgba(5, 150, 105, 0.25)' : 'none',
+              boxShadow: selectedRole === 'admin' ? '0 4px 12px rgba(2, 132, 199, 0.25)' : 'none',
               transition: 'all 0.2s ease'
             }}
           >
@@ -392,14 +404,14 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
             {studentTab === 'login' ? (
               /* Student Login Form */
               <form onSubmit={handleStudentLogin}>
-                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                   <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                    College Roll Number or Registered Email <span style={{ color: '#dc2626' }}>*</span>
+                    Registered ID <span style={{ color: '#dc2626' }}>*</span>
                   </label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. CS-2024-042 or student@bec.edu.in"
+                    placeholder="Enter Registered ID"
                     value={studentIdentifier}
                     onChange={e => { setStudentIdentifier(e.target.value); if (errorMsg) setErrorMsg(''); }}
                     id="input-student-roll"
@@ -407,36 +419,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                     autoFocus
                   />
                   <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.4rem' }}>
-                    Enter your Roll Number to access your Digital Bus Pass, live GPS tracking, and route.
+                    Enter your Registered ID to access your Digital Bus Pass, live GPS tracking, and route.
                   </p>
-                </div>
-
-                {/* Quick 1-click Test Logins */}
-                <div style={{ marginBottom: '1.5rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>
-                    Quick Select Registered Student:
-                  </span>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {['CS-2024-042', 'EC-2024-089', 'CS-2024-999', '3456'].map(r => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setStudentIdentifier(r)}
-                        style={{
-                          background: studentIdentifier === r ? '#0284c7' : '#ffffff',
-                          color: studentIdentifier === r ? '#ffffff' : '#0284c7',
-                          border: '1px solid #bae6fd',
-                          borderRadius: '6px',
-                          padding: '2px 8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 <button
@@ -444,7 +428,18 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                   className="btn btn-primary"
                   disabled={loading}
                   id="btn-submit-student-login"
-                  style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  style={{
+                    width: '100%',
+                    padding: '0.85rem',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
+                  }}
                 >
                   <LogIn size={18} />
                   <span>{loading ? 'Authenticating...' : 'Log In to Student Portal'}</span>
@@ -566,7 +561,19 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                   className="btn btn-primary"
                   disabled={loading}
                   id="btn-submit-student-signup"
-                  style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '1.25rem' }}
+                  style={{
+                    width: '100%',
+                    padding: '0.85rem',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    marginTop: '1.25rem',
+                    background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
+                  }}
                 >
                   <UserPlus size={18} />
                   <span>{loading ? 'Creating Pass in MongoDB...' : 'Sign Up & Enter Student Portal'}</span>
@@ -584,8 +591,9 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                 width: '44px',
                 height: '44px',
                 borderRadius: '50%',
-                background: '#f5f3ff',
-                color: '#7c3aed',
+                background: '#f0f9ff',
+                color: '#0284c7',
+                border: '1px solid #bae6fd',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -593,7 +601,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               }}>
                 <Compass size={24} />
               </div>
-              <h3 style={{ fontSize: '1.15rem', color: '#0f172a' }}>Fleet Driver Sign In</h3>
+              <h3 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>Driver Sign In</h3>
               <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
                 Select your driver profile to start route navigation and passenger boarding
               </p>
@@ -610,8 +618,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                   gap: '10px',
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  border: driverId === 'PRAGNYA01' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
-                  background: driverId === 'PRAGNYA01' ? '#f5f3ff' : '#ffffff',
+                  border: driverId === 'PRAGNYA01' ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                  background: driverId === 'PRAGNYA01' ? '#f0f9ff' : '#ffffff',
                   cursor: 'pointer'
                 }}>
                   <input
@@ -620,6 +628,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                     value="PRAGNYA01"
                     checked={driverId === 'PRAGNYA01'}
                     onChange={() => setDriverId('PRAGNYA01')}
+                    style={{ accentColor: '#0284c7' }}
                   />
                   <div>
                     <b style={{ color: '#0f172a', display: 'block' }}>Pragnya (Bus 1)</b>
@@ -633,8 +642,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                   gap: '10px',
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  border: driverId === 'JITENDRA01' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
-                  background: driverId === 'JITENDRA01' ? '#f5f3ff' : '#ffffff',
+                  border: driverId === 'JITENDRA01' ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                  background: driverId === 'JITENDRA01' ? '#f0f9ff' : '#ffffff',
                   cursor: 'pointer'
                 }}>
                   <input
@@ -643,6 +652,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                     value="JITENDRA01"
                     checked={driverId === 'JITENDRA01'}
                     onChange={() => setDriverId('JITENDRA01')}
+                    style={{ accentColor: '#0284c7' }}
                   />
                   <div>
                     <b style={{ color: '#0f172a', display: 'block' }}>Jitendra (Bus 2)</b>
@@ -654,14 +664,15 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
 
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
               <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                Driver Access PIN
+                Driver Access PIN <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="password"
                 className="form-input"
-                placeholder="Access PIN (Default: 2026)"
+                placeholder="Enter Access PIN"
                 value={driverPin}
                 onChange={e => setDriverPin(e.target.value)}
+                id="input-driver-pin"
                 required
               />
             </div>
@@ -680,7 +691,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                background: 'linear-gradient(135deg, #7c3aed, #9333ea)'
+                background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
               }}
             >
               <Compass size={18} />
@@ -697,8 +709,9 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                 width: '44px',
                 height: '44px',
                 borderRadius: '50%',
-                background: '#ecfdf5',
-                color: '#059669',
+                background: '#f0f9ff',
+                color: '#0284c7',
+                border: '1px solid #bae6fd',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -706,7 +719,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               }}>
                 <Shield size={24} />
               </div>
-              <h3 style={{ fontSize: '1.15rem', color: '#0f172a' }}>Transport Administration</h3>
+              <h3 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>Admin Sign In</h3>
               <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
                 Authorized transport officers & campus administrators only
               </p>
@@ -719,7 +732,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               <input
                 type="text"
                 className="form-input"
-                placeholder="Username (e.g. admin)"
+                placeholder="Enter Admin Username"
                 value={adminUsername}
                 onChange={e => setAdminUsername(e.target.value)}
                 id="input-admin-username"
@@ -727,22 +740,19 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
               <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
                 Admin Password <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="password"
                 className="form-input"
-                placeholder="Password (e.g. admin123)"
+                placeholder="Enter Admin Password"
                 value={adminPassword}
                 onChange={e => setAdminPassword(e.target.value)}
                 id="input-admin-password"
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '0.4rem' }}>
-                Default: <code>admin</code> / <code>admin123</code>
-              </span>
             </div>
 
             <button
@@ -759,7 +769,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                background: 'linear-gradient(135deg, #059669, #10b981)'
+                background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
               }}
             >
               <Shield size={18} />

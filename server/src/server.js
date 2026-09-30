@@ -668,7 +668,7 @@ app.post('/api/admin/login', (req, res) => {
       user: { role: 'admin', name: 'Transport Administrator', id: 'ADMIN-01' }
     });
   }
-  return res.status(401).json({ error: 'Invalid administrator credentials. (Default: admin / admin123)' });
+  return res.status(401).json({ error: 'Invalid administrator credentials.' });
 });
 
 app.post('/api/driver/login', async (req, res) => {
