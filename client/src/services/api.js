@@ -93,6 +93,40 @@ export const api = {
     }
     return data;
   },
+  deleteStudent: async (id) => {
+    const res = await fetch(`${API_BASE}/students/${id}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Failed to delete student with status ${res.status}`);
+    }
+    return data;
+  },
+  adminLogin: async (credentials) => {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Admin login failed with status ${res.status}`);
+    }
+    return data;
+  },
+  driverLogin: async (credentials) => {
+    const res = await fetch(`${API_BASE}/driver/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Driver login failed with status ${res.status}`);
+    }
+    return data;
+  },
   updateStudentStatus: async (id, status) => {
     const res = await fetch(`${API_BASE}/students/${id}/status`, {
       method: 'POST',

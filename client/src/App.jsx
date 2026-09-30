@@ -4,10 +4,30 @@ import StudentDashboard from './components/Student/StudentDashboard';
 import DriverConsole from './components/Driver/DriverConsole';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AuthModal from './components/Auth/AuthModal';
+import AuthPage from './components/Auth/AuthPage';
 import { api, socket } from './services/api';
 
 export default function App() {
-  const [currentRole, setCurrentRole] = useState('student'); // 'student' | 'driver' | 'admin'
+  // Authentication session state: null on initial website open
+  const [authSession, setAuthSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bectransit_auth_session');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
+
+  const [currentRole, setCurrentRole] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bectransit_auth_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.role) return parsed.role;
+      }
+    } catch (e) {}
+    return 'student';
+  });
+
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('register'); // 'login' | 'register' | 'update'
   const [targetEditStudent, setTargetEditStudent] = useState(null);
@@ -113,6 +133,26 @@ export default function App() {
     setShowRegisterModal(false);
   }, [loadData]);
 
+  const handleAuthenticated = useCallback((session) => {
+    setAuthSession(session);
+    localStorage.setItem('bectransit_auth_session', JSON.stringify(session));
+    setCurrentRole(session.role);
+    if (session.role === 'student' && session.user?.id) {
+      setCurrentStudentId(session.user.id);
+      localStorage.setItem('apextransit_active_student_id', session.user.id);
+      localStorage.setItem('apextransit_active_student_data', JSON.stringify(session.user));
+    } else if (session.role === 'driver' && session.user?.id) {
+      setCurrentDriverId(session.user.id);
+      localStorage.setItem('apextransit_active_driver_id', session.user.id);
+    }
+    loadData();
+  }, [loadData]);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('bectransit_auth_session');
+    setAuthSession(null);
+  }, []);
+
   useEffect(() => {
     setShowRegisterModal(false);
     loadData();
@@ -192,9 +232,22 @@ export default function App() {
 
   const currentDriver = drivers.find(d => d.id === currentDriverId) || drivers[0];
 
+  // GATE: When website is opened, the first screen must be Login / Sign Up
+  if (!authSession) {
+    return (
+      <AuthPage
+        routes={routes.length > 0 ? routes : [
+          { id: 'R-101', code: 'RT-01', name: 'BEC College ↔ Baramunda' },
+          { id: 'R-102', code: 'RT-02', name: 'BEC College ↔ Patia' }
+        ]}
+        onAuthenticated={handleAuthenticated}
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#ffffff', color: '#0f172a' }}>
-      {/* Top Navbar with Instant 3-Role Switcher */}
+      {/* Top Navbar with Instant 3-Role Switcher and Logout */}
       <Navbar
         currentRole={currentRole}
         onRoleChange={setCurrentRole}
@@ -208,6 +261,7 @@ export default function App() {
         buses={buses}
         onOpenRegisterModal={() => handleOpenAuthModal('register')}
         onOpenAuthModal={handleOpenAuthModal}
+        onLogout={handleLogout}
       />
 
       {/* Main Role Content View */}

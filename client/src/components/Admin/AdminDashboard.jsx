@@ -3,7 +3,7 @@ import {
   Bus, Users, MapPin, AlertCircle, ShieldAlert, CheckCircle2, 
   XCircle, Plus, BarChart3, Settings, 
   FileText, Activity, Compass, ArrowRightLeft, MessageSquare,
-  Phone, ShieldCheck, Edit3
+  Phone, ShieldCheck, Edit3, Trash2
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import { api } from '../../services/api';
@@ -49,6 +49,24 @@ export default function AdminDashboard({
       setTimeout(() => setStatusMsg(''), 3000);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Handle Permanent Delete Student
+  const handleDeleteStudent = async (student) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete student "${student.name}" (${student.rollNo})?\n\nThis will immediately remove their registration and revoke login access from MongoDB Atlas database.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.deleteStudent(student.id || student.rollNo);
+      setStatusMsg(`Student ${student.name} (${student.rollNo}) deleted successfully from MongoDB Atlas.`);
+      if (onDataRefresh) onDataRefresh();
+      setTimeout(() => setStatusMsg(''), 4000);
+    } catch (err) {
+      console.error('Delete student failed:', err);
+      alert(err.message || 'Failed to delete student.');
     }
   };
 
@@ -679,24 +697,44 @@ export default function AdminDashboard({
                           )}
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                          <button
-                            onClick={() => onOpenAuthModal && onOpenAuthModal('update', s)}
-                            className="btn btn-outline btn-sm"
-                            style={{ 
-                              padding: '0.25rem 0.6rem', 
-                              fontSize: '0.75rem', 
-                              borderColor: '#10b981', 
-                              color: '#059669', 
-                              background: '#ecfdf5',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontWeight: 700
-                            }}
-                            title="Edit and update user in MongoDB Atlas"
-                          >
-                            <Edit3 size={13} /> Edit User
-                          </button>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              onClick={() => onOpenAuthModal && onOpenAuthModal('update', s)}
+                              className="btn btn-outline btn-sm"
+                              style={{ 
+                                padding: '0.25rem 0.6rem', 
+                                fontSize: '0.75rem', 
+                                borderColor: '#10b981', 
+                                color: '#059669', 
+                                background: '#ecfdf5',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: 700
+                              }}
+                              title="Edit and update user in MongoDB Atlas"
+                            >
+                              <Edit3 size={13} /> Edit User
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStudent(s)}
+                              className="btn btn-outline btn-sm btn-delete-student"
+                              style={{ 
+                                padding: '0.25rem 0.6rem', 
+                                fontSize: '0.75rem', 
+                                borderColor: '#ef4444', 
+                                color: '#dc2626', 
+                                background: '#fef2f2',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: 700
+                              }}
+                              title="Delete student and revoke pass from database"
+                            >
+                              <Trash2 size={13} /> Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

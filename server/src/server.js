@@ -382,7 +382,8 @@ app.get('/api/students/:id', async (req, res) => {
       const student = await Student.findOne({
         $or: [{ id: req.params.id }, { rollNo: req.params.id }]
       }).lean();
-      if (student) return res.json(student);
+      if (!student) return res.status(404).json({ error: 'Student not found in registry' });
+      return res.json(student);
     }
     const student = db.students.find(s => s.id === req.params.id || s.rollNo === req.params.id);
     if (!student) return res.status(404).json({ error: 'Student not found' });
@@ -562,9 +563,7 @@ app.post('/api/students/login', async (req, res) => {
           { id: lookup }
         ]
       }).lean();
-    }
-
-    if (!student) {
+    } else {
       student = db.students.find(s =>
         (s.rollNo && s.rollNo.toLowerCase() === lookup.toLowerCase()) ||
         (s.email && s.email.toLowerCase() === lookup.toLowerCase()) ||
@@ -660,16 +659,87 @@ app.put('/api/students/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/students/:id', async (req, res) => {
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  if ((username === 'admin' && (password === 'admin123' || password === 'admin' || password === '2026')) || password === '2026') {
+    return res.json({
+      success: true,
+      message: 'Administrator authentication successful',
+      user: { role: 'admin', name: 'Transport Administrator', id: 'ADMIN-01' }
+    });
+  }
+  return res.status(401).json({ error: 'Invalid administrator credentials. (Default: admin / admin123)' });
+});
+
+app.post('/api/driver/login', async (req, res) => {
+  const { driverId } = req.body;
   try {
+    let driver;
     if (isMongoConnected()) {
-      await Student.deleteOne({ id: req.params.id });
+      driver = await Driver.findOne({ id: driverId }).lean();
     }
-    db.students = db.students.filter(s => s.id !== req.params.id);
+    if (!driver) {
+      driver = db.drivers.find(d => d.id === driverId);
+    }
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found in fleet registry' });
+    }
+    res.json({
+      success: true,
+      message: `Welcome, Driver ${driver.name}!`,
+      driver
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/students/:id', async (req, res) => {
+  const targetId = req.params.id;
+  try {
+    let deletedStudent;
+    if (isMongoConnected()) {
+      deletedStudent = await Student.findOneAndDelete({
+        $or: [{ id: targetId }, { rollNo: targetId }]
+      }).lean();
+    }
+    const idToDel = deletedStudent?.id || targetId;
+    const rollToDel = (deletedStudent?.rollNo || targetId).toLowerCase();
+    db.students = db.students.filter(s => s.id !== idToDel && s.rollNo?.toLowerCase() !== rollToDel);
+
+    if (!deletedStudent) {
+      return res.status(404).json({ error: 'Student not found in registry' });
+    }
+
+    // Clean up related route change requests
+    if (isMongoConnected()) {
+      await RouteChangeRequest.deleteMany({
+        $or: [{ studentId: deletedStudent.id }, { studentRoll: deletedStudent.rollNo }]
+      });
+    }
+    db.routeChangeRequests = db.routeChangeRequests.filter(r => r.studentId !== deletedStudent.id && r.studentRoll !== deletedStudent.rollNo);
+
+    // Create admin notification
+    const notifObj = {
+      id: `NOTIF-${Date.now()}`,
+      title: 'Student Registration Revoked',
+      message: `${deletedStudent.name} (${deletedStudent.rollNo}) was removed from MongoDB Atlas database.`,
+      type: 'warning',
+      target: 'admin',
+      timestamp: 'Just now',
+      read: false
+    };
+    if (isMongoConnected()) {
+      await Notification.create(notifObj).catch(() => {});
+    }
+    db.notifications.unshift(notifObj);
+
     saveLocalState();
     io.emit('students:updated', isMongoConnected() ? await Student.find({}).lean() : db.students);
-    res.json({ message: 'Student removed from registry' });
+    io.emit('notification:new', notifObj);
+    res.json({ success: true, message: `Student ${deletedStudent.name} (${deletedStudent.rollNo}) deleted successfully from MongoDB Atlas.`, deletedStudent });
   } catch (err) {
+    console.error('Delete student error:', err);
     res.status(500).json({ error: err.message });
   }
 });

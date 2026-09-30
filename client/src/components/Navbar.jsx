@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Bus, User, Shield, Compass, Bell, Radio, 
   UserPlus, AlertTriangle, ShieldAlert, X, Check,
-  Edit3, LogIn
+  Edit3, LogIn, LogOut
 } from 'lucide-react';
 
 export default function Navbar({
@@ -17,7 +17,8 @@ export default function Navbar({
   notifications = [],
   buses = [],
   onOpenRegisterModal,
-  onOpenAuthModal
+  onOpenAuthModal,
+  onLogout
 }) {
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -117,7 +118,7 @@ export default function Navbar({
                 boxShadow: currentRole === 'student' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
               }}
             >
-              <User size={15} /> Student Side
+              <User size={15} /> Student
             </button>
 
             <button
@@ -135,7 +136,7 @@ export default function Navbar({
                 boxShadow: currentRole === 'driver' ? '0 2px 8px rgba(124, 58, 237, 0.3)' : 'none'
               }}
             >
-              <Compass size={15} /> Driver Side
+              <Compass size={15} /> Driver
             </button>
 
             <button
@@ -153,13 +154,13 @@ export default function Navbar({
                 boxShadow: currentRole === 'admin' ? '0 2px 8px rgba(5, 150, 105, 0.3)' : 'none'
               }}
             >
-              <Shield size={15} /> Admin Side
+              <Shield size={15} /> Admin
             </button>
           </div>
 
           {/* Right Controls: WebSocket pulse, Notification Drawer, Register button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {/* Active Student Switcher when on Student Side */}
+            {/* Active Student Switcher when on Student */}
             {currentRole === 'student' && students.length > 0 && (
               <div style={{
                 display: 'flex',
@@ -197,7 +198,7 @@ export default function Navbar({
               </div>
             )}
 
-            {/* Active Driver Switcher when on Driver Side */}
+            {/* Active Driver Switcher when on Driver */}
             {currentRole === 'driver' && drivers.length > 0 && (
               <div style={{
                 display: 'flex',
@@ -303,6 +304,19 @@ export default function Navbar({
             >
               <UserPlus size={14} /> New Registration
             </button>
+
+            {/* Logout Button */}
+            {onLogout && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={onLogout}
+                id="nav-btn-logout"
+                style={{ borderColor: '#fca5a5', color: '#dc2626', background: '#fef2f2', fontWeight: 700 }}
+                title="Log out and return to Login screen"
+              >
+                <LogOut size={14} /> Logout
+              </button>
+            )}
           </div>
         </div>
       </header>

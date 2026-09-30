@@ -361,25 +361,45 @@
       "__v": 0,
       "createdAt": "2026-09-30T06:16:27.433Z",
       "updatedAt": "2026-09-30T06:16:27.433Z"
-    },
-    {
-      "id": "STU-07",
-      "name": "Rohan Verma",
-      "email": "rohan.verma@bec.edu.in",
-      "rollNo": "CS-2026-888",
-      "department": "Artificial Intelligence",
-      "year": "1st Year",
-      "phone": "9123456789",
-      "routeId": "R-101",
-      "busId": "BUS-01",
-      "stopId": "S-101",
-      "status": "approved",
-      "boardedToday": false,
-      "boardedTime": null,
-      "qrToken": "BEC-STU-07-CS-2026-888"
     }
   ],
   "notifications": [
+    {
+      "id": "NOTIF-1790751055464",
+      "title": "Student Registration Revoked",
+      "message": "Tanmay Mohanty (CS-2026-DEL) was removed from MongoDB Atlas database.",
+      "type": "warning",
+      "target": "admin",
+      "timestamp": "Just now",
+      "read": false
+    },
+    {
+      "id": "NOTIF-1790751054528",
+      "title": "New Student Registration Successful",
+      "message": "Tanmay Mohanty (CS-2026-DEL) registered for Route RT-01. Digital Bus Pass is active.",
+      "type": "info",
+      "target": "all",
+      "timestamp": "Just now",
+      "read": false
+    },
+    {
+      "id": "NOTIF-1790750885416",
+      "title": "Student Registration Revoked",
+      "message": "Tanmay Mohanty (CS-2026-DEL) was removed from MongoDB Atlas database.",
+      "type": "warning",
+      "target": "admin",
+      "timestamp": "Just now",
+      "read": false
+    },
+    {
+      "id": "NOTIF-1790750883461",
+      "title": "New Student Registration Successful",
+      "message": "Tanmay Mohanty (CS-2026-DEL) registered for Route RT-01. Digital Bus Pass is active.",
+      "type": "info",
+      "target": "all",
+      "timestamp": "Just now",
+      "read": false
+    },
     {
       "id": "NOTIF-1790749918135",
       "title": "New Student Registration Successful",
