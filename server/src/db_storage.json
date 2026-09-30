@@ -260,7 +260,7 @@
       "qrToken": "BEC-STU-01-CS042",
       "__v": 0,
       "createdAt": "2026-09-30T06:16:27.433Z",
-      "updatedAt": "2026-09-30T06:31:57.335Z"
+      "updatedAt": "2026-09-30T06:31:58.775Z"
     },
     {
       "_id": "6abca93b11499aff94cf205f",
@@ -361,53 +361,89 @@
       "__v": 0,
       "createdAt": "2026-09-30T06:16:27.433Z",
       "updatedAt": "2026-09-30T06:16:27.433Z"
+    },
+    {
+      "id": "STU-07",
+      "name": "prachi",
+      "email": "25078@bec.edu.in",
+      "rollNo": "25078",
+      "department": "Computer Science",
+      "year": "1st Year",
+      "phone": "9040833549",
+      "routeId": "R-101",
+      "busId": "BUS-01",
+      "stopId": "S-101",
+      "status": "approved",
+      "boardedToday": false,
+      "boardedTime": null,
+      "qrToken": "BEC-STU-07-25078"
     }
   ],
   "notifications": [
     {
+      "_id": "6abcb14f6e643256713fa256",
       "id": "NOTIF-1790751055464",
       "title": "Student Registration Revoked",
       "message": "Tanmay Mohanty (CS-2026-DEL) was removed from MongoDB Atlas database.",
       "type": "warning",
       "target": "admin",
       "timestamp": "Just now",
-      "read": false
+      "read": false,
+      "createdAt": "2026-09-30T06:50:55.464Z",
+      "updatedAt": "2026-09-30T06:50:55.464Z",
+      "__v": 0
     },
     {
+      "_id": "6abcb14e6e643256713fa255",
       "id": "NOTIF-1790751054528",
       "title": "New Student Registration Successful",
       "message": "Tanmay Mohanty (CS-2026-DEL) registered for Route RT-01. Digital Bus Pass is active.",
       "type": "info",
       "target": "all",
       "timestamp": "Just now",
-      "read": false
+      "read": false,
+      "createdAt": "2026-09-30T06:50:54.529Z",
+      "updatedAt": "2026-09-30T06:50:54.529Z",
+      "__v": 0
     },
     {
+      "_id": "6abcb0a5d84e34668ce161ca",
       "id": "NOTIF-1790750885416",
       "title": "Student Registration Revoked",
       "message": "Tanmay Mohanty (CS-2026-DEL) was removed from MongoDB Atlas database.",
       "type": "warning",
       "target": "admin",
       "timestamp": "Just now",
-      "read": false
+      "read": false,
+      "createdAt": "2026-09-30T06:48:05.416Z",
+      "updatedAt": "2026-09-30T06:48:05.416Z",
+      "__v": 0
     },
     {
+      "_id": "6abcb0a3d84e34668ce161c9",
       "id": "NOTIF-1790750883461",
       "title": "New Student Registration Successful",
       "message": "Tanmay Mohanty (CS-2026-DEL) registered for Route RT-01. Digital Bus Pass is active.",
       "type": "info",
       "target": "all",
       "timestamp": "Just now",
-      "read": false
+      "read": false,
+      "createdAt": "2026-09-30T06:48:03.462Z",
+      "updatedAt": "2026-09-30T06:48:03.462Z",
+      "__v": 0
     },
     {
+      "_id": "6abcacde37591ed2f9e6e28a",
       "id": "NOTIF-1790749918135",
       "title": "New Student Registration Successful",
       "message": "Rohan Verma (CS-2026-888) registered for Route RT-01. Digital Bus Pass is active.",
       "type": "info",
       "target": "all",
       "timestamp": "Just now",
-      "read": false
+      "read": false,
+      "createdAt": "2026-09-30T06:31:58.136Z",
+      "updatedAt": "2026-09-30T06:31:58.136Z",
+      "__v": 0
     },
     {
       "_id": "6abcaa8b38bf6a412745ba97",

@@ -545,11 +545,15 @@ app.post('/api/students/:id/status', async (req, res) => {
 });
 
 app.post('/api/students/login', async (req, res) => {
-  const { rollNo, email, identifier } = req.body;
-  const lookup = (rollNo || email || identifier || '').trim();
+  const { name, rollNo, email, identifier, registrationId } = req.body;
+  const lookup = (registrationId || rollNo || email || identifier || '').trim();
+  const studentName = (name || '').trim();
 
   if (!lookup) {
-    return res.status(400).json({ error: 'Please enter your College Roll Number or Email to log in.' });
+    return res.status(400).json({ error: 'Registration ID is required to log in.' });
+  }
+  if (!studentName) {
+    return res.status(400).json({ error: 'Name is required to log in.' });
   }
 
   try {
@@ -573,7 +577,15 @@ app.post('/api/students/login', async (req, res) => {
 
     if (!student) {
       return res.status(404).json({
-        error: `No registered student found for "${lookup}". Please verify your Roll Number or register for a new bus pass.`
+        error: `No registered student found for Registration ID "${lookup}". Only registered students are allowed to log in.`
+      });
+    }
+
+    // Verify entered Name matches registered student associated with that Registration ID
+    const normalize = str => (str || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (normalize(student.name) !== normalize(studentName)) {
+      return res.status(401).json({
+        error: `The entered Name "${studentName}" does not match the registered record for Registration ID "${lookup}".`
       });
     }
 
@@ -661,7 +673,7 @@ app.put('/api/students/:id', async (req, res) => {
 
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
-  if ((username === 'admin' && (password === 'admin123' || password === 'admin' || password === '2026')) || password === '2026') {
+  if (username === 'admin' && (password === '1234' || password === 'admin123')) {
     return res.json({
       success: true,
       message: 'Administrator authentication successful',
@@ -672,7 +684,10 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 app.post('/api/driver/login', async (req, res) => {
-  const { driverId } = req.body;
+  const { driverId, pin } = req.body;
+  if (!pin || pin.toString().trim() !== '2026') {
+    return res.status(401).json({ error: 'Invalid Driver Access PIN.' });
+  }
   try {
     let driver;
     if (isMongoConnected()) {

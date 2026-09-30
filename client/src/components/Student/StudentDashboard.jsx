@@ -3,7 +3,7 @@ import {
   Bus, MapPin, Clock, ShieldCheck, UserCheck, AlertTriangle, 
   QrCode, ArrowRightLeft, MessageSquare, Phone, BellRing, 
   Navigation, CheckCircle2, AlertCircle, Info, ChevronRight,
-  Edit3
+  Edit3, LogOut
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import DigitalPassModal from './DigitalPassModal';
@@ -18,7 +18,8 @@ export default function StudentDashboard({
   complaints = [],
   notifications = [],
   onDataRefresh,
-  onOpenAuthModal
+  onOpenAuthModal,
+  onLogout
 }) {
   // Modal states strictly initialized as closed (false)
   const [showPassModal, setShowPassModal] = useState(false);
@@ -170,6 +171,17 @@ export default function StudentDashboard({
             >
               <MessageSquare size={15} /> Report Issue
             </button>
+            {onLogout && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={onLogout}
+                id="btn-student-logout"
+                style={{ borderColor: '#fca5a5', color: '#dc2626', background: '#fef2f2', fontWeight: 700 }}
+                title="Log out and return to Login screen"
+              >
+                <LogOut size={15} /> Logout
+              </button>
+            )}
           </div>
         </div>
       </div>

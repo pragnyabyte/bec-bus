@@ -3,7 +3,7 @@ import {
   Play, Square, AlertOctagon, CheckCircle, QrCode, 
   MapPin, Clock, Users, Fuel, AlertTriangle, Radio, 
   Navigation2, Send, Sparkles, Phone, 
-  ArrowRightLeft, ShieldCheck
+  ArrowRightLeft, ShieldCheck, LogOut
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import LiveMap from '../Map/LiveMap';
@@ -15,7 +15,8 @@ export default function DriverConsole({
   buses = [],
   routes = [],
   students = [],
-  onDataRefresh
+  onDataRefresh,
+  onLogout
 }) {
   const [activeTab, setActiveTab] = useState('console'); // 'console' | 'passengers' | 'schedule'
   const [isTripActive, setIsTripActive] = useState(false);
@@ -306,6 +307,26 @@ export default function DriverConsole({
                 <Phone size={13} /> Call
               </a>
             </div>
+
+            {onLogout && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={onLogout}
+                id="btn-driver-logout"
+                style={{
+                  borderColor: '#fca5a5',
+                  color: '#dc2626',
+                  background: '#fef2f2',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                title="Log out and return to Driver Sign In"
+              >
+                <LogOut size={14} /> Logout
+              </button>
+            )}
           </div>
         </div>
 

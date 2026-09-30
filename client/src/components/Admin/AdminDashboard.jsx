@@ -3,7 +3,7 @@ import {
   Bus, Users, MapPin, AlertCircle, ShieldAlert, CheckCircle2, 
   XCircle, Plus, BarChart3, Settings, 
   FileText, Activity, Compass, ArrowRightLeft, MessageSquare,
-  Phone, ShieldCheck, Edit3, Trash2
+  Phone, ShieldCheck, Edit3, Trash2, LogOut
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import { api } from '../../services/api';
@@ -18,7 +18,8 @@ export default function AdminDashboard({
   changeRequests = [],
   notifications = [],
   onDataRefresh,
-  onOpenAuthModal
+  onOpenAuthModal,
+  onLogout
 }) {
   const [activeTab, setActiveTab] = useState('monitoring'); // 'monitoring' | 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'analytics'
   const [statusMsg, setStatusMsg] = useState('');
@@ -122,6 +123,34 @@ export default function AdminDashboard({
 
   return (
     <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
+      {/* Admin Title & Logout Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.6rem', color: '#0f172a', fontWeight: 800 }}>Admin Console</h2>
+          <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Campus Fleet & Transit Central Command Center</p>
+        </div>
+        {onLogout && (
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={onLogout}
+            id="btn-admin-logout"
+            style={{
+              borderColor: '#fca5a5',
+              color: '#dc2626',
+              background: '#fef2f2',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer'
+            }}
+            title="Log out and return to Admin Sign In"
+          >
+            <LogOut size={15} /> Logout
+          </button>
+        )}
+      </div>
+
       {/* Admin KPI Header Stats */}
       <div style={{
         display: 'grid',

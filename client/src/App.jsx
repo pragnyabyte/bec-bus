@@ -216,21 +216,25 @@ export default function App() {
   }, [loadData]);
 
   const currentStudent = useMemo(() => {
-    const found = students.find(s => s.id === currentStudentId);
+    const found = students.find(s => s.id === currentStudentId || s.rollNo === currentStudentId);
     if (found) return found;
+    if (authSession?.role === 'student' && authSession?.user) return authSession.user;
     try {
       const cached = localStorage.getItem('apextransit_active_student_data');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && (parsed.id === currentStudentId || !currentStudentId)) {
-          return parsed;
-        }
+        if (parsed) return parsed;
       }
     } catch (e) {}
     return students[0] || null;
-  }, [students, currentStudentId]);
+  }, [students, currentStudentId, authSession]);
 
-  const currentDriver = drivers.find(d => d.id === currentDriverId) || drivers[0];
+  const currentDriver = useMemo(() => {
+    const found = drivers.find(d => d.id === currentDriverId);
+    if (found) return found;
+    if (authSession?.role === 'driver' && authSession?.user) return authSession.user;
+    return drivers[0] || null;
+  }, [drivers, currentDriverId, authSession]);
 
   // GATE: When website is opened, the first screen must be Login / Sign Up
   if (!authSession) {
@@ -283,6 +287,7 @@ export default function App() {
                 notifications={notifications}
                 onDataRefresh={loadData}
                 onOpenAuthModal={handleOpenAuthModal}
+                onLogout={handleLogout}
               />
             )}
 
@@ -294,6 +299,7 @@ export default function App() {
                 routes={routes}
                 students={students}
                 onDataRefresh={loadData}
+                onLogout={handleLogout}
               />
             )}
 
@@ -309,6 +315,7 @@ export default function App() {
                 notifications={notifications}
                 onDataRefresh={loadData}
                 onOpenAuthModal={handleOpenAuthModal}
+                onLogout={handleLogout}
               />
             )}
           </>

@@ -272,17 +272,6 @@ export default function Navbar({
               )}
             </button>
 
-            {/* Student Login Button */}
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => onOpenAuthModal ? onOpenAuthModal('login') : onOpenRegisterModal()}
-              style={{ borderColor: '#cbd5e1', color: '#334155', background: '#f8fafc' }}
-              title="Student Sign In"
-              id="nav-btn-login"
-            >
-              <LogIn size={14} /> Login
-            </button>
-
             {/* Update User Profile Button (Available when student is active) */}
             {currentRole === 'student' && (
               <button
@@ -305,16 +294,25 @@ export default function Navbar({
               <UserPlus size={14} /> New Registration
             </button>
 
-            {/* Logout Button */}
+            {/* Clear Logout Button */}
             {onLogout && (
               <button
                 className="btn btn-outline btn-sm"
                 onClick={onLogout}
                 id="nav-btn-logout"
-                style={{ borderColor: '#fca5a5', color: '#dc2626', background: '#fef2f2', fontWeight: 700 }}
+                style={{
+                  borderColor: '#fca5a5',
+                  color: '#dc2626',
+                  background: '#fef2f2',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
                 title="Log out and return to Login screen"
               >
-                <LogOut size={14} /> Logout
+                <LogOut size={15} /> Logout
               </button>
             )}
           </div>

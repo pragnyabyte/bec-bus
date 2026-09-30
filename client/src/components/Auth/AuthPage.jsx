@@ -11,6 +11,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
   const [studentTab, setStudentTab] = useState('login'); // 'login' | 'signup'
 
   // Student Login State
+  const [studentName, setStudentName] = useState('');
   const [studentIdentifier, setStudentIdentifier] = useState('');
   
   // Student Sign Up State
@@ -42,16 +43,26 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    const enteredName = studentName.trim();
     const id = studentIdentifier.trim();
+
+    if (!enteredName) {
+      setErrorMsg('Please enter your Name.');
+      return;
+    }
     if (!id) {
-      setErrorMsg('Please enter your Registered ID.');
+      setErrorMsg('Please enter your Registration ID.');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await api.loginStudent({ identifier: id });
+      const res = await api.loginStudent({ name: enteredName, identifier: id, registrationId: id });
       if (res && res.student) {
+        const normalize = str => (str || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (normalize(res.student.name) !== normalize(enteredName)) {
+          throw new Error(`The entered Name "${enteredName}" does not match the registered record for Registration ID "${id}".`);
+        }
         setSuccessMsg(`Welcome back, ${res.student.name}!`);
         setTimeout(() => {
           onAuthenticated({
@@ -64,7 +75,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Login failed. Please verify your Registered ID.');
+      setErrorMsg(err.message || 'Login failed. Please verify your Name and Registration ID.');
     } finally {
       setLoading(false);
     }
@@ -125,6 +136,10 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
     setSuccessMsg('');
     if (!driverPin.trim()) {
       setErrorMsg('Please enter Driver Access PIN.');
+      return;
+    }
+    if (driverPin.trim() !== '2026') {
+      setErrorMsg('Invalid Driver Access PIN.');
       return;
     }
     setLoading(true);
@@ -404,22 +419,37 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
             {studentTab === 'login' ? (
               /* Student Login Form */
               <form onSubmit={handleStudentLogin}>
-                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                   <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                    Registered ID <span style={{ color: '#dc2626' }}>*</span>
+                    Name <span style={{ color: '#dc2626' }}>*</span>
                   </label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Enter Registered ID"
+                    placeholder="Enter your Full Name"
+                    value={studentName}
+                    onChange={e => { setStudentName(e.target.value); if (errorMsg) setErrorMsg(''); }}
+                    id="input-student-name"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                    Registration ID <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter Registration ID"
                     value={studentIdentifier}
                     onChange={e => { setStudentIdentifier(e.target.value); if (errorMsg) setErrorMsg(''); }}
                     id="input-student-roll"
                     required
-                    autoFocus
                   />
                   <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.4rem' }}>
-                    Enter your Registered ID to access your Digital Bus Pass, live GPS tracking, and route.
+                    Enter your registered Full Name and Registration ID to verify your pass and access your dashboard.
                   </p>
                 </div>
 
