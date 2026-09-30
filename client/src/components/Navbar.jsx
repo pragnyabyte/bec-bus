@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Bus, User, Shield, Compass, Bell, Radio, 
-  UserPlus, AlertTriangle, ShieldAlert, X, Check,
-  Edit3, LogIn, LogOut
+  AlertTriangle, ShieldAlert, X, Check,
+  Edit3, LogOut
 } from 'lucide-react';
 
 export default function Navbar({
@@ -284,15 +284,6 @@ export default function Navbar({
                 <Edit3 size={14} /> Update User
               </button>
             )}
-
-            {/* Register New Student Button */}
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => onOpenAuthModal ? onOpenAuthModal('register') : onOpenRegisterModal()}
-              id="nav-btn-register"
-            >
-              <UserPlus size={14} /> New Registration
-            </button>
 
             {/* Clear Logout Button */}
             {onLogout && (

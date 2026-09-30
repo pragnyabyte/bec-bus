@@ -1,29 +1,16 @@
 import React, { useState } from 'react';
 import { 
-  Bus, User, Compass, Shield, LogIn, UserPlus, 
-  CheckCircle2, AlertCircle, Phone, Mail, GraduationCap, 
-  MapPin, ArrowRight, Lock, KeyRound, Check
+  Bus, User, Compass, Shield, LogIn, 
+  CheckCircle2, AlertCircle 
 } from 'lucide-react';
 import { api } from '../../services/api';
 
 export default function AuthPage({ routes = [], onAuthenticated }) {
   const [selectedRole, setSelectedRole] = useState('student'); // 'student' | 'driver' | 'admin'
-  const [studentTab, setStudentTab] = useState('login'); // 'login' | 'signup'
 
   // Student Login State
   const [studentName, setStudentName] = useState('');
   const [studentIdentifier, setStudentIdentifier] = useState('');
-  
-  // Student Sign Up State
-  const [name, setName] = useState('');
-  const [rollNo, setRollNo] = useState('');
-  const [department, setDepartment] = useState('Computer Science');
-  const [year, setYear] = useState('1st Year');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [selectedRouteId, setSelectedRouteId] = useState(routes[0]?.id || 'R-101');
-  const selectedRouteObj = routes.find(r => r.id === selectedRouteId) || routes[0];
-  const [selectedStopId, setSelectedStopId] = useState(selectedRouteObj?.stops?.[0]?.id || '');
 
   // Driver Login State
   const [driverId, setDriverId] = useState('PRAGNYA01');
@@ -76,54 +63,6 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'Login failed. Please verify your Name and Registration ID.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Student Sign Up
-  const handleStudentSignUp = async (e) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    if (!name.trim()) {
-      setErrorMsg('Please enter your Full Name.');
-      return;
-    }
-    if (!rollNo.trim()) {
-      setErrorMsg('Please enter your College Roll Number.');
-      return;
-    }
-    if (!phone.trim()) {
-      setErrorMsg('Please enter your Mobile number.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const finalEmail = email.trim() || `${rollNo.trim().toLowerCase()}@bec.edu.in`;
-      const created = await api.registerStudent({
-        name: name.trim(),
-        rollNo: rollNo.trim().toUpperCase(),
-        department,
-        year,
-        phone: phone.trim(),
-        email: finalEmail,
-        routeId: selectedRouteId,
-        stopId: selectedStopId || selectedRouteObj?.stops?.[0]?.id
-      });
-
-      setSuccessMsg(`Registration successful! Welcome, ${created.name}.`);
-      setTimeout(() => {
-        onAuthenticated({
-          role: 'student',
-          user: created
-        });
-      }, 400);
-    } catch (err) {
-      console.error(err);
-      setErrorMsg(err.message || 'Sign up failed. Please check your details.');
     } finally {
       setLoading(false);
     }
@@ -376,240 +315,84 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         {/* 1. STUDENT AUTHENTICATION */}
         {selectedRole === 'student' && (
           <div>
-            {/* Student Login vs Sign Up toggle */}
-            <div style={{ display: 'flex', borderBottom: '2px solid #f1f5f9', marginBottom: '1.5rem' }}>
-              <button
-                type="button"
-                onClick={() => { setStudentTab('login'); setErrorMsg(''); }}
-                id="btn-student-tab-login"
-                style={{
-                  flex: 1,
-                  padding: '0.65rem',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: studentTab === 'login' ? '2.5px solid #0284c7' : '2.5px solid transparent',
-                  color: studentTab === 'login' ? '#0284c7' : '#64748b',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Student Login
-              </button>
-              <button
-                type="button"
-                onClick={() => { setStudentTab('signup'); setErrorMsg(''); }}
-                id="btn-student-tab-signup"
-                style={{
-                  flex: 1,
-                  padding: '0.65rem',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: studentTab === 'signup' ? '2.5px solid #0284c7' : '2.5px solid transparent',
-                  color: studentTab === 'signup' ? '#0284c7' : '#64748b',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Sign Up / Register Pass
-              </button>
+            <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: '#f0f9ff',
+                color: '#0284c7',
+                border: '1px solid #bae6fd',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '0.5rem'
+              }}>
+                <User size={24} />
+              </div>
+              <h3 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>Student Sign In</h3>
+              <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                Only authorized/registered students can log in with their Name & Registration ID
+              </p>
             </div>
 
-            {studentTab === 'login' ? (
-              /* Student Login Form */
-              <form onSubmit={handleStudentLogin}>
-                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                  <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                    Name <span style={{ color: '#dc2626' }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Enter your Full Name"
-                    value={studentName}
-                    onChange={e => { setStudentName(e.target.value); if (errorMsg) setErrorMsg(''); }}
-                    id="input-student-name"
-                    required
-                    autoFocus
-                  />
-                </div>
+            <form onSubmit={handleStudentLogin}>
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                  Name <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter your Full Name"
+                  value={studentName}
+                  onChange={e => { setStudentName(e.target.value); if (errorMsg) setErrorMsg(''); }}
+                  id="input-student-name"
+                  required
+                  autoFocus
+                />
+              </div>
 
-                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                  <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                    Registration ID <span style={{ color: '#dc2626' }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Enter Registration ID"
-                    value={studentIdentifier}
-                    onChange={e => { setStudentIdentifier(e.target.value); if (errorMsg) setErrorMsg(''); }}
-                    id="input-student-roll"
-                    required
-                  />
-                  <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.4rem' }}>
-                    Enter your registered Full Name and Registration ID to verify your pass and access your dashboard.
-                  </p>
-                </div>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                  Registration ID <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter Registration ID"
+                  value={studentIdentifier}
+                  onChange={e => { setStudentIdentifier(e.target.value); if (errorMsg) setErrorMsg(''); }}
+                  id="input-student-roll"
+                  required
+                />
+                <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.4rem' }}>
+                  Enter your registered Full Name and Registration ID to verify your pass and access your dashboard.
+                </p>
+              </div>
 
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading}
-                  id="btn-submit-student-login"
-                  style={{
-                    width: '100%',
-                    padding: '0.85rem',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
-                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-                  }}
-                >
-                  <LogIn size={18} />
-                  <span>{loading ? 'Authenticating...' : 'Log In to Student Portal'}</span>
-                </button>
-              </form>
-            ) : (
-              /* Student Sign Up Form */
-              <form onSubmit={handleStudentSignUp}>
-                <div className="form-group">
-                  <label className="form-label">Full Name <span style={{ color: '#dc2626' }}>*</span></label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Alex Johnson"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">Roll Number <span style={{ color: '#dc2626' }}>*</span></label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. CS-2026-101"
-                      value={rollNo}
-                      onChange={e => setRollNo(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Mobile <span style={{ color: '#dc2626' }}>*</span></label>
-                    <input
-                      type="tel"
-                      className="form-input"
-                      placeholder="e.g. 9876543210"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email (Optional)</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    placeholder="e.g. rollno@bec.edu.in"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">Department</label>
-                    <select className="form-select" value={department} onChange={e => setDepartment(e.target.value)}>
-                      <option value="Computer Science">Computer Science</option>
-                      <option value="Information Tech">Information Tech</option>
-                      <option value="Electronics & Comm">Electronics & Comm</option>
-                      <option value="Mechanical Engg">Mechanical Engg</option>
-                      <option value="Civil Engg">Civil Engg</option>
-                      <option value="Artificial Intelligence">Artificial Intelligence</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Year</label>
-                    <select className="form-select" value={year} onChange={e => setYear(e.target.value)}>
-                      <option value="1st Year">1st Year</option>
-                      <option value="2nd Year">2nd Year</option>
-                      <option value="3rd Year">3rd Year</option>
-                      <option value="4th Year">4th Year</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Select Bus Route <span style={{ color: '#dc2626' }}>*</span></label>
-                  <select
-                    className="form-select"
-                    value={selectedRouteId}
-                    onChange={e => {
-                      const id = e.target.value;
-                      setSelectedRouteId(id);
-                      const rt = routes.find(r => r.id === id);
-                      if (rt && rt.stops && rt.stops.length > 0) {
-                        setSelectedStopId(rt.stops[0].id);
-                      }
-                    }}
-                  >
-                    {routes.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.code} - {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Preferred Boarding Stop <span style={{ color: '#dc2626' }}>*</span></label>
-                  <select
-                    className="form-select"
-                    value={selectedStopId}
-                    onChange={e => setSelectedStopId(e.target.value)}
-                  >
-                    {selectedRouteObj?.stops?.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} (Pickup: {s.morningTime})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading}
-                  id="btn-submit-student-signup"
-                  style={{
-                    width: '100%',
-                    padding: '0.85rem',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    marginTop: '1.25rem',
-                    background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
-                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-                  }}
-                >
-                  <UserPlus size={18} />
-                  <span>{loading ? 'Creating Pass in MongoDB...' : 'Sign Up & Enter Student Portal'}</span>
-                </button>
-              </form>
-            )}
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+                id="btn-submit-student-login"
+                style={{
+                  width: '100%',
+                  padding: '0.85rem',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
+                }}
+              >
+                <LogIn size={18} />
+                <span>{loading ? 'Authenticating...' : 'Log In to Student Portal'}</span>
+              </button>
+            </form>
           </div>
         )}
 

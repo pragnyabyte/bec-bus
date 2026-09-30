@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, UserPlus, CheckCircle2, ShieldCheck, AlertCircle, 
+  X, CheckCircle2, ShieldCheck, AlertCircle, 
   Bus, MapPin, Phone, User, Mail, GraduationCap, ArrowRight,
-  LogIn, Save, Edit3, RefreshCw
+  Save, Edit3, RefreshCw
 } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -12,13 +12,11 @@ export default function AuthModal({
   onLoggedIn, 
   onUpdated, 
   onClose,
-  initialMode = 'login',
+  initialMode = 'update',
   currentStudent = null 
 }) {
-  const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'update'
-  
-  // Login State
-  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [mode, setMode] = useState('update'); // 'update' only
+
   
   // Registration & Update State
   const [studentId, setStudentId] = useState(currentStudent?.id || '');
@@ -109,81 +107,6 @@ export default function AuthModal({
     return null;
   };
 
-  // Handle Student Login
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    if (!loginIdentifier.trim()) {
-      setErrorMsg('Please enter your College Roll Number or Email.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const result = await api.loginStudent({ identifier: loginIdentifier.trim() });
-      if (result && result.student) {
-        setActionResultStudent(result.student);
-        setSuccessMsg(`Welcome back, ${result.student.name}! Logged in successfully.`);
-        setSuccess(true);
-        if (onLoggedIn) {
-          onLoggedIn(result.student);
-        } else if (onRegistered) {
-          onRegistered(result.student);
-        }
-      } else {
-        throw new Error('Could not retrieve student profile.');
-      }
-    } catch (err) {
-      console.error('[Login Error]:', err);
-      setErrorMsg(err.message || 'Login failed. Please verify your Roll Number.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Handle New Registration
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    const validationError = validateRegistrationOrUpdate();
-    if (validationError) {
-      setErrorMsg(validationError);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const finalEmail = email.trim() || `${rollNo.trim().toLowerCase()}@bec.edu.in`;
-      const created = await api.registerStudent({
-        name: name.trim(),
-        rollNo: rollNo.trim().toUpperCase(),
-        department,
-        year,
-        phone: phone.trim(),
-        email: finalEmail,
-        routeId: selectedRouteId,
-        stopId: selectedStopId || selectedRouteObj?.stops?.[0]?.id
-      });
-
-      setActionResultStudent(created);
-      setSuccessMsg('Registration successful! Saved to MongoDB Atlas.');
-      setSuccess(true);
-      setErrorMsg('');
-
-      if (onRegistered) {
-        onRegistered(created);
-      }
-    } catch (err) {
-      console.error('[Registration Error]:', err);
-      setErrorMsg(err.message || 'Registration failed. Please verify your details.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   // Handle Update User Details
   const handleUpdateSubmit = async (e) => {
@@ -262,115 +185,27 @@ export default function AuthModal({
           <X size={20} />
         </button>
 
-        {/* 3-Mode Tab Switcher */}
-        <div style={{
-          display: 'flex',
-          background: '#f1f5f9',
-          padding: '4px',
-          borderRadius: 'var(--radius-lg)',
-          marginBottom: '1.25rem',
-          border: '1px solid #e2e8f0',
-          gap: '4px'
-        }}>
-          <button
-            type="button"
-            onClick={() => { setMode('login'); setErrorMsg(''); setSuccess(false); }}
-            style={{
-              flex: 1,
-              padding: '0.45rem 0.5rem',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.825rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: mode === 'login' ? '#ffffff' : 'transparent',
-              color: mode === 'login' ? '#0284c7' : '#64748b',
-              boxShadow: mode === 'login' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <LogIn size={15} /> Student Login
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setMode('register'); setErrorMsg(''); setSuccess(false); }}
-            style={{
-              flex: 1,
-              padding: '0.45rem 0.5rem',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.825rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: mode === 'register' ? '#ffffff' : 'transparent',
-              color: mode === 'register' ? '#0284c7' : '#64748b',
-              boxShadow: mode === 'register' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <UserPlus size={15} /> New Registration
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setMode('update'); setErrorMsg(''); setSuccess(false); }}
-            style={{
-              flex: 1,
-              padding: '0.45rem 0.5rem',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.825rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: mode === 'update' ? '#ffffff' : 'transparent',
-              color: mode === 'update' ? '#0284c7' : '#64748b',
-              boxShadow: mode === 'update' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <Edit3 size={15} /> Update User
-          </button>
-        </div>
-
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
           <div style={{
             width: '44px',
             height: '44px',
             borderRadius: 'var(--radius-md)',
-            background: mode === 'update' 
-              ? 'linear-gradient(135deg, #059669, #10b981)' 
-              : mode === 'login'
-              ? 'linear-gradient(135deg, #7c3aed, #9333ea)'
-              : 'linear-gradient(135deg, #0284c7, #38bdf8)',
+            background: 'linear-gradient(135deg, #059669, #10b981)',
             color: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)'
+            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)'
           }}>
-            {mode === 'login' ? <LogIn size={22} /> : mode === 'update' ? <Save size={22} /> : <UserPlus size={22} />}
+            <Edit3 size={22} />
           </div>
           <div>
             <h3 style={{ fontSize: '1.3rem', color: '#0f172a' }}>
-              {mode === 'login' ? 'Student Transit Login' : mode === 'update' ? 'Update User Details' : 'Student Transit Registration'}
+              Update User Details
             </h3>
             <p style={{ color: '#64748b', fontSize: '0.825rem' }}>
-              {mode === 'login' 
-                ? 'Sign in using your College Roll Number or Email to access your digital pass and live bus tracking'
-                : mode === 'update'
-                ? 'Modify your registered details, bus route, and boarding stop. Changes save directly to MongoDB Atlas.'
-                : 'Register for a campus transit digital pass, live fleet tracking, and attendance'}
+              Modify registered details, bus route, and boarding stop. Changes save directly to MongoDB Atlas.
             </p>
           </div>
         </div>
@@ -681,88 +516,32 @@ export default function AuthModal({
                 Cancel
               </button>
               
-              {mode === 'update' ? (
-                <button 
-                  type="submit" 
-                  className="btn btn-primary" 
-                  disabled={submitting} 
-                  id="btn-update-user"
-                  style={{ 
-                    flex: 2, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '0.5rem',
-                    background: 'linear-gradient(135deg, #059669, #10b981)' 
-                  }}
-                >
-                  {submitting ? (
-                    <>
-                      <RefreshCw size={16} className="spin" />
-                      <span>Updating Database...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} />
-                      <span>Update User</span>
-                    </>
-                  )}
-                </button>
-              ) : (
-                <button 
-                  type="submit" 
-                  className="btn btn-primary" 
-                  disabled={submitting} 
-                  id="btn-register-user"
-                  style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                >
-                  {submitting ? (
-                    <>
-                      <RefreshCw size={16} className="spin" />
-                      <span>Registering Student...</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={16} />
-                      <span>Register for Bus Pass</span>
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-              {mode === 'update' ? (
-                <span>
-                  Switch to{' '}
-                  <button 
-                    type="button" 
-                    onClick={() => { setMode('login'); setErrorMsg(''); }} 
-                    style={{ background: 'transparent', border: 'none', color: '#0284c7', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    Student Login
-                  </button>
-                  {' '}or{' '}
-                  <button 
-                    type="button" 
-                    onClick={() => { setMode('register'); setErrorMsg(''); }} 
-                    style={{ background: 'transparent', border: 'none', color: '#0284c7', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    New Registration
-                  </button>
-                </span>
-              ) : (
-                <span>
-                  Already registered?{' '}
-                  <button 
-                    type="button" 
-                    onClick={() => { setMode('login'); setErrorMsg(''); }} 
-                    style={{ background: 'transparent', border: 'none', color: '#0284c7', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    Log in with Roll Number
-                  </button>
-                </span>
-              )}
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={submitting} 
+                id="btn-update-user"
+                style={{ 
+                  flex: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '0.5rem',
+                  background: 'linear-gradient(135deg, #059669, #10b981)' 
+                }}
+              >
+                {submitting ? (
+                  <>
+                    <RefreshCw size={16} className="spin" />
+                    <span>Updating Database...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    <span>Update User</span>
+                  </>
+                )}
+              </button>
             </div>
           </form>
         )}
