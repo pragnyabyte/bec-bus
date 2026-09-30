@@ -229,11 +229,12 @@ export default function LiveMap({
 
   // Handle map resize invalidation
   useEffect(() => {
-    if (mapInstanceRef.current) {
-      setTimeout(() => {
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
         mapInstanceRef.current.invalidateSize();
-      }, 200);
-    }
+      }
+    }, 200);
+    return () => clearTimeout(timer);
   }, [height, routes, buses]);
 
   // Center on User's real GPS position manually
