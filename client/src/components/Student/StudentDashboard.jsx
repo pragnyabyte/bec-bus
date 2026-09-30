@@ -618,39 +618,6 @@ export default function StudentDashboard({
       {/* TAB 0: STUDENT BUS TRACKER SECTION (Both Buses, Live Tracking, Movement Status, Stops & Timetable) */}
       {activeTab === 'bus_tracker' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Tracker Header */}
-          <div className="glass-card" style={{ padding: '1.25rem', borderLeft: '4px solid #0284c7' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pulse-dot blue" />
-                  <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>
-                    Student Bus Tracker
-                  </h3>
-                </div>
-                <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '3px' }}>
-                  Live tracking for both campus transit routes. Select a bus below to view live GPS position, stop sequences, and timetables.
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: '#f0f9ff',
-                  border: '1px solid #bae6fd',
-                  color: '#0284c7',
-                  padding: '5px 12px',
-                  borderRadius: '20px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700
-                }}>
-                  <Radio size={14} className="pulse-dot" /> Live Telemetry Synced
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Both Buses Overview Cards */}
           <div style={{
             display: 'grid',
