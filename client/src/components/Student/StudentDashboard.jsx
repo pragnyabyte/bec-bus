@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Bus, MapPin, Clock, ShieldCheck, UserCheck, AlertTriangle, 
   QrCode, ArrowRightLeft, MessageSquare, Phone, BellRing, 
-  Navigation, CheckCircle2, AlertCircle, Info, ChevronRight
+  Navigation, CheckCircle2, AlertCircle, Info, ChevronRight,
+  Edit3
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import DigitalPassModal from './DigitalPassModal';
@@ -16,7 +17,8 @@ export default function StudentDashboard({
   drivers = [],
   complaints = [],
   notifications = [],
-  onDataRefresh
+  onDataRefresh,
+  onOpenAuthModal
 }) {
   // Modal states strictly initialized as closed (false)
   const [showPassModal, setShowPassModal] = useState(false);
@@ -141,6 +143,15 @@ export default function StudentDashboard({
 
           {/* Quick Action Badges */}
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => onOpenAuthModal && onOpenAuthModal('update', student)}
+              id="btn-student-update-user"
+              style={{ borderColor: '#10b981', color: '#059669', background: '#ecfdf5', fontWeight: 700 }}
+              title="Update profile details in MongoDB Atlas"
+            >
+              <Edit3 size={15} /> Update User
+            </button>
             <button
               className="btn btn-primary btn-sm"
               onClick={() => setShowPassModal(true)}

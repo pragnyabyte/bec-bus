@@ -9,6 +9,8 @@ import { api, socket } from './services/api';
 export default function App() {
   const [currentRole, setCurrentRole] = useState('student'); // 'student' | 'driver' | 'admin'
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('register'); // 'login' | 'register' | 'update'
+  const [targetEditStudent, setTargetEditStudent] = useState(null);
 
   // Core Data State
   const [routes, setRoutes] = useState([]);
@@ -32,6 +34,13 @@ export default function App() {
   const handleDriverChange = useCallback((id) => {
     setCurrentDriverId(id);
     localStorage.setItem('apextransit_active_driver_id', id);
+  }, []);
+
+  // Open modal in specified mode ('login' | 'register' | 'update')
+  const handleOpenAuthModal = useCallback((mode = 'register', student = null) => {
+    setAuthModalMode(mode);
+    setTargetEditStudent(student || null);
+    setShowRegisterModal(true);
   }, []);
 
   // Load all data from API
@@ -79,6 +88,27 @@ export default function App() {
       setCurrentStudentId(newStudent.id);
     }
     setCurrentRole('student');
+    await loadData();
+    setShowRegisterModal(false);
+  }, [loadData]);
+
+  const handleStudentLoggedIn = useCallback((loggedInStudent) => {
+    if (loggedInStudent && loggedInStudent.id) {
+      localStorage.setItem('apextransit_active_student_id', loggedInStudent.id);
+      localStorage.setItem('apextransit_active_student_data', JSON.stringify(loggedInStudent));
+      setCurrentStudentId(loggedInStudent.id);
+    }
+    setCurrentRole('student');
+    setShowRegisterModal(false);
+  }, []);
+
+  const handleStudentUpdated = useCallback(async (updatedStudent) => {
+    if (updatedStudent && updatedStudent.id) {
+      localStorage.setItem('apextransit_active_student_id', updatedStudent.id);
+      localStorage.setItem('apextransit_active_student_data', JSON.stringify(updatedStudent));
+      setCurrentStudentId(updatedStudent.id);
+    }
+    setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
     await loadData();
     setShowRegisterModal(false);
   }, [loadData]);
@@ -176,7 +206,8 @@ export default function App() {
         onDriverChange={handleDriverChange}
         notifications={notifications}
         buses={buses}
-        onOpenRegisterModal={() => setShowRegisterModal(true)}
+        onOpenRegisterModal={() => handleOpenAuthModal('register')}
+        onOpenAuthModal={handleOpenAuthModal}
       />
 
       {/* Main Role Content View */}
@@ -184,7 +215,7 @@ export default function App() {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '5rem', color: '#64748b' }}>
             <div className="pulse-dot online" style={{ width: '16px', height: '16px', marginBottom: '1rem' }} />
-            <h3 style={{ color: '#0f172a' }}>Connecting to Apex Transit Fleet...</h3>
+            <h3 style={{ color: '#0f172a' }}>Connecting to BEC Transit Fleet...</h3>
           </div>
         ) : (
           <>
@@ -197,6 +228,7 @@ export default function App() {
                 complaints={complaints}
                 notifications={notifications}
                 onDataRefresh={loadData}
+                onOpenAuthModal={handleOpenAuthModal}
               />
             )}
 
@@ -222,6 +254,7 @@ export default function App() {
                 changeRequests={changeRequests}
                 notifications={notifications}
                 onDataRefresh={loadData}
+                onOpenAuthModal={handleOpenAuthModal}
               />
             )}
           </>
@@ -250,12 +283,19 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Student Onboarding & Registration Modal */}
+      {/* Student Onboarding, Login & Update User Modal */}
       {showRegisterModal && (
         <AuthModal
           routes={routes}
+          initialMode={authModalMode}
+          currentStudent={targetEditStudent || currentStudent}
           onRegistered={handleStudentRegistered}
-          onClose={() => setShowRegisterModal(false)}
+          onLoggedIn={handleStudentLoggedIn}
+          onUpdated={handleStudentUpdated}
+          onClose={() => {
+            setShowRegisterModal(false);
+            setTargetEditStudent(null);
+          }}
         />
       )}
     </div>

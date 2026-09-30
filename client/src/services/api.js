@@ -69,6 +69,30 @@ export const api = {
     }
     return data;
   },
+  loginStudent: async (credentials) => {
+    const res = await fetch(`${API_BASE}/students/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Login failed with status ${res.status}`);
+    }
+    return data;
+  },
+  updateStudent: async (id, studentData) => {
+    const res = await fetch(`${API_BASE}/students/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(studentData)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Update failed with status ${res.status}`);
+    }
+    return data;
+  },
   updateStudentStatus: async (id, status) => {
     const res = await fetch(`${API_BASE}/students/${id}/status`, {
       method: 'POST',

@@ -3,7 +3,7 @@ import {
   Bus, Users, MapPin, AlertCircle, ShieldAlert, CheckCircle2, 
   XCircle, Plus, BarChart3, Settings, 
   FileText, Activity, Compass, ArrowRightLeft, MessageSquare,
-  Phone, ShieldCheck
+  Phone, ShieldCheck, Edit3
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import { api } from '../../services/api';
@@ -17,7 +17,8 @@ export default function AdminDashboard({
   complaints = [],
   changeRequests = [],
   notifications = [],
-  onDataRefresh
+  onDataRefresh,
+  onOpenAuthModal
 }) {
   const [activeTab, setActiveTab] = useState('monitoring'); // 'monitoring' | 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'analytics'
   const [statusMsg, setStatusMsg] = useState('');
@@ -651,6 +652,7 @@ export default function AdminDashboard({
                     <th style={{ padding: '0.75rem' }}>Stop</th>
                     <th style={{ padding: '0.75rem' }}>Status</th>
                     <th style={{ padding: '0.75rem' }}>Today's Boarding</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -675,6 +677,26 @@ export default function AdminDashboard({
                           ) : (
                             <span style={{ color: '#94a3b8' }}>Not Boarded</span>
                           )}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          <button
+                            onClick={() => onOpenAuthModal && onOpenAuthModal('update', s)}
+                            className="btn btn-outline btn-sm"
+                            style={{ 
+                              padding: '0.25rem 0.6rem', 
+                              fontSize: '0.75rem', 
+                              borderColor: '#10b981', 
+                              color: '#059669', 
+                              background: '#ecfdf5',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontWeight: 700
+                            }}
+                            title="Edit and update user in MongoDB Atlas"
+                          >
+                            <Edit3 size={13} /> Edit User
+                          </button>
                         </td>
                       </tr>
                     );

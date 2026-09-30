@@ -35,10 +35,9 @@ export async function seedDatabaseIfEmpty() {
         await Route.insertMany(initialData.routes);
         console.log(`[MongoDB] Re-seeded strict 2 buses and 2 drivers.`);
       }
-      return;
     }
 
-    console.log('[MongoDB] Collections empty. Migrating existing dataset into MongoDB Atlas...');
+    console.log('[MongoDB] Checking and migrating collections into MongoDB Atlas...');
 
     // Load from db_storage.json if exists and valid, otherwise initialData
     let sourceData = initialData;
@@ -56,62 +55,123 @@ export async function seedDatabaseIfEmpty() {
     }
 
     // 1. University
-    await University.deleteMany({});
-    await University.create(sourceData.university);
+    const uniCount = await University.countDocuments();
+    if (uniCount === 0) {
+      await University.create(sourceData.university);
+    }
 
     // 2. Routes (Strictly 2 routes)
-    await Route.deleteMany({});
-    await Route.insertMany(initialData.routes);
+    const routeCount = await Route.countDocuments();
+    if (routeCount !== 2) {
+      await Route.deleteMany({});
+      await Route.insertMany(initialData.routes);
+    }
 
     // 3. Buses (Strictly 2 buses)
-    await Bus.deleteMany({});
-    await Bus.insertMany(initialData.buses);
+    const busCountInDb = await Bus.countDocuments();
+    if (busCountInDb !== 2) {
+      await Bus.deleteMany({});
+      await Bus.insertMany(initialData.buses);
+    }
 
     // 4. Drivers (Strictly 2 drivers)
-    await Driver.deleteMany({});
-    await Driver.insertMany(initialData.drivers);
+    const driverCountInDb = await Driver.countDocuments();
+    if (driverCountInDb !== 2) {
+      await Driver.deleteMany({});
+      await Driver.insertMany(initialData.drivers);
+    }
 
     // 5. Students
-    await Student.deleteMany({});
-    const studentsToInsert = (sourceData.students && sourceData.students.length > 0)
-      ? sourceData.students
-      : initialData.students;
-    await Student.insertMany(studentsToInsert);
+    const studentCount = await Student.countDocuments();
+    if (studentCount === 0) {
+      const studentsToInsert = ((sourceData.students && sourceData.students.length > 0)
+        ? sourceData.students
+        : initialData.students).map(s => {
+          const item = { ...s };
+          delete item._id;
+          delete item.createdAt;
+          delete item.updatedAt;
+          return item;
+        });
+      await Student.insertMany(studentsToInsert);
+    }
 
     // 6. Complaints
-    await Complaint.deleteMany({});
-    const complaintsToInsert = (sourceData.complaints && sourceData.complaints.length > 0)
-      ? sourceData.complaints
-      : initialData.complaints;
-    await Complaint.insertMany(complaintsToInsert);
+    const complaintCount = await Complaint.countDocuments();
+    if (complaintCount === 0) {
+      const complaintsToInsert = ((sourceData.complaints && sourceData.complaints.length > 0)
+        ? sourceData.complaints
+        : initialData.complaints).map(c => {
+          const item = { ...c };
+          delete item._id;
+          if (typeof item.createdAt === 'string') {
+            item.createdAtString = item.createdAtString || item.createdAt;
+            delete item.createdAt;
+          }
+          delete item.updatedAt;
+          return item;
+        });
+      if (complaintsToInsert.length > 0) {
+        await Complaint.insertMany(complaintsToInsert);
+      }
+    }
 
     // 7. Route Change Requests
-    await RouteChangeRequest.deleteMany({});
-    const reqsToInsert = (sourceData.routeChangeRequests && sourceData.routeChangeRequests.length > 0)
-      ? sourceData.routeChangeRequests
-      : initialData.routeChangeRequests;
-    await RouteChangeRequest.insertMany(reqsToInsert);
+    const reqCount = await RouteChangeRequest.countDocuments();
+    if (reqCount === 0) {
+      const reqsToInsert = ((sourceData.routeChangeRequests && sourceData.routeChangeRequests.length > 0)
+        ? sourceData.routeChangeRequests
+        : initialData.routeChangeRequests).map(r => {
+          const item = { ...r };
+          delete item._id;
+          if (typeof item.submittedAt === 'string') {
+            item.submittedAtString = item.submittedAtString || item.submittedAt;
+            delete item.submittedAt;
+          }
+          delete item.createdAt;
+          delete item.updatedAt;
+          return item;
+        });
+      if (reqsToInsert.length > 0) {
+        await RouteChangeRequest.insertMany(reqsToInsert);
+      }
+    }
 
     // 8. Notifications
-    await Notification.deleteMany({});
-    const notifsToInsert = (sourceData.notifications && sourceData.notifications.length > 0)
-      ? sourceData.notifications
-      : initialData.notifications;
-    await Notification.insertMany(notifsToInsert);
+    const notifCount = await Notification.countDocuments();
+    if (notifCount === 0) {
+      const notifsToInsert = ((sourceData.notifications && sourceData.notifications.length > 0)
+        ? sourceData.notifications
+        : initialData.notifications).map(n => {
+          const item = { ...n };
+          delete item._id;
+          delete item.createdAt;
+          delete item.updatedAt;
+          return item;
+        });
+      if (notifsToInsert.length > 0) {
+        await Notification.insertMany(notifsToInsert);
+      }
+    }
 
     // 9. Active Trips
-    await ActiveTrip.deleteMany({});
-    const tripsToInsert = (sourceData.activeTrips && sourceData.activeTrips.length > 0)
-      ? sourceData.activeTrips
-      : initialData.activeTrips;
-    await ActiveTrip.insertMany(tripsToInsert);
+    const tripCount = await ActiveTrip.countDocuments();
+    if (tripCount === 0) {
+      const tripsToInsert = ((sourceData.activeTrips && sourceData.activeTrips.length > 0)
+        ? sourceData.activeTrips
+        : initialData.activeTrips).map(t => {
+          const item = { ...t };
+          delete item._id;
+          delete item.createdAt;
+          delete item.updatedAt;
+          return item;
+        });
+      if (tripsToInsert.length > 0) {
+        await ActiveTrip.insertMany(tripsToInsert);
+      }
+    }
 
     console.log('✅ [MongoDB] Initial migration and seeding completed successfully!');
-    console.log(`   - University: ${sourceData.university.name}`);
-    console.log(`   - Buses: 2 (Bus 1 - Pragnya, Bus 2 - Jitendra)`);
-    console.log(`   - Drivers: 2 (Pragnya +919040833547, Jitendra +916370998587)`);
-    console.log(`   - Routes: 2 (BEC College ↔ Baramunda, BEC College ↔ Patia)`);
-    console.log(`   - Students: ${studentsToInsert.length}`);
   } catch (err) {
     console.error('❌ [MongoDB] Error during seeding:', err.message);
   }

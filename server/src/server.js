@@ -543,15 +543,111 @@ app.post('/api/students/:id/status', async (req, res) => {
   }
 });
 
-app.put('/api/students/:id', async (req, res) => {
+app.post('/api/students/login', async (req, res) => {
+  const { rollNo, email, identifier } = req.body;
+  const lookup = (rollNo || email || identifier || '').trim();
+
+  if (!lookup) {
+    return res.status(400).json({ error: 'Please enter your College Roll Number or Email to log in.' });
+  }
+
   try {
     let student;
     if (isMongoConnected()) {
-      student = await Student.findOneAndUpdate({ id: req.params.id }, { $set: req.body }, { new: true }).lean();
+      const safeRegex = new RegExp(`^${lookup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      student = await Student.findOne({
+        $or: [
+          { rollNo: safeRegex },
+          { email: safeRegex },
+          { id: lookup }
+        ]
+      }).lean();
+    }
+
+    if (!student) {
+      student = db.students.find(s =>
+        (s.rollNo && s.rollNo.toLowerCase() === lookup.toLowerCase()) ||
+        (s.email && s.email.toLowerCase() === lookup.toLowerCase()) ||
+        s.id === lookup
+      );
+    }
+
+    if (!student) {
+      return res.status(404).json({
+        error: `No registered student found for "${lookup}". Please verify your Roll Number or register for a new bus pass.`
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Welcome back, ${student.name}!`,
+      student
+    });
+  } catch (err) {
+    console.error('Student login error:', err);
+    res.status(500).json({ error: 'Login failed', details: err.message });
+  }
+});
+
+app.post('/api/students/update', async (req, res) => {
+  const targetId = req.body.id || req.query.id;
+  const targetRoll = req.body.rollNo || req.query.rollNo;
+
+  if (!targetId && !targetRoll) {
+    return res.status(400).json({ error: 'Student ID or Roll Number is required for updating details.' });
+  }
+
+  try {
+    const updateData = { ...req.body };
+    delete updateData._id;
+
+    if (updateData.routeId) {
+      const route = db.routes.find(r => r.id === updateData.routeId);
+      const bus = db.buses.find(b => b.routeId === updateData.routeId) || db.buses.find(b => b.id === route?.busId) || db.buses[0];
+      updateData.busId = bus ? bus.id : (route ? route.busId : 'BUS-01');
+    }
+
+    let student;
+    if (isMongoConnected()) {
+      const filter = targetId ? { id: targetId } : { rollNo: targetRoll.trim() };
+      student = await Student.findOneAndUpdate(filter, { $set: updateData }, { new: true }).lean();
+    }
+
+    const idx = db.students.findIndex(s => (targetId && s.id === targetId) || (targetRoll && s.rollNo?.toLowerCase() === targetRoll.trim().toLowerCase()));
+    if (idx !== -1) {
+      db.students[idx] = { ...db.students[idx], ...updateData };
+      if (!student) student = db.students[idx];
+    }
+
+    if (!student) return res.status(404).json({ error: 'Student not found in registry' });
+
+    saveLocalState();
+    io.emit('students:updated', isMongoConnected() ? await Student.find({}).lean() : db.students);
+    res.json({ success: true, message: 'Student details updated successfully in MongoDB Atlas!', student });
+  } catch (err) {
+    console.error('Update student error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/students/:id', async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+    delete updateData._id;
+
+    if (updateData.routeId) {
+      const route = db.routes.find(r => r.id === updateData.routeId);
+      const bus = db.buses.find(b => b.routeId === updateData.routeId) || db.buses.find(b => b.id === route?.busId) || db.buses[0];
+      updateData.busId = bus ? bus.id : (route ? route.busId : 'BUS-01');
+    }
+
+    let student;
+    if (isMongoConnected()) {
+      student = await Student.findOneAndUpdate({ id: req.params.id }, { $set: updateData }, { new: true }).lean();
     }
     const idx = db.students.findIndex(s => s.id === req.params.id);
     if (idx !== -1) {
-      db.students[idx] = { ...db.students[idx], ...req.body };
+      db.students[idx] = { ...db.students[idx], ...updateData };
       if (!student) student = db.students[idx];
     }
     if (!student) return res.status(404).json({ error: 'Student not found' });

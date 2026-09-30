@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Bus, User, Shield, Compass, Bell, Radio, 
-  UserPlus, AlertTriangle, ShieldAlert, X, Check 
+  UserPlus, AlertTriangle, ShieldAlert, X, Check,
+  Edit3, LogIn
 } from 'lucide-react';
 
 export default function Navbar({
@@ -15,7 +16,8 @@ export default function Navbar({
   onDriverChange,
   notifications = [],
   buses = [],
-  onOpenRegisterModal
+  onOpenRegisterModal,
+  onOpenAuthModal
 }) {
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -269,10 +271,35 @@ export default function Navbar({
               )}
             </button>
 
+            {/* Student Login Button */}
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => onOpenAuthModal ? onOpenAuthModal('login') : onOpenRegisterModal()}
+              style={{ borderColor: '#cbd5e1', color: '#334155', background: '#f8fafc' }}
+              title="Student Sign In"
+              id="nav-btn-login"
+            >
+              <LogIn size={14} /> Login
+            </button>
+
+            {/* Update User Profile Button (Available when student is active) */}
+            {currentRole === 'student' && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => onOpenAuthModal ? onOpenAuthModal('update', currentStudent) : onOpenRegisterModal()}
+                style={{ borderColor: '#10b981', color: '#059669', background: '#ecfdf5', fontWeight: 700 }}
+                title="Update user profile details in MongoDB Atlas"
+                id="nav-btn-update-user"
+              >
+                <Edit3 size={14} /> Update User
+              </button>
+            )}
+
             {/* Register New Student Button */}
             <button
               className="btn btn-primary btn-sm"
-              onClick={onOpenRegisterModal}
+              onClick={() => onOpenAuthModal ? onOpenAuthModal('register') : onOpenRegisterModal()}
+              id="nav-btn-register"
             >
               <UserPlus size={14} /> New Registration
             </button>

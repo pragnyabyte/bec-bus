@@ -11,6 +11,7 @@
   },
   "routes": [
     {
+      "_id": "6abca93a11499aff94cf2058",
       "id": "R-101",
       "code": "RT-01",
       "name": "BEC College ↔ Baramunda",
@@ -76,9 +77,13 @@
           "eveningTime": "04:40 PM",
           "sequence": 6
         }
-      ]
+      ],
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:26.807Z",
+      "updatedAt": "2026-09-30T06:16:26.807Z"
     },
     {
+      "_id": "6abca93a11499aff94cf2059",
       "id": "R-102",
       "code": "RT-02",
       "name": "BEC College ↔ Patia",
@@ -144,11 +149,15 @@
           "eveningTime": "04:45 PM",
           "sequence": 6
         }
-      ]
+      ],
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:26.808Z",
+      "updatedAt": "2026-09-30T06:16:26.808Z"
     }
   ],
   "buses": [
     {
+      "_id": "6abca93b11499aff94cf205a",
       "id": "BUS-01",
       "busNo": "OD-02-AX-1001",
       "fleetNumber": "Bus 1",
@@ -165,9 +174,13 @@
       "heading": 220,
       "fuelPercent": 82,
       "nextStopId": "S-104",
-      "lastUpdated": "2026-09-30T04:17:53.845Z"
+      "lastUpdated": "2026-09-30T06:16:23.758Z",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.017Z",
+      "updatedAt": "2026-09-30T06:16:27.017Z"
     },
     {
+      "_id": "6abca93b11499aff94cf205b",
       "id": "BUS-02",
       "busNo": "OD-02-AX-2002",
       "fleetNumber": "Bus 2",
@@ -178,17 +191,21 @@
       "routeId": "R-102",
       "routeName": "BEC College ↔ Patia",
       "status": "on_trip",
-      "currentLat": 20.3541,
-      "currentLng": 85.8198,
-      "speed": 39,
-      "heading": 95,
+      "currentLat": 20.3015,
+      "currentLng": 85.822,
+      "speed": 32,
+      "heading": 205,
       "fuelPercent": 88,
-      "nextStopId": "S-201",
-      "lastUpdated": "2026-09-30T05:17:14.715Z"
+      "nextStopId": "S-204",
+      "lastUpdated": "2026-09-30T06:16:23.758Z",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.017Z",
+      "updatedAt": "2026-09-30T06:16:27.017Z"
     }
   ],
   "drivers": [
     {
+      "_id": "6abca93b11499aff94cf205c",
       "id": "PRAGNYA01",
       "name": "Pragnya",
       "phone": "+919040833547",
@@ -200,9 +217,13 @@
       "routeId": "R-101",
       "routeName": "BEC College ↔ Baramunda",
       "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-      "status": "active"
+      "status": "active",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.252Z",
+      "updatedAt": "2026-09-30T06:16:27.252Z"
     },
     {
+      "_id": "6abca93b11499aff94cf205d",
       "id": "JITENDRA01",
       "name": "Jitendra",
       "phone": "+916370998587",
@@ -214,11 +235,15 @@
       "routeId": "R-102",
       "routeName": "BEC College ↔ Patia",
       "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-      "status": "active"
+      "status": "active",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.252Z",
+      "updatedAt": "2026-09-30T06:16:27.252Z"
     }
   ],
   "students": [
     {
+      "_id": "6abca93b11499aff94cf205e",
       "id": "STU-01",
       "name": "Alex Johnson",
       "email": "alex.johnson@bec.edu.in",
@@ -232,9 +257,13 @@
       "status": "approved",
       "boardedToday": true,
       "boardedTime": "07:52 AM",
-      "qrToken": "BEC-STU-01-CS042"
+      "qrToken": "BEC-STU-01-CS042",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.433Z",
+      "updatedAt": "2026-09-30T06:31:57.335Z"
     },
     {
+      "_id": "6abca93b11499aff94cf205f",
       "id": "STU-02",
       "name": "Priya Sharma",
       "email": "priya.sharma@bec.edu.in",
@@ -248,9 +277,13 @@
       "status": "approved",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "BEC-STU-02-EC089"
+      "qrToken": "BEC-STU-02-EC089",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.433Z",
+      "updatedAt": "2026-09-30T06:16:27.433Z"
     },
     {
+      "_id": "6abca93b11499aff94cf2060",
       "id": "STU-03",
       "name": "Rohan Varma",
       "email": "rohan.varma@bec.edu.in",
@@ -264,9 +297,13 @@
       "status": "approved",
       "boardedToday": true,
       "boardedTime": "07:54 AM",
-      "qrToken": "BEC-STU-03-ME015"
+      "qrToken": "BEC-STU-03-ME015",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.433Z",
+      "updatedAt": "2026-09-30T06:16:27.433Z"
     },
     {
+      "_id": "6abca93b11499aff94cf2061",
       "id": "STU-04",
       "name": "Ananya Deshmukh",
       "email": "ananya.d@bec.edu.in",
@@ -280,9 +317,13 @@
       "status": "rejected",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "BEC-STU-04-IT118"
+      "qrToken": "BEC-STU-04-IT118",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.433Z",
+      "updatedAt": "2026-09-30T06:16:27.433Z"
     },
     {
+      "_id": "6abca93b11499aff94cf2062",
       "id": "STU-05",
       "name": "Pragnya Parida",
       "email": "pragnya.parida@bec.edu.in",
@@ -296,9 +337,13 @@
       "status": "approved",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "BEC-STU-05-CS-2024-999"
+      "qrToken": "BEC-STU-05-CS-2024-999",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.433Z",
+      "updatedAt": "2026-09-30T06:16:27.433Z"
     },
     {
+      "_id": "6abca93b11499aff94cf2063",
       "id": "STU-06",
       "name": "puja",
       "email": "fgh@gmail.com",
@@ -312,49 +357,94 @@
       "status": "approved",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "BEC-STU-06-3456"
+      "qrToken": "BEC-STU-06-3456",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:16:27.433Z",
+      "updatedAt": "2026-09-30T06:16:27.433Z"
+    },
+    {
+      "id": "STU-07",
+      "name": "Rohan Verma",
+      "email": "rohan.verma@bec.edu.in",
+      "rollNo": "CS-2026-888",
+      "department": "Artificial Intelligence",
+      "year": "1st Year",
+      "phone": "9123456789",
+      "routeId": "R-101",
+      "busId": "BUS-01",
+      "stopId": "S-101",
+      "status": "approved",
+      "boardedToday": false,
+      "boardedTime": null,
+      "qrToken": "BEC-STU-07-CS-2026-888"
     }
   ],
   "notifications": [
     {
-      "id": "NOTIF-1790741922551",
-      "title": "New Student Complaint Received",
-      "message": "[Cleanliness] Bus AC inspection from Pragnya Parida",
-      "type": "warning",
-      "target": "admin",
-      "timestamp": "Just now",
-      "read": false
-    },
-    {
-      "id": "NOTIF-1790741916940",
+      "id": "NOTIF-1790749918135",
       "title": "New Student Registration Successful",
-      "message": "Pragnya Parida (CS-2024-999) registered for Route RT-01. Digital Bus Pass is active.",
+      "message": "Rohan Verma (CS-2026-888) registered for Route RT-01. Digital Bus Pass is active.",
       "type": "info",
       "target": "all",
       "timestamp": "Just now",
       "read": false
     },
     {
+      "_id": "6abcaa8b38bf6a412745ba97",
       "id": "NOTIF-01",
       "title": "Bus 1 En Route",
       "message": "Bus 1 (Driver: Pragnya) is departing Khandagiri Square. Expected arrival at Kalinga Vihar in 10 mins.",
       "type": "info",
       "target": "R-101",
       "timestamp": "8 mins ago",
-      "read": false
+      "read": false,
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.856Z",
+      "updatedAt": "2026-09-30T06:22:03.856Z"
     },
     {
+      "_id": "6abcaa8b38bf6a412745ba98",
       "id": "NOTIF-02",
       "title": "Bus 2 Live GPS Update",
       "message": "Bus 2 (Driver: Jitendra) approaching Jayadev Vihar Junction on Patia route.",
       "type": "info",
       "target": "R-102",
       "timestamp": "15 mins ago",
-      "read": true
+      "read": true,
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.856Z",
+      "updatedAt": "2026-09-30T06:22:03.856Z"
+    },
+    {
+      "_id": "6abcaa8b38bf6a412745ba95",
+      "id": "NOTIF-1790741922551",
+      "title": "New Student Complaint Received",
+      "message": "[Cleanliness] Bus AC inspection from Pragnya Parida",
+      "type": "warning",
+      "target": "admin",
+      "timestamp": "Just now",
+      "read": false,
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.855Z",
+      "updatedAt": "2026-09-30T06:22:03.855Z"
+    },
+    {
+      "_id": "6abcaa8b38bf6a412745ba96",
+      "id": "NOTIF-1790741916940",
+      "title": "New Student Registration Successful",
+      "message": "Pragnya Parida (CS-2024-999) registered for Route RT-01. Digital Bus Pass is active.",
+      "type": "info",
+      "target": "all",
+      "timestamp": "Just now",
+      "read": false,
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.855Z",
+      "updatedAt": "2026-09-30T06:22:03.855Z"
     }
   ],
   "complaints": [
     {
+      "_id": "6abcaa8b38bf6a412745ba91",
       "id": "CMP-02",
       "studentId": "STU-05",
       "studentName": "Pragnya Parida",
@@ -364,9 +454,13 @@
       "message": "Please inspect the air conditioning in Bus 1.",
       "status": "resolved",
       "adminReply": "Scheduled for technician maintenance this evening.",
-      "createdAtString": "Just now"
+      "createdAtString": "Just now",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.444Z",
+      "updatedAt": "2026-09-30T06:22:03.444Z"
     },
     {
+      "_id": "6abcaa8b38bf6a412745ba92",
       "id": "CMP-01",
       "studentId": "STU-02",
       "studentName": "Priya Sharma",
@@ -376,11 +470,15 @@
       "message": "Request driver Pragnya to pause for an additional minute at Kalinga Vihar overbridge.",
       "status": "in_review",
       "adminReply": "Noted. Transport supervisor contacted Pragnya to ensure timely pickup dwell time.",
-      "createdAt": "Yesterday, 04:30 PM"
+      "createdAtString": "Yesterday, 04:30 PM",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.446Z",
+      "updatedAt": "2026-09-30T06:22:03.446Z"
     }
   ],
   "routeChangeRequests": [
     {
+      "_id": "6abcaa8b38bf6a412745ba93",
       "id": "REQ-02",
       "studentId": "STU-05",
       "studentName": "Pragnya Parida",
@@ -389,9 +487,13 @@
       "requestedRoute": "RT-02 (BEC College ↔ Patia)",
       "reason": "Shifted closer to Patia campus",
       "status": "pending",
-      "submittedAtString": "Just now"
+      "submittedAtString": "Just now",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.671Z",
+      "updatedAt": "2026-09-30T06:22:03.671Z"
     },
     {
+      "_id": "6abcaa8b38bf6a412745ba94",
       "id": "REQ-01",
       "studentId": "STU-01",
       "studentName": "Alex Johnson",
@@ -402,11 +504,15 @@
       "requestedStop": "Jayadev Vihar Junction",
       "reason": "Shifted residence towards Jayadev Vihar.",
       "status": "pending",
-      "submittedAt": "Today, 06:15 AM"
+      "submittedAtString": "Today, 06:15 AM",
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.671Z",
+      "updatedAt": "2026-09-30T06:22:03.671Z"
     }
   ],
   "activeTrips": [
     {
+      "_id": "6abcaa8c38bf6a412745ba99",
       "id": "TRIP-01",
       "busId": "BUS-01",
       "routeId": "R-101",
@@ -423,9 +529,13 @@
           "time": "07:52 AM",
           "method": "qr"
         }
-      ]
+      ],
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:04.045Z",
+      "updatedAt": "2026-09-30T06:22:04.045Z"
     },
     {
+      "_id": "6abcaa8c38bf6a412745ba9a",
       "id": "TRIP-02",
       "busId": "BUS-02",
       "routeId": "R-102",
@@ -442,7 +552,10 @@
           "time": "07:54 AM",
           "method": "manual"
         }
-      ]
+      ],
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:04.045Z",
+      "updatedAt": "2026-09-30T06:22:04.045Z"
     }
   ]
 }
