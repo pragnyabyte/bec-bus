@@ -158,7 +158,7 @@ export default function Navbar({
             </button>
           </div>
 
-          {/* Right Controls: Active Driver console switcher, GPS Live indicator, Notification Bell */}
+          {/* Right Controls: Active Driver console switcher, Notification Bell */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             {/* Active Driver Switcher when on Driver */}
             {currentRole === 'driver' && drivers.length > 0 && (
@@ -197,12 +197,6 @@ export default function Navbar({
                 </select>
               </div>
             )}
-
-            {/* Live Socket Status */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#dcfce7', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-full)', border: '1px solid #bbf7d0', fontSize: '0.75rem', color: '#15803d', fontWeight: 700 }}>
-              <span className="pulse-dot online" />
-              <span>GPS Live</span>
-            </div>
 
             {/* Notification Bell */}
             <button

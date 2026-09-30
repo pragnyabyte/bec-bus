@@ -25,7 +25,7 @@ export default function AdminDashboard({
   const [selectedBusId, setSelectedBusId] = useState('BUS-01');
 
   // Navigation tab inside selected bus dashboard
-  const [activeTab, setActiveTab] = useState('monitoring'); // 'monitoring' | 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'analytics'
+  const [activeTab, setActiveTab] = useState('fleet'); // 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'analytics'
   const [statusMsg, setStatusMsg] = useState('');
 
   // Complaint Reply State
@@ -432,7 +432,7 @@ export default function AdminDashboard({
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '1.25rem'
         }}>
           {/* Card 1: Live Status & Location */}
@@ -535,23 +535,149 @@ export default function AdminDashboard({
               First Pickup: <b>{selectedRoute?.stops?.[0]?.morningTime || '07:30 AM'}</b> • Final Drop: <b>{selectedRoute?.stops?.[selectedRoute?.stops?.length - 1]?.eveningTime || '04:40 PM'}</b>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Card 4: Student Ridership & Attendance for this bus */}
+      {/* ======================================================== */}
+      {/* 2. BUS LIVE TRACKER SECTION */}
+      {/* ======================================================== */}
+      <div className="glass-card" style={{
+        marginBottom: '1.5rem',
+        padding: '1.25rem',
+        border: '1.5px solid #bae6fd',
+        boxShadow: '0 4px 16px rgba(2, 132, 199, 0.08)'
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem',
+          flexWrap: 'wrap',
+          gap: '0.75rem'
+        }}>
           <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
-              {selectedBus.fleetNumber} Students & Attendance
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '1.35rem', color: '#0f172a', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Navigation size={22} style={{ color: selectedBusId === 'BUS-01' ? '#0284c7' : '#7c3aed' }} />
+                Bus Live Tracker
+              </h3>
+              <span style={{
+                background: selectedBusId === 'BUS-01' ? '#e0f2fe' : '#f3e8ff',
+                color: selectedBusId === 'BUS-01' ? '#0284c7' : '#7c3aed',
+                border: `1.5px solid ${selectedBusId === 'BUS-01' ? '#bae6fd' : '#ddd6fe'}`,
+                padding: '2px 10px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.8rem',
+                fontWeight: 800
+              }}>
+                {selectedBus.fleetNumber}
+              </span>
             </div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>
-              {selectedStudents.filter(s => s.boardedToday).length} <span style={{ fontSize: '0.85rem', color: '#64748b' }}>/ {selectedStudents.length} Boarded Today</span>
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 600, marginTop: '2px' }}>
-              {selectedStudents.length > 0 ? Math.round((selectedStudents.filter(s => s.boardedToday).length / selectedStudents.length) * 100) : 0}% Attendance • {selectedBus.occupied || selectedStudents.length}/{selectedBus.capacity || 45} Seats Occupied
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-              {selectedStudents.length} registered students assigned to {selectedBus.fleetNumber}
-            </div>
+            <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+              Live telemetry, transit corridor, and location tracking for {selectedBus.fleetNumber}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.35rem 0.75rem',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              background: trackingInfo.movementBadgeBg,
+              color: trackingInfo.movementBadgeColor,
+              border: `1px solid ${trackingInfo.movementBadgeBorder}`
+            }}>
+              <span className={`pulse-dot ${trackingInfo.movementState === 'moving' ? 'online' : trackingInfo.movementState === 'stopped' ? 'amber' : ''}`} />
+              {trackingInfo.movementLabel}
+            </span>
+            <span className="badge badge-blue">
+              {selectedBus.busNo}
+            </span>
           </div>
         </div>
+
+        {/* Live Tracking Information Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '0.75rem',
+          marginBottom: '1rem'
+        }}>
+          {/* 1. Bus Name & Plate */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>BUS</div>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', marginTop: '2px' }}>
+              {selectedBus.fleetNumber}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{selectedBus.busNo}</div>
+          </div>
+
+          {/* 2. Current Location */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT LOCATION</div>
+            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: '#0284c7', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={trackingInfo.locationText}>
+              {trackingInfo.locationText}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              {selectedBus.currentLat && selectedBus.currentLng ? `${selectedBus.currentLat.toFixed(4)}, ${selectedBus.currentLng.toFixed(4)}` : 'Campus Route'}
+            </div>
+          </div>
+
+          {/* 3. Current Speed */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT SPEED</div>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', marginTop: '2px' }}>
+              {selectedBus.speed || 0} km/h
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>
+              {selectedBus.status === 'on_trip' ? 'En Route' : selectedBus.status}
+            </div>
+          </div>
+
+          {/* 4. Current Route */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT ROUTE</div>
+            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: '#0f172a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={selectedRoute ? `${selectedRoute.code}: ${selectedRoute.name}` : ''}>
+              {selectedRoute ? `${selectedRoute.code}: ${selectedRoute.name}` : 'Transit Corridor'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              {selectedRoute?.distanceKm} km • ~{selectedRoute?.totalDurationMin} mins
+            </div>
+          </div>
+
+          {/* 5. Next Stop */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>NEXT STOP</div>
+            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: '#059669', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {trackingInfo.nextStop ? trackingInfo.nextStop.name : 'BEC College Campus'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              Stop #{trackingInfo.nextStop?.sequence || 1}
+            </div>
+          </div>
+
+          {/* 6. Estimated Arrival / Time */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>ESTIMATED ARRIVAL</div>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0284c7', marginTop: '2px' }}>
+              {trackingInfo.etaMinutes ? `~${trackingInfo.etaMinutes} mins` : (trackingInfo.isLiveAvailable ? 'Approaching' : 'Scheduled')}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>to next designated stop</div>
+          </div>
+        </div>
+
+        {/* Live Map Area (Reusing existing LiveMap component) */}
+        <LiveMap
+          routes={selectedRoute ? [selectedRoute] : []}
+          buses={selectedBus ? [selectedBus] : []}
+          highlightBusId={selectedBus.id}
+          height="480px"
+        />
       </div>
 
       {statusMsg && (
@@ -574,12 +700,6 @@ export default function AdminDashboard({
 
       {/* Admin Navigation Tabs */}
       <div className="tabs-container" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <button
-          className={`tab-btn ${activeTab === 'monitoring' ? 'active' : ''}`}
-          onClick={() => setActiveTab('monitoring')}
-        >
-          <Activity size={16} /> Live Map & Tracking ({selectedBus.fleetNumber})
-        </button>
         <button
           className={`tab-btn ${activeTab === 'fleet' ? 'active' : ''}`}
           onClick={() => setActiveTab('fleet')}
@@ -622,93 +742,6 @@ export default function AdminDashboard({
           <BarChart3 size={16} /> Reports & Analytics
         </button>
       </div>
-
-      {/* TAB 1: LIVE MAP & TRACKING FOR SELECTED BUS */}
-      {activeTab === 'monitoring' && (
-        <div className="glass-card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-                <span className={`pulse-dot ${trackingInfo.movementState === 'moving' ? 'online' : 'amber'}`} />
-                {selectedBus.fleetNumber} Live Tracking & Telemetry
-              </h3>
-              <p style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                Displaying {selectedBus.fleetNumber} route ({selectedRoute?.name}) and live GPS telemetry
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span className="badge badge-blue">
-                {selectedBus.fleetNumber} • {selectedBus.busNo}
-              </span>
-              <span className={`badge ${selectedBus.status === 'on_trip' ? 'badge-green' : selectedBus.status === 'emergency' ? 'badge-red' : 'badge-blue'}`}>
-                {selectedBus.status}
-              </span>
-            </div>
-          </div>
-
-          {/* Strict LiveMap filtering to ONLY the selected bus and route */}
-          <LiveMap
-            routes={selectedRoute ? [selectedRoute] : []}
-            buses={selectedBus ? [selectedBus] : []}
-            highlightBusId={selectedBus.id}
-            height="520px"
-          />
-
-          {/* Live telemetry strip for selected bus */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '0.75rem',
-            marginTop: '1rem'
-          }}>
-            <div style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
-                  {selectedBus.fleetNumber} ({selectedBus.busNo})
-                </div>
-                <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '2px' }}>
-                  Driver: <b style={{ color: '#0284c7' }}>{selectedDriver.name}</b> ({selectedDriver.phone})
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span className={`badge ${selectedBus.status === 'on_trip' ? 'badge-green' : selectedBus.status === 'emergency' ? 'badge-red' : 'badge-blue'}`}>
-                  {selectedBus.status}
-                </span>
-                <div style={{ fontSize: '0.8rem', color: '#0284c7', marginTop: '4px', fontWeight: 700 }}>
-                  {selectedBus.speed || 0} km/h • {selectedBus.occupied}/{selectedBus.capacity} seats
-                </div>
-              </div>
-            </div>
-
-            <div style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.85rem'
-            }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                CURRENT LOCATION
-              </div>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a', marginTop: '2px' }}>
-                {trackingInfo.locationText}
-              </div>
-              {trackingInfo.nextStop && (
-                <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, marginTop: '2px' }}>
-                  Next: {trackingInfo.nextStop.name} {trackingInfo.etaMinutes ? `(~${trackingInfo.etaMinutes}m)` : ''}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TAB 2: DRIVER & VEHICLE DETAILS FOR SELECTED BUS */}
       {activeTab === 'fleet' && (
