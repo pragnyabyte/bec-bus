@@ -1,12 +1,6 @@
+import './env.js';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { seedDatabaseIfEmpty } from './seed.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 let isConnected = false;
 
@@ -22,9 +16,7 @@ export async function connectMongoDB() {
     return false;
   }
 
-  // Sanitize URI for logging to avoid exposing password
-  const sanitizedUri = uri.replace(/:([^@]+)@/, ':****@');
-  console.log(`🔌 [MongoDB] Connecting to MongoDB Atlas (${sanitizedUri})...`);
+  console.log('🔌 [MongoDB] Connecting to MongoDB Atlas cluster...');
 
   mongoose.connection.on('connected', () => {
     isConnected = true;
@@ -55,7 +47,7 @@ export async function connectMongoDB() {
     console.error('❌ [MongoDB] Failed to connect to MongoDB Atlas:');
     console.error(`   Error: ${error.message}`);
     if (error.message.includes('bad auth') || error.message.includes('Authentication failed')) {
-      console.error('   👉 [Atlas Auth Tip]: Please ensure the database user "pragnyaparida11_db_user" has password "685eEprDZLPyQ94z" configured in MongoDB Atlas -> Database Access.');
+      console.error('   👉 [Atlas Auth Tip]: Authentication failed for database user. Please verify the user credentials in MongoDB Atlas -> Database Access.');
       console.error('   👉 [Atlas Network Tip]: Ensure your IP or "0.0.0.0/0" is whitelisted in MongoDB Atlas -> Network Access.');
     }
     console.log('🛡️ [Server Resilience] Express server will continue running using resilient persistent fallback.');
