@@ -79,7 +79,7 @@ export default function RouteChangeModal({ student, currentRoute, routes = [], o
 
         {success ? (
           <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-            <CheckCircle2 size={48} style={{ color: '#059669', margin: '0 auto 1rem' }} />
+            <CheckCircle2 size={48} style={{ color: '#0284c7', margin: '0 auto 1rem' }} />
             <h4 style={{ color: '#0f172a' }}>Application Submitted!</h4>
             <p style={{ color: '#475569', fontSize: '0.9rem', marginTop: '0.5rem' }}>
               Transport Administration will review your relocation and update your bus pass status shortly.

@@ -98,7 +98,7 @@ export default function ComplaintModal({ student, complaints = [], onComplaintSu
         </div>
 
         {successMsg && (
-          <div style={{ padding: '0.75rem 1rem', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', color: '#15803d', fontSize: '0.875rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+          <div style={{ padding: '0.75rem 1rem', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 'var(--radius-md)', color: '#0284c7', fontSize: '0.875rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
             <CheckCircle2 size={18} /> {successMsg}
           </div>
         )}
@@ -168,7 +168,7 @@ export default function ComplaintModal({ student, complaints = [], onComplaintSu
                     <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase' }}>
                       {item.category}
                     </span>
-                    <span className={`badge ${item.status === 'resolved' ? 'badge-green' : item.status === 'in_review' ? 'badge-amber' : 'badge-blue'}`}>
+                    <span className={`badge ${item.status === 'resolved' ? 'badge-blue' : item.status === 'in_review' ? 'badge-amber' : 'badge-blue'}`}>
                       {item.status.replace('_', ' ')}
                     </span>
                   </div>
@@ -182,13 +182,13 @@ export default function ComplaintModal({ student, complaints = [], onComplaintSu
 
                   {item.adminReply && (
                     <div style={{
-                      background: '#f0fdf4',
-                      borderLeft: '3px solid #059669',
+                      background: '#f0f9ff',
+                      borderLeft: '3px solid #0284c7',
                       padding: '0.6rem 0.8rem',
                       borderRadius: '4px',
                       fontSize: '0.8rem'
                     }}>
-                      <div style={{ fontWeight: 700, color: '#15803d', fontSize: '0.75rem', marginBottom: '2px' }}>
+                      <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '0.75rem', marginBottom: '2px' }}>
                         Transport Desk Response:
                       </div>
                       <div style={{ color: '#334155' }}>{item.adminReply}</div>

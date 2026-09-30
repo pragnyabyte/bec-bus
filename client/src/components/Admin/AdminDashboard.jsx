@@ -3,7 +3,7 @@ import {
   Bus, Users, MapPin, AlertCircle, ShieldAlert, CheckCircle2, 
   XCircle, Plus, BarChart3, Settings, 
   FileText, Activity, Compass, ArrowRightLeft, MessageSquare,
-  Phone, ShieldCheck, Edit3, Trash2, LogOut, Clock, Navigation
+  Phone, ShieldCheck, Edit3, Trash2, LogOut, Clock, Navigation, X
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import { api } from '../../services/api';
@@ -25,12 +25,29 @@ export default function AdminDashboard({
   const [selectedBusId, setSelectedBusId] = useState('BUS-01');
 
   // Navigation tab inside selected bus dashboard
-  const [activeTab, setActiveTab] = useState('fleet'); // 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'analytics'
+  const [activeTab, setActiveTab] = useState('fleet'); // 'fleet' | 'routes' | 'approvals' | 'complaints' | 'requests' | 'analytics' | 'register'
   const [statusMsg, setStatusMsg] = useState('');
 
   // Complaint Reply State
   const [replyComplaintId, setReplyComplaintId] = useState(null);
   const [replyText, setReplyText] = useState('');
+
+  // New User Registration State
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [regRole, setRegRole] = useState('student'); // 'student' | 'driver' | 'admin'
+  const [regName, setRegName] = useState('');
+  const [regUserId, setRegUserId] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regDepartment, setRegDepartment] = useState('Computer Science');
+  const [regYear, setRegYear] = useState('1st Year');
+  const [regBusId, setRegBusId] = useState('BUS-01');
+  const [regStopId, setRegStopId] = useState('');
+  const [regLicenseNo, setRegLicenseNo] = useState('');
+  const [regExperience, setRegExperience] = useState('5');
+  const [regSubmitting, setRegSubmitting] = useState(false);
+  const [regSuccessMsg, setRegSuccessMsg] = useState('');
+  const [regErrorMsg, setRegErrorMsg] = useState('');
 
   // Coordinate validity helper (Odisha / Bhubaneswar region)
   const isCoordValid = (lat, lng) => {
@@ -305,34 +322,444 @@ export default function AdminDashboard({
     }
   };
 
+  // Available stops for registration based on selected bus/route
+  const regRouteStops = useMemo(() => {
+    const targetRouteId = regBusId === 'BUS-02' ? 'R-102' : 'R-101';
+    const r = routes.find(item => item.id === targetRouteId || (regBusId === 'BUS-02' ? item.code === 'RT-02' : item.code === 'RT-01'));
+    return r?.stops || [];
+  }, [routes, regBusId]);
+
+  // Handle New User Registration Submit
+  const handleRegisterSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setRegErrorMsg('');
+    setRegSuccessMsg('');
+
+    if (!regName.trim()) {
+      setRegErrorMsg('Full Name is required.');
+      return;
+    }
+    if (!regUserId.trim()) {
+      setRegErrorMsg(regRole === 'student' ? 'Student Roll Number / User ID is required.' : 'User ID / Identifier is required.');
+      return;
+    }
+
+    setRegSubmitting(true);
+    try {
+      const payload = {
+        role: regRole,
+        name: regName.trim(),
+        userId: regUserId.trim(),
+        phone: regPhone.trim(),
+        email: regEmail.trim(),
+        busId: regBusId,
+        routeId: regBusId === 'BUS-02' ? 'R-102' : 'R-101',
+        stopId: regStopId || undefined,
+        department: regDepartment,
+        year: regYear,
+        licenseNo: regLicenseNo.trim(),
+        experienceYears: regExperience
+      };
+
+      const response = await api.adminRegisterUser(payload);
+      const successText = response?.message || `Successfully registered new ${regRole}: ${regName.trim()} (${regUserId.trim()})`;
+      setRegSuccessMsg(successText);
+      setStatusMsg(successText);
+
+      // Reset text inputs
+      setRegName('');
+      setRegUserId('');
+      setRegPhone('');
+      setRegEmail('');
+      setRegLicenseNo('');
+
+      // Refresh real-time lists (students, drivers, fleet)
+      if (onDataRefresh) {
+        await onDataRefresh();
+      }
+
+      setTimeout(() => {
+        setStatusMsg('');
+      }, 5000);
+    } catch (err) {
+      console.error('Registration failed:', err);
+      setRegErrorMsg(err.message || 'Registration failed. Please check the entered fields.');
+    } finally {
+      setRegSubmitting(false);
+    }
+  };
+
+  // Reusable Registration Form Component
+  const renderRegistrationForm = (isModal = false) => (
+    <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      {/* Role Switcher */}
+      <div>
+        <label className="form-label" style={{ fontWeight: 700, marginBottom: '6px' }}>
+          Select Role to Register <span style={{ color: '#ef4444' }}>*</span>
+        </label>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '8px',
+          background: '#f1f5f9',
+          padding: '4px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid #cbd5e1'
+        }}>
+          <button
+            type="button"
+            onClick={() => { setRegRole('student'); setRegErrorMsg(''); }}
+            id="reg-role-student"
+            style={{
+              padding: '0.5rem',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              border: 'none',
+              cursor: 'pointer',
+              background: regRole === 'student' ? 'linear-gradient(135deg, #0284c7, #0ea5e9)' : 'transparent',
+              color: regRole === 'student' ? '#ffffff' : '#475569',
+              boxShadow: regRole === 'student' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <Users size={15} /> Student
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRegRole('driver'); setRegErrorMsg(''); }}
+            id="reg-role-driver"
+            style={{
+              padding: '0.5rem',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              border: 'none',
+              cursor: 'pointer',
+              background: regRole === 'driver' ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'transparent',
+              color: regRole === 'driver' ? '#ffffff' : '#475569',
+              boxShadow: regRole === 'driver' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <Compass size={15} /> Driver
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRegRole('admin'); setRegErrorMsg(''); }}
+            id="reg-role-admin"
+            style={{
+              padding: '0.5rem',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              border: 'none',
+              cursor: 'pointer',
+              background: regRole === 'admin' ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'transparent',
+              color: regRole === 'admin' ? '#ffffff' : '#475569',
+              boxShadow: regRole === 'admin' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <ShieldCheck size={15} /> Admin
+          </button>
+        </div>
+      </div>
+
+      {regErrorMsg && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: 'var(--radius-md)',
+          color: '#b91c1c',
+          fontSize: '0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontWeight: 600
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0 }} /> {regErrorMsg}
+        </div>
+      )}
+
+      {regSuccessMsg && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          background: '#f0f9ff',
+          border: '1px solid #bae6fd',
+          borderRadius: 'var(--radius-md)',
+          color: '#0369a1',
+          fontSize: '0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontWeight: 600
+        }}>
+          <CheckCircle2 size={16} style={{ flexShrink: 0, color: '#0284c7' }} /> {regSuccessMsg}
+        </div>
+      )}
+
+      {/* Common Basic Profile Fields */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">
+            Full Name <span style={{ color: '#ef4444' }}>*</span>
+          </label>
+          <input
+            type="text"
+            className="form-input"
+            id="reg-input-name"
+            placeholder={regRole === 'student' ? 'e.g. Rahul Mishra' : regRole === 'driver' ? 'e.g. Ramesh Mohanty' : 'e.g. Transport Officer'}
+            value={regName}
+            onChange={e => setRegName(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">
+            {regRole === 'student' ? 'Student Roll Number / User ID' : regRole === 'driver' ? 'Driver ID / Badge' : 'Admin User ID'} <span style={{ color: '#ef4444' }}>*</span>
+          </label>
+          <input
+            type="text"
+            className="form-input"
+            id="reg-input-userid"
+            placeholder={regRole === 'student' ? 'e.g. 2101289123' : regRole === 'driver' ? 'e.g. RAMESH01' : 'e.g. ADMIN-02'}
+            value={regUserId}
+            onChange={e => setRegUserId(e.target.value)}
+            required
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Phone Number</label>
+          <input
+            type="tel"
+            className="form-input"
+            id="reg-input-phone"
+            placeholder="e.g. +91 94370 12345"
+            value={regPhone}
+            onChange={e => setRegPhone(e.target.value)}
+          />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Email Address</label>
+          <input
+            type="email"
+            className="form-input"
+            id="reg-input-email"
+            placeholder={regRole === 'student' ? 'e.g. student@bec.edu.in' : 'e.g. transport@bec.edu.in'}
+            value={regEmail}
+            onChange={e => setRegEmail(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Role-Specific Fields: Student */}
+      {regRole === 'student' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Department / Branch</label>
+              <select className="form-select" id="reg-select-dept" value={regDepartment} onChange={e => setRegDepartment(e.target.value)}>
+                <option value="Computer Science">Computer Science & Engineering</option>
+                <option value="Information Technology">Information Technology</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Electrical Engineering">Electrical Engineering</option>
+                <option value="Civil Engineering">Civil Engineering</option>
+                <option value="Electronics & Comm.">Electronics & Communication</option>
+                <option value="MBA">MBA</option>
+                <option value="MCA">MCA</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Academic Year</label>
+              <select className="form-select" id="reg-select-year" value={regYear} onChange={e => setRegYear(e.target.value)}>
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Assigned Bus & Route</label>
+              <select
+                className="form-select"
+                id="reg-select-bus"
+                value={regBusId}
+                onChange={e => {
+                  setRegBusId(e.target.value);
+                  setRegStopId('');
+                }}
+              >
+                <option value="BUS-01">Bus 1 – Pragnya (Route RT-01: BEC College ↔ Baramunda)</option>
+                <option value="BUS-02">Bus 2 – Jitendra (Route RT-02: BEC College ↔ Patia)</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Designated Boarding Stop</label>
+              <select className="form-select" id="reg-select-stop" value={regStopId} onChange={e => setRegStopId(e.target.value)}>
+                <option value="">-- First Stop (Default) --</option>
+                {regRouteStops.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} (Stop #{s.sequence} • {s.morningTime})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Role-Specific Fields: Driver */}
+      {regRole === 'driver' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Assigned Fleet Bus</label>
+            <select className="form-select" id="reg-driver-bus" value={regBusId} onChange={e => setRegBusId(e.target.value)}>
+              <option value="BUS-01">Bus 1 – Pragnya (Route RT-01: Baramunda)</option>
+              <option value="BUS-02">Bus 2 – Jitendra (Route RT-02: Patia)</option>
+            </select>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Commercial License Number</label>
+            <input
+              type="text"
+              className="form-input"
+              id="reg-driver-license"
+              placeholder="e.g. OD-02-2022-008912"
+              value={regLicenseNo}
+              onChange={e => setRegLicenseNo(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Driving Experience (Years)</label>
+            <input
+              type="number"
+              className="form-input"
+              id="reg-driver-exp"
+              min="1"
+              max="40"
+              value={regExperience}
+              onChange={e => setRegExperience(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Role-Specific Fields: Admin */}
+      {regRole === 'admin' && (
+        <div style={{
+          background: '#f0f9ff',
+          border: '1px solid #bae6fd',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.85rem 1rem',
+          fontSize: '0.85rem',
+          color: '#0369a1'
+        }}>
+          <b>Administrator Privileges:</b> This user will have administrative access for campus transit supervision, driver oversight, route schedules, and complaint resolution.
+        </div>
+      )}
+
+      {/* Submit Button & Actions */}
+      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        {isModal && (
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => setShowRegisterModal(false)}
+            style={{ minWidth: '100px' }}
+          >
+            Close
+          </button>
+        )}
+        <button
+          type="submit"
+          className="btn btn-primary"
+          id="btn-submit-registration"
+          disabled={regSubmitting}
+          style={{
+            background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+            color: '#ffffff',
+            fontWeight: 700,
+            minWidth: '180px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          {regSubmitting ? (
+            'Registering...'
+          ) : (
+            <>
+              <Plus size={16} /> Register {regRole.charAt(0).toUpperCase() + regRole.slice(1)}
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+
   return (
     <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
-      {/* Admin Title & Logout Header */}
+      {/* Admin Title & New Registration Header (Duplicate Logout Removed) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h2 style={{ fontSize: '1.6rem', color: '#0f172a', fontWeight: 800 }}>Admin Console</h2>
           <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Campus Fleet & Transit Central Command Center</p>
         </div>
-        {onLogout && (
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <button
-            className="btn btn-outline btn-sm"
-            onClick={onLogout}
-            id="btn-admin-logout"
+            className="btn btn-primary"
+            onClick={() => {
+              setShowRegisterModal(true);
+              setRegSuccessMsg('');
+              setRegErrorMsg('');
+            }}
+            id="btn-admin-new-registration"
             style={{
-              borderColor: '#fca5a5',
-              color: '#dc2626',
-              background: '#fef2f2',
+              background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+              color: '#ffffff',
               fontWeight: 700,
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(2, 132, 199, 0.25)',
+              border: 'none',
+              padding: '0.5rem 1.1rem',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.85rem'
             }}
-            title="Log out and return to Admin Sign In"
+            title="Register a new Student, Driver, or Admin into the transit registry"
           >
-            <LogOut size={15} /> Logout
+            <Plus size={16} /> New Registration
           </button>
-        )}
+        </div>
       </div>
 
       {/* ======================================================== */}
@@ -741,7 +1168,39 @@ export default function AdminDashboard({
         >
           <BarChart3 size={16} /> Reports & Analytics
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'register' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('register');
+            setRegSuccessMsg('');
+            setRegErrorMsg('');
+          }}
+          id="tab-btn-admin-register"
+          style={{ fontWeight: 700 }}
+        >
+          <Plus size={16} /> New Registration
+        </button>
       </div>
+
+      {/* TAB: NEW USER REGISTRATION */}
+      {activeTab === 'register' && (
+        <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '4px solid #0284c7', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '1.3rem', color: '#0f172a', fontWeight: 800, margin: 0 }}>
+                  New User Registration
+                </h3>
+                <span className="badge badge-blue">Official Registry</span>
+              </div>
+              <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+                Register new Students, Drivers, or Administrators directly into the BEC Transit database.
+              </p>
+            </div>
+          </div>
+          {renderRegistrationForm(false)}
+        </div>
+      )}
 
       {/* TAB 2: DRIVER & VEHICLE DETAILS FOR SELECTED BUS */}
       {activeTab === 'fleet' && (
@@ -1479,6 +1938,43 @@ export default function AdminDashboard({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Registration Modal Popup */}
+      {showRegisterModal && (
+        <div className="modal-overlay" onClick={() => setShowRegisterModal(false)} role="dialog" aria-modal="true">
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff'
+                }}>
+                  <Plus size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', color: '#0f172a', fontWeight: 800, margin: 0 }}>New Registration</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.8rem', margin: 0 }}>BEC Transit Central Registry</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRegisterModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px' }}
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {renderRegistrationForm(true)}
           </div>
         </div>
       )}

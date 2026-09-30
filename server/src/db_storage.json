@@ -239,6 +239,19 @@
       "__v": 0,
       "createdAt": "2026-09-30T06:16:27.252Z",
       "updatedAt": "2026-09-30T06:16:27.252Z"
+    },
+    {
+      "id": "MANOJ01",
+      "name": "Manoj Kumar",
+      "phone": "+919437012345",
+      "licenseNo": "OD-02-2020-001234",
+      "experienceYears": 6,
+      "rating": 4.8,
+      "busId": "BUS-02",
+      "busName": "Bus 2",
+      "routeId": "R-102",
+      "routeName": "BEC College ↔ Patia",
+      "status": "active"
     }
   ],
   "students": [
@@ -377,6 +390,22 @@
       "boardedToday": false,
       "boardedTime": null,
       "qrToken": "BEC-STU-07-25078"
+    },
+    {
+      "id": "STU-08",
+      "name": "Aditya Das",
+      "email": "aditya@bec.edu.in",
+      "rollNo": "2101289999",
+      "department": "Computer Science",
+      "year": "2nd Year",
+      "phone": "+919876543210",
+      "routeId": "R-101",
+      "busId": "BUS-01",
+      "stopId": "S-101",
+      "status": "approved",
+      "boardedToday": false,
+      "boardedTime": null,
+      "qrToken": "BEC-STU-08-2101289999"
     }
   ],
   "notifications": [

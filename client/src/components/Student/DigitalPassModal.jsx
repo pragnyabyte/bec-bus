@@ -135,7 +135,7 @@ export default function DigitalPassModal({ student, route, stop, bus, driver, on
                 href={`tel:${(driver.phone || (driver?.id === 'PRAGNYA01' || bus?.id === 'BUS-01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                 className="btn btn-sm"
                 style={{
-                  background: '#16a34a',
+                  background: '#0284c7',
                   color: '#ffffff',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -199,7 +199,7 @@ export default function DigitalPassModal({ student, route, stop, bus, driver, on
           {/* Today's boarding status */}
           <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
             {student.boardedToday ? (
-              <span className="badge badge-green" style={{ fontSize: '0.8rem', padding: '0.4rem 1rem' }}>
+              <span className="badge badge-blue" style={{ fontSize: '0.8rem', padding: '0.4rem 1rem' }}>
                 <CheckCircle size={14} /> Boarded Today at {student.boardedTime || '07:56 AM'}
               </span>
             ) : (

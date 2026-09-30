@@ -683,6 +683,170 @@ app.post('/api/admin/login', (req, res) => {
   return res.status(401).json({ error: 'Invalid administrator credentials.' });
 });
 
+app.post('/api/admin/register-user', async (req, res) => {
+  const { role = 'student', name, userId, phone, email, department, year, routeId, stopId, busId, licenseNo, experienceYears } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  if (!userId || !userId.trim()) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  try {
+    if (role === 'student') {
+      const studentRoll = userId.trim();
+      const studentName = name.trim();
+      const targetRouteId = routeId || (busId === 'BUS-02' ? 'R-102' : 'R-101');
+      const route = db.routes.find(r => r.id === targetRouteId);
+      const bus = db.buses.find(b => b.routeId === targetRouteId) || db.buses.find(b => b.id === (busId || route?.busId)) || db.buses[0];
+      const targetBusId = bus ? bus.id : 'BUS-01';
+
+      let savedStudent;
+      if (isMongoConnected()) {
+        let existing = await Student.findOne({ rollNo: studentRoll });
+        if (existing) {
+          existing.name = studentName;
+          if (email) existing.email = email.trim();
+          if (department) existing.department = department;
+          if (year) existing.year = year;
+          if (phone) existing.phone = phone.trim();
+          existing.routeId = targetRouteId;
+          existing.busId = targetBusId;
+          existing.stopId = stopId || (route && route.stops.length > 0 ? route.stops[0].id : null);
+          existing.status = 'approved';
+          await existing.save();
+          savedStudent = existing.toObject();
+        } else {
+          const count = await Student.countDocuments();
+          const nextId = `STU-${String(count + 1).padStart(2, '0')}`;
+          const newStu = new Student({
+            id: nextId,
+            name: studentName,
+            email: email ? email.trim() : `${studentRoll.toLowerCase()}@bec.edu.in`,
+            rollNo: studentRoll,
+            department: department || 'Engineering',
+            year: year || '1st Year',
+            phone: phone ? phone.trim() : '+91 90000 00000',
+            routeId: targetRouteId,
+            busId: targetBusId,
+            stopId: stopId || (route && route.stops.length > 0 ? route.stops[0].id : null),
+            status: 'approved',
+            boardedToday: false,
+            boardedTime: null,
+            qrToken: `BEC-STU-${String(count + 1).padStart(2, '0')}-${studentRoll}`
+          });
+          await newStu.save();
+          savedStudent = newStu.toObject();
+        }
+      }
+
+      // Mirror to local cache
+      const existingIdx = db.students.findIndex(s => s.rollNo?.toLowerCase() === studentRoll.toLowerCase());
+      if (existingIdx !== -1) {
+        db.students[existingIdx] = {
+          ...db.students[existingIdx],
+          name: studentName,
+          email: email ? email.trim() : db.students[existingIdx].email,
+          rollNo: studentRoll,
+          department: department || db.students[existingIdx].department,
+          year: year || db.students[existingIdx].year,
+          phone: phone ? phone.trim() : db.students[existingIdx].phone,
+          routeId: targetRouteId,
+          busId: targetBusId,
+          stopId: stopId || db.students[existingIdx].stopId,
+          status: 'approved'
+        };
+        if (!savedStudent) savedStudent = db.students[existingIdx];
+      } else {
+        const nextId = `STU-${String(db.students.length + 1).padStart(2, '0')}`;
+        const newStu = {
+          id: nextId,
+          name: studentName,
+          email: email ? email.trim() : `${studentRoll.toLowerCase()}@bec.edu.in`,
+          rollNo: studentRoll,
+          department: department || 'Engineering',
+          year: year || '1st Year',
+          phone: phone ? phone.trim() : '+91 90000 00000',
+          routeId: targetRouteId,
+          busId: targetBusId,
+          stopId: stopId || (route && route.stops.length > 0 ? route.stops[0].id : null),
+          status: 'approved',
+          boardedToday: false,
+          boardedTime: null,
+          qrToken: `BEC-STU-${String(db.students.length + 1).padStart(2, '0')}-${studentRoll}`
+        };
+        db.students.push(newStu);
+        if (!savedStudent) savedStudent = newStu;
+      }
+
+      saveLocalState();
+      io.emit('students:updated', isMongoConnected() ? await Student.find({}).lean() : db.students);
+      return res.status(201).json({
+        success: true,
+        message: `Student ${savedStudent.name} (${savedStudent.rollNo}) registered successfully for ${bus?.fleetNumber || 'Bus'}.`,
+        user: savedStudent
+      });
+    } else if (role === 'driver') {
+      const driverId = userId.trim();
+      const driverName = name.trim();
+      const targetBusId = busId || 'BUS-01';
+      const targetBus = db.buses.find(b => b.id === targetBusId) || db.buses[0];
+      const targetRoute = db.routes.find(r => r.id === (routeId || targetBus?.routeId)) || db.routes[0];
+
+      const driverObj = {
+        id: driverId,
+        name: driverName,
+        phone: phone ? phone.trim() : '+91 90000 00000',
+        licenseNo: licenseNo ? licenseNo.trim() : 'OD-02-2022-008912',
+        experienceYears: Number(experienceYears) || 4,
+        rating: 4.8,
+        busId: targetBus?.id || 'BUS-01',
+        busName: targetBus?.fleetNumber || 'Bus 1',
+        routeId: targetRoute?.id || 'R-101',
+        routeName: targetRoute?.name || 'BEC College Transit',
+        status: 'active'
+      };
+
+      if (isMongoConnected()) {
+        await Driver.findOneAndUpdate({ id: driverId }, { $set: driverObj }, { upsert: true, new: true });
+      }
+
+      const idx = db.drivers.findIndex(d => d.id === driverId);
+      if (idx !== -1) {
+        db.drivers[idx] = { ...db.drivers[idx], ...driverObj };
+      } else {
+        db.drivers.push(driverObj);
+      }
+
+      saveLocalState();
+      io.emit('drivers:updated', db.drivers);
+      return res.status(201).json({
+        success: true,
+        message: `Driver ${driverObj.name} (${driverObj.id}) registered successfully for ${driverObj.busName}.`,
+        user: driverObj
+      });
+    } else if (role === 'admin') {
+      const adminObj = {
+        id: userId.trim(),
+        name: name.trim(),
+        phone: phone ? phone.trim() : '',
+        role: 'admin'
+      };
+      return res.status(201).json({
+        success: true,
+        message: `Administrator ${adminObj.name} (${adminObj.id}) registered successfully.`,
+        user: adminObj
+      });
+    } else {
+      return res.status(400).json({ error: `Unknown role: ${role}` });
+    }
+  } catch (err) {
+    console.error('Admin user registration error:', err);
+    res.status(500).json({ error: 'User registration failed', details: err.message });
+  }
+});
+
 app.post('/api/driver/login', async (req, res) => {
   const { driverId, pin } = req.body;
   if (!pin || pin.toString().trim() !== '2026') {

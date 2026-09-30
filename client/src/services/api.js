@@ -115,6 +115,18 @@ export const api = {
     }
     return data;
   },
+  adminRegisterUser: async (userData) => {
+    const res = await fetch(`${API_BASE}/admin/register-user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Registration failed with status ${res.status}`);
+    }
+    return data;
+  },
   driverLogin: async (credentials) => {
     const res = await fetch(`${API_BASE}/driver/login`, {
       method: 'POST',

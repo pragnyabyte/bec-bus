@@ -130,9 +130,9 @@ export default function StudentDashboard({
     } else if (bus.speed && bus.speed > 3) {
       movementState = 'moving';
       movementLabel = `Moving (${bus.speed} km/h)`;
-      movementBadgeBg = '#dcfce7';
-      movementBadgeColor = '#15803d';
-      movementBadgeBorder = '#86efac';
+      movementBadgeBg = '#e0f2fe';
+      movementBadgeColor = '#0284c7';
+      movementBadgeBorder = '#bae6fd';
     } else {
       movementState = 'stopped';
       movementLabel = 'Stopped (0 km/h)';
@@ -317,7 +317,7 @@ export default function StudentDashboard({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
               <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>Welcome, {student?.name}</h2>
-              <span className={`badge ${student?.status === 'approved' ? 'badge-green' : 'badge-amber'}`}>
+              <span className={`badge ${student?.status === 'approved' ? 'badge-blue' : 'badge-amber'}`}>
                 {student?.status === 'approved' ? 'Active Pass' : 'Verification Pending'}
               </span>
             </div>
@@ -334,7 +334,7 @@ export default function StudentDashboard({
               className="btn btn-outline btn-sm"
               onClick={() => onOpenAuthModal && onOpenAuthModal('update', student)}
               id="btn-student-update-user"
-              style={{ borderColor: '#10b981', color: '#059669', background: '#ecfdf5', fontWeight: 700 }}
+              style={{ borderColor: '#bae6fd', color: '#0284c7', background: '#f0f9ff', fontWeight: 700 }}
               title="Update profile details in MongoDB Atlas"
             >
               <Edit3 size={15} /> Update User
@@ -390,8 +390,8 @@ export default function StudentDashboard({
                 {assignedBus?.fleetNumber}
               </h3>
             </div>
-            <span className={`badge ${assignedBus?.status === 'on_trip' ? 'badge-green' : assignedBus?.status === 'emergency' ? 'badge-red' : 'badge-blue'}`}>
-              <span className={`pulse-dot ${assignedBus?.status === 'on_trip' ? 'online' : ''}`} />
+            <span className={`badge ${assignedBus?.status === 'on_trip' ? 'badge-blue' : assignedBus?.status === 'emergency' ? 'badge-red' : 'badge-blue'}`}>
+              <span className={`pulse-dot ${assignedBus?.status === 'on_trip' ? 'blue' : ''}`} />
               {assignedBus?.status === 'on_trip' ? 'En Route' : assignedBus?.status?.toUpperCase()}
             </span>
           </div>
@@ -456,7 +456,7 @@ export default function StudentDashboard({
                 href={`tel:${(assignedDriver?.phone || (assignedBus?.id === 'BUS-01' || assignedDriver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
                 className="btn btn-sm"
                 style={{
-                  background: '#16a34a',
+                  background: '#0284c7',
                   color: '#ffffff',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -466,7 +466,7 @@ export default function StudentDashboard({
                   fontWeight: 700,
                   borderRadius: 'var(--radius-md)',
                   textDecoration: 'none',
-                  boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)'
+                  boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
                 }}
                 title={`Call ${assignedDriver?.name || 'Driver'}`}
               >
@@ -533,32 +533,32 @@ export default function StudentDashboard({
         </div>
 
         {/* Card 3: Boarding & Attendance Status */}
-        <div className="glass-card" style={{ borderLeft: '4px solid #059669' }}>
+        <div className="glass-card" style={{ borderLeft: '4px solid #0284c7' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.85rem' }}>
             <div>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
                 Today's Trip Attendance
               </span>
-              <h3 style={{ fontSize: '1.4rem', color: student?.boardedToday ? '#15803d' : '#d97706', marginTop: '2px' }}>
+              <h3 style={{ fontSize: '1.4rem', color: student?.boardedToday ? '#0284c7' : '#d97706', marginTop: '2px' }}>
                 {student?.boardedToday ? 'Boarded ✓' : 'Awaiting Boarding'}
               </h3>
             </div>
-            <span className={`badge ${student?.boardedToday ? 'badge-green' : 'badge-amber'}`}>
+            <span className={`badge ${student?.boardedToday ? 'badge-blue' : 'badge-amber'}`}>
               {student?.boardedToday ? 'Checked-In' : 'Pending'}
             </span>
           </div>
 
           <div style={{
-            background: student?.boardedToday ? '#f0fdf4' : '#fffbeb',
+            background: student?.boardedToday ? '#f0f9ff' : '#fffbeb',
             padding: '0.85rem',
             borderRadius: 'var(--radius-md)',
-            border: `1px solid ${student?.boardedToday ? '#bbf7d0' : '#fde68a'}`,
+            border: `1px solid ${student?.boardedToday ? '#bae6fd' : '#fde68a'}`,
             marginBottom: '0.85rem'
           }}>
             {student?.boardedToday ? (
               <div>
-                <div style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 700 }}>BOARDED TIMESTAMP</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#15803d' }}>
+                <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 700 }}>BOARDED TIMESTAMP</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0284c7' }}>
                   {student?.boardedTime || '07:56 AM'} (Verified via QR)
                 </div>
               </div>
@@ -623,7 +623,7 @@ export default function StudentDashboard({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pulse-dot online" />
+                  <span className="pulse-dot blue" />
                   <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>
                     Student Bus Tracker
                   </h3>
@@ -737,7 +737,7 @@ export default function StudentDashboard({
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: '#64748b' }}>Time Remaining to Next Stop:</span>
-                  <span style={{ fontWeight: 800, color: bus1Tracking.isLiveAvailable && bus1Tracking.etaMinutes ? '#059669' : '#64748b' }}>
+                  <span style={{ fontWeight: 800, color: bus1Tracking.isLiveAvailable && bus1Tracking.etaMinutes ? '#0284c7' : '#64748b' }}>
                     {bus1Tracking.isLiveAvailable && bus1Tracking.etaMinutes ? (
                       `⏱ ~${bus1Tracking.etaMinutes} mins (${bus1Tracking.nextStopDistKm?.toFixed(1)} km)`
                     ) : (
@@ -760,7 +760,7 @@ export default function StudentDashboard({
                     href="tel:+919040833547"
                     onClick={e => e.stopPropagation()}
                     className="btn btn-sm btn-outline"
-                    style={{ borderColor: '#86efac', color: '#15803d', background: '#f0fdf4', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
+                    style={{ borderColor: '#bae6fd', color: '#0284c7', background: '#f0f9ff', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
                     title="Call Driver Pragnya"
                   >
                     <Phone size={13} /> Call Pragnya
@@ -857,7 +857,7 @@ export default function StudentDashboard({
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: '#64748b' }}>Time Remaining to Next Stop:</span>
-                  <span style={{ fontWeight: 800, color: bus2Tracking.isLiveAvailable && bus2Tracking.etaMinutes ? '#059669' : '#64748b' }}>
+                  <span style={{ fontWeight: 800, color: bus2Tracking.isLiveAvailable && bus2Tracking.etaMinutes ? '#0284c7' : '#64748b' }}>
                     {bus2Tracking.isLiveAvailable && bus2Tracking.etaMinutes ? (
                       `⏱ ~${bus2Tracking.etaMinutes} mins (${bus2Tracking.nextStopDistKm?.toFixed(1)} km)`
                     ) : (
@@ -880,7 +880,7 @@ export default function StudentDashboard({
                     href="tel:+916370998587"
                     onClick={e => e.stopPropagation()}
                     className="btn btn-sm btn-outline"
-                    style={{ borderColor: '#86efac', color: '#15803d', background: '#f0fdf4', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
+                    style={{ borderColor: '#bae6fd', color: '#0284c7', background: '#f0f9ff', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
                     title="Call Driver Jitendra"
                   >
                     <Phone size={13} /> Call Jitendra
@@ -995,8 +995,8 @@ export default function StudentDashboard({
               </div>
             ) : (
               <div style={{
-                background: '#f0fdf4',
-                border: '1.5px solid #86efac',
+                background: '#f0f9ff',
+                border: '1.5px solid #bae6fd',
                 borderRadius: '12px',
                 padding: '0.85rem 1rem',
                 marginBottom: '1.25rem',
@@ -1005,17 +1005,17 @@ export default function StudentDashboard({
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 gap: '0.75rem',
-                color: '#166534',
+                color: '#0369a1',
                 fontSize: '0.875rem',
                 fontWeight: 600
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <span className="pulse-dot online" />
+                  <span className="pulse-dot blue" />
                   <span>
                     <b>Live GPS Active:</b> Bus is currently {activeTrackerInfo.locationText}. Next stop: <b>{activeTrackerInfo.nextStop?.name}</b> in ~{activeTrackerInfo.etaMinutes} mins.
                   </span>
                 </div>
-                <span style={{ fontSize: '0.8rem', background: '#dcfce7', padding: '3px 8px', borderRadius: '6px', color: '#15803d', fontWeight: 800 }}>
+                <span style={{ fontSize: '0.8rem', background: '#e0f2fe', padding: '3px 8px', borderRadius: '6px', color: '#0284c7', fontWeight: 800 }}>
                   Speed: {activeTrackerBus.speed || 0} km/h
                 </span>
               </div>
@@ -1066,8 +1066,8 @@ export default function StudentDashboard({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '0.85rem 1rem',
-                      background: isNearest ? '#f0fdf4' : isNext ? '#fffbeb' : isMyAssignedStop ? '#eff6ff' : '#f8fafc',
-                      border: `1.5px solid ${isNearest ? '#86efac' : isNext ? '#fde68a' : isMyAssignedStop ? '#bae6fd' : '#e2e8f0'}`,
+                      background: isNearest ? '#e0f2fe' : isNext ? '#fffbeb' : isMyAssignedStop ? '#eff6ff' : '#f8fafc',
+                      border: `1.5px solid ${isNearest ? '#bae6fd' : isNext ? '#fde68a' : isMyAssignedStop ? '#bae6fd' : '#e2e8f0'}`,
                       borderRadius: 'var(--radius-md)',
                       transition: 'all 0.2s',
                       flexWrap: 'wrap',
@@ -1079,7 +1079,7 @@ export default function StudentDashboard({
                         width: '32px',
                         height: '32px',
                         borderRadius: '50%',
-                        background: isNearest ? '#16a34a' : isNext ? '#d97706' : isMyAssignedStop ? '#0284c7' : '#64748b',
+                        background: isNearest ? '#0284c7' : isNext ? '#d97706' : isMyAssignedStop ? '#0284c7' : '#64748b',
                         color: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
@@ -1094,7 +1094,7 @@ export default function StudentDashboard({
                         <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                           <span>{stop.name}</span>
                           {isNearest && (
-                            <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>
+                            <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
                               📍 Nearest Location ({activeTrackerInfo.nearestDistKm?.toFixed(1)} km)
                             </span>
                           )}
@@ -1121,7 +1121,7 @@ export default function StudentDashboard({
                         <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
                           Morning Pickup
                         </div>
-                        <div style={{ fontWeight: 800, color: '#059669', fontSize: '0.9rem' }}>
+                        <div style={{ fontWeight: 800, color: '#0284c7', fontSize: '0.9rem' }}>
                           {stop.morningTime}
                         </div>
                       </div>
@@ -1313,7 +1313,7 @@ export default function StudentDashboard({
                   <div style={{ display: 'flex', gap: '2rem', textAlign: 'right' }}>
                     <div style={{ opacity: routeDirection === 'morning' ? 1 : 0.65 }}>
                       <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Morning Pickup</div>
-                      <div style={{ fontWeight: 700, color: '#059669', fontSize: '0.9rem' }}>{stop.morningTime}</div>
+                      <div style={{ fontWeight: 700, color: '#0284c7', fontSize: '0.9rem' }}>{stop.morningTime}</div>
                     </div>
                     <div style={{ opacity: routeDirection === 'evening' ? 1 : 0.65 }}>
                       <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Evening Drop</div>
@@ -1333,7 +1333,7 @@ export default function StudentDashboard({
           {/* Attendance History */}
           <div className="glass-card">
             <h4 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-              <UserCheck size={18} style={{ color: '#059669' }} /> Recent Attendance History
+              <UserCheck size={18} style={{ color: '#0284c7' }} /> Recent Attendance History
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)' }}>
@@ -1341,7 +1341,7 @@ export default function StudentDashboard({
                   <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>Today (Morning Trip)</div>
                   <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{assignedStop?.name}</div>
                 </div>
-                <span className={`badge ${student?.boardedToday ? 'badge-green' : 'badge-amber'}`}>
+                <span className={`badge ${student?.boardedToday ? 'badge-blue' : 'badge-amber'}`}>
                   {student?.boardedToday ? `Boarded (${student.boardedTime})` : 'Pending'}
                 </span>
               </div>
@@ -1350,14 +1350,14 @@ export default function StudentDashboard({
                   <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>Yesterday (Morning Trip)</div>
                   <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{assignedStop?.name}</div>
                 </div>
-                <span className="badge badge-green">Boarded (07:58 AM)</span>
+                <span className="badge badge-blue">Boarded (07:58 AM)</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>Yesterday (Evening Drop)</div>
                   <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Apex University Main Gate</div>
                 </div>
-                <span className="badge badge-green">Boarded (04:35 PM)</span>
+                <span className="badge badge-blue">Boarded (04:35 PM)</span>
               </div>
             </div>
           </div>
