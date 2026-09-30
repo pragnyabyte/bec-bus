@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Bus, User, Shield, Compass, Bell, Radio, 
   AlertTriangle, ShieldAlert, X, Check,
-  Edit3, LogOut
+  LogOut
 } from 'lucide-react';
 
 export default function Navbar({
@@ -55,7 +55,7 @@ export default function Navbar({
         position: 'sticky',
         top: 0,
         zIndex: 900,
-        padding: '0.75rem 1.5rem'
+        padding: '0.65rem 1.5rem'
       }}>
         <div style={{
           maxWidth: '1360px',
@@ -64,7 +64,7 @@ export default function Navbar({
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '1rem'
+          gap: '0.85rem'
         }}>
           {/* Brand Logo & Name */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -158,46 +158,8 @@ export default function Navbar({
             </button>
           </div>
 
-          {/* Right Controls: WebSocket pulse, Notification Drawer, Register button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {/* Active Student Switcher when on Student */}
-            {currentRole === 'student' && students.length > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: '#f0f9ff',
-                border: '1.5px solid #bae6fd',
-                borderRadius: 'var(--radius-md)',
-                padding: '0.3rem 0.65rem',
-                fontSize: '0.8rem'
-              }}>
-                <User size={14} style={{ color: '#0284c7', flexShrink: 0 }} />
-                <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>Active Student:</span>
-                <select
-                  value={currentStudent?.id || ''}
-                  onChange={e => onStudentChange && onStudentChange(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#0f172a',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    maxWidth: '180px'
-                  }}
-                  title="Switch active student profile"
-                >
-                  {students.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.rollNo})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
+          {/* Right Controls: Active Driver console switcher, GPS Live indicator, Notification Bell */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             {/* Active Driver Switcher when on Driver */}
             {currentRole === 'driver' && drivers.length > 0 && (
               <div style={{
@@ -272,21 +234,8 @@ export default function Navbar({
               )}
             </button>
 
-            {/* Update User Profile Button (Available when student is active) */}
-            {currentRole === 'student' && (
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => onOpenAuthModal ? onOpenAuthModal('update', currentStudent) : onOpenRegisterModal()}
-                style={{ borderColor: '#10b981', color: '#059669', background: '#ecfdf5', fontWeight: 700 }}
-                title="Update user profile details in MongoDB Atlas"
-                id="nav-btn-update-user"
-              >
-                <Edit3 size={14} /> Update User
-              </button>
-            )}
-
-            {/* Clear Logout Button */}
-            {onLogout && (
+            {/* Clear Logout Button (hidden on Student dashboard to avoid duplicate with main dashboard controls) */}
+            {onLogout && currentRole !== 'student' && (
               <button
                 className="btn btn-outline btn-sm"
                 onClick={onLogout}
