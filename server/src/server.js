@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
 import connectMongoDB, { isMongoConnected } from './config/db.js';
 import {
@@ -41,6 +42,68 @@ const io = new SocketIOServer(server, {
 
 app.use(cors());
 app.use(express.json());
+
+// -------------------------------------------------------------
+// Authentication, JWT Tokens & Role-Based Authorization
+// -------------------------------------------------------------
+const AUTH_SECRET = process.env.JWT_SECRET || 'bectransit_rb_auth_secret_key_2026';
+
+function generateAuthToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 days expiration
+  })).toString('base64url');
+  const signature = crypto.createHmac('sha256', AUTH_SECRET).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${signature}`;
+}
+
+function verifyAuthToken(token) {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [header, body, signature] = parts;
+  const expectedSig = crypto.createHmac('sha256', AUTH_SECRET).update(`${header}.${body}`).digest('base64url');
+  if (signature !== expectedSig) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function requireRole(allowedRoles = []) {
+  return (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: 'Authentication required. Missing authorization Bearer token.',
+        code: 'UNAUTHORIZED'
+      });
+    }
+    const token = authHeader.split(' ')[1];
+    const payload = verifyAuthToken(token);
+    if (!payload) {
+      return res.status(401).json({
+        error: 'Invalid or expired session token. Please log in again.',
+        code: 'INVALID_TOKEN'
+      });
+    }
+    req.user = payload;
+    if (allowedRoles.length > 0 && !allowedRoles.includes(payload.role)) {
+      return res.status(403).json({
+        error: `Access denied. Role "${payload.role}" is not authorized for this resource. Required role(s): ${allowedRoles.join(', ')}`,
+        code: 'FORBIDDEN'
+      });
+    }
+    next();
+  };
+}
 
 // In-memory fallback and cache
 function loadDbState() {
@@ -101,6 +164,14 @@ app.get('/api/health', (req, res) => {
     database: isMongoConnected() ? 'MongoDB Atlas (Connected)' : 'Local Storage Fallback (Connecting/Offline)',
     mongoReadyState: mongoose.connection.readyState,
     university: db.university ? db.university.name : 'BEC College'
+  });
+});
+
+// Authenticated session check endpoint
+app.get('/api/auth/me', requireRole([]), (req, res) => {
+  res.json({
+    success: true,
+    user: req.user
   });
 });
 
@@ -264,7 +335,7 @@ app.post('/api/buses', (req, res) => {
   });
 });
 
-app.patch('/api/buses/:id', async (req, res) => {
+app.patch('/api/buses/:id', requireRole(['driver', 'admin']), async (req, res) => {
   const busId = req.params.id;
   const lockedDriverId = busId === 'BUS-01' ? 'PRAGNYA01' : busId === 'BUS-02' ? 'JITENDRA01' : 'PRAGNYA01';
   const lockedDriverName = busId === 'BUS-01' ? 'Pragnya' : busId === 'BUS-02' ? 'Jitendra' : 'Pragnya';
@@ -520,7 +591,7 @@ app.post('/api/students/register', async (req, res) => {
   }
 });
 
-app.post('/api/students/:id/status', async (req, res) => {
+app.post('/api/students/:id/status', requireRole(['admin']), async (req, res) => {
   const { status } = req.body;
   try {
     let student;
@@ -589,10 +660,19 @@ app.post('/api/students/login', async (req, res) => {
       });
     }
 
+    const token = generateAuthToken({
+      id: student.id,
+      rollNo: student.rollNo,
+      name: student.name,
+      role: 'student'
+    });
+
     res.json({
       success: true,
       message: `Welcome back, ${student.name}!`,
-      student
+      role: 'student',
+      student,
+      token
     });
   } catch (err) {
     console.error('Student login error:', err);
@@ -600,7 +680,7 @@ app.post('/api/students/login', async (req, res) => {
   }
 });
 
-app.post('/api/students/update', async (req, res) => {
+app.post('/api/students/update', requireRole(['student', 'admin']), async (req, res) => {
   const targetId = req.body.id || req.query.id;
   const targetRoll = req.body.rollNo || req.query.rollNo;
 
@@ -641,7 +721,7 @@ app.post('/api/students/update', async (req, res) => {
   }
 });
 
-app.put('/api/students/:id', async (req, res) => {
+app.put('/api/students/:id', requireRole(['student', 'admin']), async (req, res) => {
   try {
     const updateData = { ...req.body };
     delete updateData._id;
@@ -674,16 +754,20 @@ app.put('/api/students/:id', async (req, res) => {
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
   if (username === 'admin' && (password === '1234' || password === 'admin123')) {
+    const adminUser = { role: 'admin', name: 'Transport Administrator', id: 'ADMIN-01' };
+    const token = generateAuthToken(adminUser);
     return res.json({
       success: true,
       message: 'Administrator authentication successful',
-      user: { role: 'admin', name: 'Transport Administrator', id: 'ADMIN-01' }
+      role: 'admin',
+      user: adminUser,
+      token
     });
   }
   return res.status(401).json({ error: 'Invalid administrator credentials.' });
 });
 
-app.post('/api/admin/register-user', async (req, res) => {
+app.post('/api/admin/register-user', requireRole(['admin']), async (req, res) => {
   const { role = 'student', name, userId, phone, email, department, year, routeId, stopId, busId, licenseNo, experienceYears } = req.body;
   
   if (!name || !name.trim()) {
@@ -863,17 +947,24 @@ app.post('/api/driver/login', async (req, res) => {
     if (!driver) {
       return res.status(404).json({ error: 'Driver not found in fleet registry' });
     }
+    const token = generateAuthToken({
+      id: driver.id,
+      name: driver.name,
+      role: 'driver'
+    });
     res.json({
       success: true,
       message: `Welcome, Driver ${driver.name}!`,
-      driver
+      role: 'driver',
+      driver,
+      token
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/students/:id', async (req, res) => {
+app.delete('/api/students/:id', requireRole(['admin']), async (req, res) => {
   const targetId = req.params.id;
   try {
     let deletedStudent;
@@ -937,7 +1028,7 @@ app.get('/api/complaints', async (req, res) => {
   }
 });
 
-app.post('/api/complaints', async (req, res) => {
+app.post('/api/complaints', requireRole(['student', 'admin']), async (req, res) => {
   const { studentId, studentName, studentRoll, category, subject, message } = req.body;
   const count = db.complaints.length;
   const newComplaint = {
@@ -984,7 +1075,7 @@ app.post('/api/complaints', async (req, res) => {
   }
 });
 
-app.post('/api/complaints/:id/reply', async (req, res) => {
+app.post('/api/complaints/:id/reply', requireRole(['admin']), async (req, res) => {
   const { adminReply, status } = req.body;
   try {
     let complaint;
@@ -1013,7 +1104,7 @@ app.post('/api/complaints/:id/reply', async (req, res) => {
   }
 });
 
-app.delete('/api/complaints/:id', async (req, res) => {
+app.delete('/api/complaints/:id', requireRole(['admin']), async (req, res) => {
   try {
     if (isMongoConnected()) {
       await Complaint.deleteOne({ id: req.params.id });
@@ -1041,7 +1132,7 @@ app.get('/api/change-requests', async (req, res) => {
   }
 });
 
-app.post('/api/change-requests', async (req, res) => {
+app.post('/api/change-requests', requireRole(['student', 'admin']), async (req, res) => {
   const { studentId, studentName, studentRoll, currentRoute, requestedRoute, currentStop, requestedStop, reason } = req.body;
   const count = db.routeChangeRequests.length;
   const newReq = {
@@ -1072,7 +1163,7 @@ app.post('/api/change-requests', async (req, res) => {
   }
 });
 
-app.post('/api/change-requests/:id/action', async (req, res) => {
+app.post('/api/change-requests/:id/action', requireRole(['admin']), async (req, res) => {
   const { action } = req.body; // 'approved' | 'rejected'
   try {
     let request;
@@ -1135,7 +1226,7 @@ app.get('/api/notifications', async (req, res) => {
   }
 });
 
-app.post('/api/notifications/broadcast', async (req, res) => {
+app.post('/api/notifications/broadcast', requireRole(['admin']), async (req, res) => {
   const { title, message, type, target } = req.body;
   const newNotif = {
     id: `NOTIF-${Date.now()}`,
@@ -1161,7 +1252,7 @@ app.post('/api/notifications/broadcast', async (req, res) => {
   }
 });
 
-app.delete('/api/notifications/:id', async (req, res) => {
+app.delete('/api/notifications/:id', requireRole(['admin']), async (req, res) => {
   try {
     if (isMongoConnected()) {
       await Notification.deleteOne({ id: req.params.id });
@@ -1188,7 +1279,7 @@ app.get('/api/trips', async (req, res) => {
   }
 });
 
-app.post('/api/trips/start', async (req, res) => {
+app.post('/api/trips/start', requireRole(['driver', 'admin']), async (req, res) => {
   const { busId, routeId, driverId, tripType } = req.body;
 
   try {
@@ -1254,7 +1345,7 @@ app.post('/api/trips/start', async (req, res) => {
   }
 });
 
-app.post('/api/trips/end', async (req, res) => {
+app.post('/api/trips/end', requireRole(['driver', 'admin']), async (req, res) => {
   const { busId, summary } = req.body;
   try {
     if (isMongoConnected()) {
@@ -1318,7 +1409,7 @@ app.post('/api/trips/end', async (req, res) => {
 });
 
 // Board student (QR scan or manual check)
-app.post('/api/trips/board', async (req, res) => {
+app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) => {
   const { studentId, busId, stopId, method } = req.body;
 
   try {
@@ -1380,7 +1471,7 @@ app.post('/api/trips/board', async (req, res) => {
 });
 
 // Emergency SOS alert
-app.post('/api/trips/sos', async (req, res) => {
+app.post('/api/trips/sos', requireRole(['driver', 'admin']), async (req, res) => {
   const { busId, driverId, lat, lng, reason } = req.body;
 
   try {
@@ -1432,7 +1523,7 @@ app.post('/api/trips/sos', async (req, res) => {
 });
 
 // Driver Incident Report (Traffic / Breakdown)
-app.post('/api/trips/incident', async (req, res) => {
+app.post('/api/trips/incident', requireRole(['driver', 'admin']), async (req, res) => {
   const { busId, type, delayMinutes, description } = req.body;
 
   try {

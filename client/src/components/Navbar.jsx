@@ -94,68 +94,29 @@ export default function Navbar({
             </div>
           </div>
 
-          {/* Master 3-Role Switcher (Student, Driver, Admin) */}
+          {/* Authenticated Portal Badge (Read-only, non-clickable) */}
           <div style={{
-            background: '#f0f9ff',
-            padding: '4px',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid #bae6fd',
-            display: 'flex',
-            gap: '4px'
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '0.45rem 1.15rem',
+            background: currentRole === 'admin' ? '#f0fdf4' : currentRole === 'driver' ? '#f0f9ff' : '#eff6ff',
+            border: `1.5px solid ${currentRole === 'admin' ? '#bbf7d0' : currentRole === 'driver' ? '#bae6fd' : '#bfdbfe'}`,
+            borderRadius: '9999px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            color: currentRole === 'admin' ? '#15803d' : currentRole === 'driver' ? '#0369a1' : '#1d4ed8'
           }}>
-            <button
-              onClick={() => onRoleChange('student')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '0.45rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.825rem',
-                fontWeight: 700,
-                background: currentRole === 'student' ? 'linear-gradient(135deg, #0284c7, #0ea5e9)' : 'transparent',
-                color: currentRole === 'student' ? '#ffffff' : '#334155',
-                boxShadow: currentRole === 'student' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
-              }}
-            >
-              <User size={15} /> Student
-            </button>
-
-            <button
-              onClick={() => onRoleChange('driver')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '0.45rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.825rem',
-                fontWeight: 700,
-                background: currentRole === 'driver' ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'transparent',
-                color: currentRole === 'driver' ? '#ffffff' : '#334155',
-                boxShadow: currentRole === 'driver' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
-              }}
-            >
-              <Compass size={15} /> Driver
-            </button>
-
-            <button
-              onClick={() => onRoleChange('admin')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '0.45rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.825rem',
-                fontWeight: 700,
-                background: currentRole === 'admin' ? 'linear-gradient(135deg, #059669, #10b981)' : 'transparent',
-                color: currentRole === 'admin' ? '#ffffff' : '#334155',
-                boxShadow: currentRole === 'admin' ? '0 2px 8px rgba(5, 150, 105, 0.3)' : 'none'
-              }}
-            >
-              <Shield size={15} /> Admin
-            </button>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: currentRole === 'admin' ? '#16a34a' : currentRole === 'driver' ? '#0284c7' : '#2563eb',
+              boxShadow: `0 0 6px ${currentRole === 'admin' ? 'rgba(22, 163, 74, 0.6)' : currentRole === 'driver' ? 'rgba(2, 132, 199, 0.6)' : 'rgba(37, 99, 235, 0.6)'}`
+            }} />
+            {currentRole === 'admin' && <><Shield size={15} /> Admin Console</>}
+            {currentRole === 'driver' && <><Compass size={15} /> Driver Console</>}
+            {currentRole === 'student' && <><User size={15} /> Student Portal</>}
           </div>
 
           {/* Right Controls: Active Driver console switcher, Notification Bell */}
@@ -228,8 +189,8 @@ export default function Navbar({
               )}
             </button>
 
-            {/* Clear Logout Button (hidden on Student dashboard to avoid duplicate with main dashboard controls) */}
-            {onLogout && currentRole !== 'student' && (
+            {/* Universal Logout Button in Navbar */}
+            {onLogout && (
               <button
                 className="btn btn-outline btn-sm"
                 onClick={onLogout}

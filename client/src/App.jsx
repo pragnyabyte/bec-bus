@@ -17,16 +17,8 @@ export default function App() {
     return null;
   });
 
-  const [currentRole, setCurrentRole] = useState(() => {
-    try {
-      const saved = localStorage.getItem('bectransit_auth_session');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.role) return parsed.role;
-      }
-    } catch (e) {}
-    return 'student';
-  });
+  // Role is strictly and immutably bound to the authenticated session
+  const currentRole = authSession?.role || null;
 
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('register'); // 'login' | 'register' | 'update'
@@ -107,7 +99,6 @@ export default function App() {
       localStorage.setItem('apextransit_active_student_data', JSON.stringify(newStudent));
       setCurrentStudentId(newStudent.id);
     }
-    setCurrentRole('student');
     await loadData();
     setShowRegisterModal(false);
   }, [loadData]);
@@ -118,7 +109,6 @@ export default function App() {
       localStorage.setItem('apextransit_active_student_data', JSON.stringify(loggedInStudent));
       setCurrentStudentId(loggedInStudent.id);
     }
-    setCurrentRole('student');
     setShowRegisterModal(false);
   }, []);
 
@@ -136,7 +126,6 @@ export default function App() {
   const handleAuthenticated = useCallback((session) => {
     setAuthSession(session);
     localStorage.setItem('bectransit_auth_session', JSON.stringify(session));
-    setCurrentRole(session.role);
     if (session.role === 'student' && session.user?.id) {
       setCurrentStudentId(session.user.id);
       localStorage.setItem('apextransit_active_student_id', session.user.id);
@@ -145,13 +134,116 @@ export default function App() {
       setCurrentDriverId(session.user.id);
       localStorage.setItem('apextransit_active_driver_id', session.user.id);
     }
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({ role: session.role }, '', `/#${session.role}`);
+    }
     loadData();
   }, [loadData]);
 
   const handleLogout = useCallback(() => {
+    // 1. Completely clear all authentication, tokens, and active profiles
     localStorage.removeItem('bectransit_auth_session');
+    localStorage.removeItem('apextransit_active_student_id');
+    localStorage.removeItem('apextransit_active_student_data');
+    localStorage.removeItem('apextransit_active_driver_id');
+    try {
+      sessionStorage.clear();
+    } catch (e) {}
+
+    // 2. Clear session in React state
     setAuthSession(null);
+
+    // 3. Rewrite browser history so Back button cannot return to protected pages
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/');
+      window.history.pushState(null, '', '/');
+    }
   }, []);
+
+  // Extract requested role/section from URL (pathname, hash, or query params)
+  const getRequestedSection = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const queryRole = (params.get('role') || params.get('section') || params.get('page') || '').toLowerCase();
+
+    const roles = ['student', 'driver', 'admin'];
+    for (const r of roles) {
+      if (
+        path === `/${r}` ||
+        path.startsWith(`/${r}/`) ||
+        hash === `#${r}` ||
+        hash === `#/${r}` ||
+        hash.includes(`${r}`) ||
+        queryRole === r
+      ) {
+        return r;
+      }
+    }
+    return null;
+  }, []);
+
+  // Enforce route authorization, protection, and automatic redirection
+  useEffect(() => {
+    const enforceRouteAuthorization = () => {
+      // 1. If not authenticated, ensure user cannot access protected sections
+      if (!authSession || !authSession.role) {
+        const requested = getRequestedSection();
+        if (requested && typeof window !== 'undefined') {
+          window.history.replaceState(null, '', '/');
+        }
+        return;
+      }
+
+      // 2. User is authenticated
+      const userRole = authSession.role;
+      const requested = getRequestedSection();
+
+      // Check if user is attempting to access an unauthorized section:
+      // "If a Student tries to access Driver/Admin, redirect them back to their Student dashboard.
+      //  If a Driver tries to access Student/Admin, redirect them back to Driver dashboard.
+      //  If an Admin tries to access Student/Driver, redirect them back to Admin dashboard."
+      if (requested && requested !== userRole) {
+        console.warn(`[RBAC] Access denied: User with role "${userRole}" attempted to access unauthorized section "${requested}". Redirecting to ${userRole} dashboard.`);
+        if (typeof window !== 'undefined') {
+          window.history.replaceState({ role: userRole }, '', `/#${userRole}`);
+        }
+      } else if (typeof window !== 'undefined' && (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/')) {
+        window.history.replaceState({ role: userRole }, '', `/#${userRole}`);
+      }
+    };
+
+    enforceRouteAuthorization();
+
+    // Listen to browser navigation (Back/Forward buttons) and hash changes
+    const handleNav = () => {
+      enforceRouteAuthorization();
+    };
+
+    window.addEventListener('popstate', handleNav);
+    window.addEventListener('hashchange', handleNav);
+
+    // Guard against bfcache restoration
+    const handlePageShow = () => {
+      const active = localStorage.getItem('bectransit_auth_session');
+      if (!active) {
+        setAuthSession(null);
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', '/');
+        }
+      } else {
+        enforceRouteAuthorization();
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      window.removeEventListener('popstate', handleNav);
+      window.removeEventListener('hashchange', handleNav);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [authSession, getRequestedSection]);
 
   useEffect(() => {
     setShowRegisterModal(false);
@@ -251,10 +343,9 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#ffffff', color: '#0f172a' }}>
-      {/* Top Navbar with Instant 3-Role Switcher and Logout */}
+      {/* Top Navbar with Authenticated Portal Indicator and Universal Logout */}
       <Navbar
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
         students={students}
         currentStudent={currentStudent}
         onStudentChange={handleStudentChange}

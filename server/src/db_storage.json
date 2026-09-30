@@ -168,16 +168,16 @@
       "routeId": "R-101",
       "routeName": "BEC College ↔ Baramunda",
       "status": "on_trip",
-      "currentLat": 20.2612,
-      "currentLng": 85.7745,
-      "speed": 36,
-      "heading": 220,
+      "currentLat": 20.2798,
+      "currentLng": 85.7937,
+      "speed": 30,
+      "heading": 240,
       "fuelPercent": 82,
-      "nextStopId": "S-104",
-      "lastUpdated": "2026-09-30T06:16:23.758Z",
+      "nextStopId": "S-101",
+      "lastUpdated": "2026-09-30T13:07:47.500Z",
       "__v": 0,
       "createdAt": "2026-09-30T06:16:27.017Z",
-      "updatedAt": "2026-09-30T06:16:27.017Z"
+      "updatedAt": "2026-09-30T11:57:31.681Z"
     },
     {
       "_id": "6abca93b11499aff94cf205b",
@@ -191,21 +191,21 @@
       "routeId": "R-102",
       "routeName": "BEC College ↔ Patia",
       "status": "on_trip",
-      "currentLat": 20.3015,
-      "currentLng": 85.822,
-      "speed": 32,
-      "heading": 205,
+      "currentLat": 20.342,
+      "currentLng": 85.808,
+      "speed": 33,
+      "heading": 271,
       "fuelPercent": 88,
-      "nextStopId": "S-204",
-      "lastUpdated": "2026-09-30T06:16:23.758Z",
+      "nextStopId": "S-202",
+      "lastUpdated": "2026-09-30T13:03:24.730Z",
       "__v": 0,
       "createdAt": "2026-09-30T06:16:27.017Z",
-      "updatedAt": "2026-09-30T06:16:27.017Z"
+      "updatedAt": "2026-09-30T13:03:24.730Z"
     }
   ],
   "drivers": [
     {
-      "_id": "6abca93b11499aff94cf205c",
+      "_id": "6abd074c04a7c8be03568d60",
       "id": "PRAGNYA01",
       "name": "Pragnya",
       "phone": "+919040833547",
@@ -219,11 +219,11 @@
       "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
       "status": "active",
       "__v": 0,
-      "createdAt": "2026-09-30T06:16:27.252Z",
-      "updatedAt": "2026-09-30T06:16:27.252Z"
+      "createdAt": "2026-09-30T12:57:48.143Z",
+      "updatedAt": "2026-09-30T12:57:48.143Z"
     },
     {
-      "_id": "6abca93b11499aff94cf205d",
+      "_id": "6abd074c04a7c8be03568d61",
       "id": "JITENDRA01",
       "name": "Jitendra",
       "phone": "+916370998587",
@@ -237,21 +237,8 @@
       "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
       "status": "active",
       "__v": 0,
-      "createdAt": "2026-09-30T06:16:27.252Z",
-      "updatedAt": "2026-09-30T06:16:27.252Z"
-    },
-    {
-      "id": "MANOJ01",
-      "name": "Manoj Kumar",
-      "phone": "+919437012345",
-      "licenseNo": "OD-02-2020-001234",
-      "experienceYears": 6,
-      "rating": 4.8,
-      "busId": "BUS-02",
-      "busName": "Bus 2",
-      "routeId": "R-102",
-      "routeName": "BEC College ↔ Patia",
-      "status": "active"
+      "createdAt": "2026-09-30T12:57:48.145Z",
+      "updatedAt": "2026-09-30T12:57:48.145Z"
     }
   ],
   "students": [
@@ -376,6 +363,7 @@
       "updatedAt": "2026-09-30T06:16:27.433Z"
     },
     {
+      "_id": "6abce2aa4c5514a950e15254",
       "id": "STU-07",
       "name": "prachi",
       "email": "25078@bec.edu.in",
@@ -389,9 +377,13 @@
       "status": "approved",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "BEC-STU-07-25078"
+      "qrToken": "BEC-STU-07-25078",
+      "createdAt": "2026-09-30T10:21:30.314Z",
+      "updatedAt": "2026-09-30T10:21:30.314Z",
+      "__v": 0
     },
     {
+      "_id": "6abd0041bbfd7d89846f0140",
       "id": "STU-08",
       "name": "Aditya Das",
       "email": "aditya@bec.edu.in",
@@ -405,10 +397,26 @@
       "status": "approved",
       "boardedToday": false,
       "boardedTime": null,
-      "qrToken": "BEC-STU-08-2101289999"
+      "qrToken": "BEC-STU-08-2101289999",
+      "createdAt": "2026-09-30T12:27:45.503Z",
+      "updatedAt": "2026-09-30T12:27:45.503Z",
+      "__v": 0
     }
   ],
   "notifications": [
+    {
+      "_id": "6abce2aa4c5514a950e15255",
+      "id": "NOTIF-1790763690531",
+      "title": "New Student Registration Successful",
+      "message": "prachi (25078) registered for Route RT-01. Digital Bus Pass is active.",
+      "type": "info",
+      "target": "all",
+      "timestamp": "Just now",
+      "read": false,
+      "createdAt": "2026-09-30T10:21:30.536Z",
+      "updatedAt": "2026-09-30T10:21:30.536Z",
+      "__v": 0
+    },
     {
       "_id": "6abcb14f6e643256713fa256",
       "id": "NOTIF-1790751055464",
@@ -475,19 +483,6 @@
       "__v": 0
     },
     {
-      "_id": "6abcaa8b38bf6a412745ba97",
-      "id": "NOTIF-01",
-      "title": "Bus 1 En Route",
-      "message": "Bus 1 (Driver: Pragnya) is departing Khandagiri Square. Expected arrival at Kalinga Vihar in 10 mins.",
-      "type": "info",
-      "target": "R-101",
-      "timestamp": "8 mins ago",
-      "read": false,
-      "__v": 0,
-      "createdAt": "2026-09-30T06:22:03.856Z",
-      "updatedAt": "2026-09-30T06:22:03.856Z"
-    },
-    {
       "_id": "6abcaa8b38bf6a412745ba98",
       "id": "NOTIF-02",
       "title": "Bus 2 Live GPS Update",
@@ -496,6 +491,19 @@
       "target": "R-102",
       "timestamp": "15 mins ago",
       "read": true,
+      "__v": 0,
+      "createdAt": "2026-09-30T06:22:03.856Z",
+      "updatedAt": "2026-09-30T06:22:03.856Z"
+    },
+    {
+      "_id": "6abcaa8b38bf6a412745ba97",
+      "id": "NOTIF-01",
+      "title": "Bus 1 En Route",
+      "message": "Bus 1 (Driver: Pragnya) is departing Khandagiri Square. Expected arrival at Kalinga Vihar in 10 mins.",
+      "type": "info",
+      "target": "R-101",
+      "timestamp": "8 mins ago",
+      "read": false,
       "__v": 0,
       "createdAt": "2026-09-30T06:22:03.856Z",
       "updatedAt": "2026-09-30T06:22:03.856Z"
@@ -528,6 +536,18 @@
     }
   ],
   "complaints": [
+    {
+      "id": "CMP-03",
+      "studentId": "STU-01",
+      "studentName": "Alex Johnson",
+      "studentRoll": "CS-2024-042",
+      "category": "General",
+      "subject": "Test",
+      "message": "Auth check",
+      "status": "open",
+      "adminReply": null,
+      "createdAtString": "Just now"
+    },
     {
       "_id": "6abcaa8b38bf6a412745ba91",
       "id": "CMP-02",

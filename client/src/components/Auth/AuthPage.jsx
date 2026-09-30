@@ -54,7 +54,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         setTimeout(() => {
           onAuthenticated({
             role: 'student',
-            user: res.student
+            user: res.student,
+            token: res.token
           });
         }, 300);
       } else {
@@ -90,7 +91,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         setTimeout(() => {
           onAuthenticated({
             role: 'driver',
-            user: res.driver
+            user: res.driver,
+            token: res.token
           });
         }, 300);
       } else {
@@ -126,7 +128,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         setTimeout(() => {
           onAuthenticated({
             role: 'admin',
-            user: res.user || { name: 'Campus Transport Administrator', role: 'admin' }
+            user: res.user || { name: 'Campus Transport Administrator', role: 'admin' },
+            token: res.token
           });
         }, 300);
       } else {
