@@ -1659,6 +1659,7 @@ export default function StudentDashboard({
           bus={assignedBus}
           driver={assignedDriver}
           onClose={() => setShowPassModal(false)}
+          onDataRefresh={onDataRefresh}
         />
       )}
 

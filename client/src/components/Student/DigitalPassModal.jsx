@@ -1,7 +1,16 @@
-import React, { useEffect } from 'react';
-import { QrCode, X, CheckCircle, ShieldCheck, Phone, Bus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { QrCode, X, CheckCircle, ShieldCheck, Phone, Bus, AlertCircle } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { api } from '../../services/api';
 
-export default function DigitalPassModal({ student, route, stop, bus, driver, onClose }) {
+export default function DigitalPassModal({ student, route, stop, bus, driver, onClose, onDataRefresh }) {
+  const [tokenInput, setTokenInput] = useState('');
+  const [isBoarding, setIsBoarding] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isBoarded, setIsBoarded] = useState(Boolean(student?.boardedToday));
+  const [boardedTime, setBoardedTime] = useState(student?.boardedTime || null);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -12,7 +21,93 @@ export default function DigitalPassModal({ student, route, stop, bus, driver, on
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    if (student?.boardedToday) {
+      setIsBoarded(true);
+      if (student.boardedTime) {
+        setBoardedTime(student.boardedTime);
+      }
+    }
+  }, [student?.boardedToday, student?.boardedTime]);
+
   if (!student) return null;
+
+  const expectedToken = (student.qrToken || (student.rollNo ? `APEX-${student.rollNo}` : student.id) || '').trim();
+
+  const handleConfirmBoarding = async (e) => {
+    if (e) e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    // Prevent duplicate boarding if already marked as boarded
+    if (isBoarded) {
+      setErrorMessage(`Already Boarded at ${boardedTime || 'today'}`);
+      return;
+    }
+
+    const cleanEntered = tokenInput.trim();
+    if (!cleanEntered) {
+      setErrorMessage('Please enter the boarding token shown on your bus pass.');
+      return;
+    }
+
+    // Verify token strictly against this passenger's active bus pass
+    const validTokens = [
+      expectedToken.toUpperCase(),
+      (student.qrToken || '').toUpperCase(),
+      (student.rollNo ? `APEX-${student.rollNo}` : '').toUpperCase(),
+      (student.rollNo || '').toUpperCase(),
+      (student.id || '').toUpperCase()
+    ].filter(Boolean);
+
+    if (!validTokens.includes(cleanEntered.toUpperCase())) {
+      setErrorMessage('Invalid boarding token. Please enter the exact token shown on your bus pass.');
+      return;
+    }
+
+    setIsBoarding(true);
+    try {
+      const now = new Date();
+      const exactTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const res = await api.boardStudent({
+        studentId: student.id,
+        rollNo: student.rollNo,
+        name: student.name,
+        qrToken: cleanEntered,
+        token: cleanEntered,
+        busId: student.busId || bus?.id,
+        routeId: student.routeId || route?.id,
+        method: 'token_self'
+      });
+
+      if (res && res.alreadyBoarded) {
+        const time = res.student?.boardedTime || boardedTime || exactTime;
+        setIsBoarded(true);
+        setBoardedTime(time);
+        setErrorMessage(`Already Boarded at ${time}`);
+        return;
+      }
+
+      const confirmedTime = res?.boardedTime || res?.student?.boardedTime || exactTime;
+      setIsBoarded(true);
+      setBoardedTime(confirmedTime);
+      setSuccessMessage(`Boarded at: ${confirmedTime}`);
+      setTokenInput('');
+
+      try {
+        confetti({ particleCount: 50, spread: 60 });
+      } catch (e) {}
+
+      if (onDataRefresh) {
+        onDataRefresh();
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to confirm boarding. Please check your token.');
+    } finally {
+      setIsBoarding(false);
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
@@ -213,15 +308,123 @@ export default function DigitalPassModal({ student, route, stop, bus, driver, on
           </div>
 
           {/* Today's boarding status */}
-          <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-            {student.boardedToday ? (
-              <span className="badge badge-blue" style={{ fontSize: '0.8rem', padding: '0.4rem 1rem' }}>
-                <CheckCircle size={14} /> Boarded Today at {student.boardedTime || '07:56 AM'}
+          <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            {isBoarded ? (
+              <span className="badge badge-blue" style={{ fontSize: '0.85rem', padding: '0.45rem 1rem', fontWeight: 800 }}>
+                <CheckCircle size={15} /> BOARDED • Boarded at: {boardedTime || '07:56 AM'}
               </span>
             ) : (
               <span className="badge badge-amber" style={{ fontSize: '0.8rem', padding: '0.4rem 1rem' }}>
-                ⏳ Ready for Boarding Scan
+                ⏳ Ready for Boarding
               </span>
+            )}
+          </div>
+
+          {/* Token Boarding Input Form */}
+          <div style={{
+            marginTop: '1.25rem',
+            background: '#ffffff',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem',
+            border: '1px solid #bae6fd',
+            textAlign: 'left',
+            boxShadow: '0 1px 4px rgba(2, 132, 199, 0.06)'
+          }}>
+            <label
+              htmlFor="boarding-token-input"
+              style={{
+                display: 'block',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                color: '#0f172a',
+                marginBottom: '6px'
+              }}
+            >
+              Enter Boarding Token
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                id="boarding-token-input"
+                type="text"
+                className="form-input"
+                placeholder="Enter Boarding Token"
+                value={tokenInput}
+                onChange={(e) => {
+                  setTokenInput(e.target.value);
+                  setErrorMessage('');
+                  setSuccessMessage('');
+                }}
+                disabled={isBoarded || isBoarding}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmBoarding(e);
+                }}
+                style={{
+                  flex: 1,
+                  minHeight: '44px',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  background: isBoarded ? '#f8fafc' : '#ffffff',
+                  borderColor: errorMessage ? '#ef4444' : (successMessage ? '#10b981' : '#cbd5e1')
+                }}
+              />
+              <button
+                type="button"
+                id="btn-confirm-boarding"
+                className="android-touch-btn"
+                onClick={handleConfirmBoarding}
+                disabled={isBoarded || isBoarding}
+                style={{
+                  width: 'auto',
+                  padding: '0 1.25rem',
+                  background: isBoarded ? '#94a3b8' : '#0284c7',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  flexShrink: 0,
+                  cursor: isBoarded ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isBoarding ? 'Verifying...' : (isBoarded ? 'Boarded' : 'Confirm Boarding')}
+              </button>
+            </div>
+
+            {/* Error feedback */}
+            {errorMessage && (
+              <div style={{
+                marginTop: '8px',
+                padding: '8px 10px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '6px',
+                color: '#b91c1c',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <AlertCircle size={14} /> {errorMessage}
+              </div>
+            )}
+
+            {/* Success feedback */}
+            {successMessage && (
+              <div style={{
+                marginTop: '8px',
+                padding: '8px 10px',
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: '6px',
+                color: '#047857',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <CheckCircle size={14} /> {successMessage}
+              </div>
             )}
           </div>
         </div>

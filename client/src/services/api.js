@@ -518,23 +518,21 @@ export const api = {
   boardStudent: async (data) => {
     let result = { success: true };
     if (isLocalhost && API_BASE) {
-      try {
-        const res = await authFetch(`${API_BASE}/trips/board`, {
-          method: 'POST',
-          body: JSON.stringify(data)
-        });
-        if (res && res.ok) {
-          result = await res.json();
-        } else if (res) {
-          const errData = await res.json().catch(() => ({}));
-          console.warn('Backend /api/trips/board response:', res.status, errData);
-          if (errData.error) {
-            throw new Error(errData.error);
-          }
-        }
-      } catch (err) {
-        console.warn('Backend board error, continuing with fallback:', err.message);
+      const res = await authFetch(`${API_BASE}/trips/board`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      if (res && res.ok) {
+        result = await res.json();
+      } else if (res) {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('Backend /api/trips/board response:', res.status, errData);
+        throw new Error(errData.error || `Boarding failed with status ${res.status}`);
       }
+    }
+
+    if (result && result.alreadyBoarded) {
+      return result;
     }
 
     const studentDocId = result.student?.id || data.studentId;

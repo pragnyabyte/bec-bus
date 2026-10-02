@@ -1549,25 +1549,39 @@ app.post('/api/trips/end', requireRole(['driver', 'admin']), async (req, res) =>
   }
 });
 
-// Board student (QR scan, roll number, name or manual check)
-app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) => {
-  const { studentId, rollNo, name, studentName, busId, routeId, stopId, method } = req.body;
+// Board student (QR scan, token, roll number, name or manual check)
+app.post('/api/trips/board', async (req, res) => {
+  // Validate token if auth header is present
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const rawToken = authHeader.split(' ')[1];
+    const payload = verifyAuthToken(rawToken);
+    if (payload) {
+      req.user = payload;
+    }
+  }
+
+  const { studentId, rollNo, name, studentName, qrToken, token, busId, routeId, stopId, method } = req.body;
   const cleanRoll = (rollNo || studentId || '').trim();
   const cleanName = (studentName || name || '').trim();
+  const cleanToken = (qrToken || token || '').trim();
 
-  if (!cleanRoll && !cleanName) {
-    return res.status(400).json({ error: 'Student Roll Number or ID is required to board.' });
+  if (!cleanRoll && !cleanName && !cleanToken) {
+    return res.status(400).json({ error: 'Student Roll Number, Token, or ID is required to board.' });
   }
 
   try {
     let student = null;
-    const boardedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const targetBusId = busId || 'BUS-01';
-    const targetRouteId = routeId || (targetBusId === 'BUS-02' ? 'R-102' : 'R-101');
+    let targetBusId = busId || 'BUS-01';
+    let targetRouteId = routeId || (targetBusId === 'BUS-02' ? 'R-102' : 'R-101');
 
     // 1. Try finding existing student in MongoDB Atlas
     if (isMongoConnected()) {
       const matchCriteria = [];
+      if (cleanToken) {
+        const tokenRegex = new RegExp(`^${cleanToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        matchCriteria.push({ qrToken: tokenRegex });
+      }
       if (cleanRoll) {
         const rollRegex = new RegExp(`^${cleanRoll.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
         matchCriteria.push({ id: rollRegex }, { rollNo: rollRegex }, { qrToken: rollRegex });
@@ -1577,60 +1591,33 @@ app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) 
         matchCriteria.push({ name: nameRegex });
       }
 
-      const existingMongo = await Student.findOne({ $or: matchCriteria });
-      if (existingMongo) {
-        existingMongo.boardedToday = true;
-        existingMongo.boardedTime = boardedTime;
-        if (cleanName && (!existingMongo.name || existingMongo.name.startsWith('Student '))) {
-          existingMongo.name = cleanName;
+      if (matchCriteria.length > 0) {
+        const existingMongo = await Student.findOne({ $or: matchCriteria });
+        if (existingMongo) {
+          student = existingMongo.toObject();
         }
-        await existingMongo.save();
-        student = existingMongo.toObject();
-      } else if (cleanName && cleanRoll) {
-        // Auto-create in MongoDB
-        const count = await Student.countDocuments();
-        const nextId = `STU-${String(count + 1).padStart(2, '0')}`;
-        const newStu = new Student({
-          id: nextId,
-          name: cleanName,
-          rollNo: cleanRoll,
-          email: `${cleanRoll.toLowerCase()}@bec.edu.in`,
-          department: 'Engineering',
-          year: '1st Year',
-          phone: '+91 90000 00000',
-          routeId: targetRouteId,
-          busId: targetBusId,
-          status: 'approved',
-          boardedToday: true,
-          boardedTime,
-          qrToken: `BEC-${nextId}-${cleanRoll}`
-        });
-        await newStu.save();
-        student = newStu.toObject();
       }
     }
 
-    // 2. Mirror/Fallback in local memory cache (db.students)
-    let localStu = db.students.find(s => {
-      if (cleanRoll) {
-        if (s.id?.toLowerCase() === cleanRoll.toLowerCase()) return true;
-        if (s.rollNo?.toLowerCase() === cleanRoll.toLowerCase()) return true;
-        if (s.qrToken?.toLowerCase() === cleanRoll.toLowerCase()) return true;
-      }
-      if (cleanName && s.name?.toLowerCase() === cleanName.toLowerCase()) return true;
-      return false;
-    });
+    // 2. Fallback search in memory cache (db.students)
+    if (!student) {
+      student = db.students.find(s => {
+        if (cleanToken && s.qrToken?.toLowerCase() === cleanToken.toLowerCase()) return true;
+        if (cleanRoll) {
+          if (s.id?.toLowerCase() === cleanRoll.toLowerCase()) return true;
+          if (s.rollNo?.toLowerCase() === cleanRoll.toLowerCase()) return true;
+          if (s.qrToken?.toLowerCase() === cleanRoll.toLowerCase()) return true;
+        }
+        if (cleanName && s.name?.toLowerCase() === cleanName.toLowerCase()) return true;
+        return false;
+      });
+    }
 
-    if (localStu) {
-      localStu.boardedToday = true;
-      localStu.boardedTime = boardedTime;
-      if (cleanName && (!localStu.name || localStu.name.startsWith('Student '))) {
-        localStu.name = cleanName;
-      }
-      if (!student) student = localStu;
-    } else if (cleanName && cleanRoll) {
-      const nextId = `STU-${String(db.students.length + 1).padStart(2, '0')}`;
-      const newLocal = {
+    // Auto-create student if not found and both name & roll provided (Driver Manual Boarding)
+    if (!student && cleanName && cleanRoll) {
+      const count = isMongoConnected() ? await Student.countDocuments() : db.students.length;
+      const nextId = `STU-${String(count + 1).padStart(2, '0')}`;
+      const newStuData = {
         id: nextId,
         name: cleanName,
         rollNo: cleanRoll,
@@ -1641,22 +1628,92 @@ app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) 
         routeId: targetRouteId,
         busId: targetBusId,
         status: 'approved',
-        boardedToday: true,
-        boardedTime,
-        qrToken: `BEC-${nextId}-${cleanRoll}`
+        boardedToday: false,
+        boardedTime: null,
+        qrToken: `BEC-STU-${String(count + 1).padStart(2, '0')}-${cleanRoll}`
       };
-      db.students.push(newLocal);
-      if (!student) student = newLocal;
+
+      if (isMongoConnected()) {
+        const newStu = new Student(newStuData);
+        await newStu.save();
+        student = newStu.toObject();
+      } else {
+        student = newStuData;
+      }
+      db.students.push({ ...newStuData });
     }
 
     if (!student) {
       return res.status(404).json({
-        error: `Student "${cleanRoll || cleanName}" not found. Please provide both Student Name and Roll No to register and board.`
+        error: cleanToken 
+          ? `Invalid boarding token "${cleanToken}". Please enter the exact token shown on your bus pass.`
+          : `Student "${cleanRoll || cleanName}" not found.`
       });
     }
 
-    // Update bus occupied count
-    const finalBusId = busId || student.busId || targetBusId;
+    // Verify token validity strictly if cleanToken provided
+    if (cleanToken) {
+      const validTokens = [
+        (student.qrToken || '').toUpperCase(),
+        (student.rollNo ? `APEX-${student.rollNo}` : '').toUpperCase(),
+        (student.rollNo || '').toUpperCase(),
+        (student.id || '').toUpperCase()
+      ].filter(Boolean);
+
+      if (!validTokens.includes(cleanToken.toUpperCase())) {
+        return res.status(400).json({
+          error: 'Invalid boarding token. Please enter the exact token shown on your bus pass.',
+          code: 'INVALID_TOKEN'
+        });
+      }
+    }
+
+    // PREVENT DUPLICATE BOARDING:
+    // If student is already marked as boarded, do NOT duplicate or reset the record
+    if (student.boardedToday) {
+      const finalBusId = student.busId || targetBusId;
+      const bus = db.buses.find(b => b.id === finalBusId);
+      return res.json({
+        success: false,
+        alreadyBoarded: true,
+        message: `Already Boarded at ${student.boardedTime || 'today'}`,
+        student,
+        bus
+      });
+    }
+
+    // Record exact boarding date & time
+    const now = new Date();
+    const boardedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Update in MongoDB
+    if (isMongoConnected()) {
+      await Student.findOneAndUpdate(
+        { id: student.id },
+        { 
+          $set: { 
+            boardedToday: true, 
+            boardedTime,
+            ...(cleanName && (!student.name || student.name.startsWith('Student ')) ? { name: cleanName } : {})
+          } 
+        }
+      );
+    }
+
+    // Update in local memory cache
+    const localIdx = db.students.findIndex(s => s.id === student.id || s.rollNo === student.rollNo);
+    if (localIdx !== -1) {
+      db.students[localIdx].boardedToday = true;
+      db.students[localIdx].boardedTime = boardedTime;
+      if (cleanName && (!db.students[localIdx].name || db.students[localIdx].name.startsWith('Student '))) {
+        db.students[localIdx].name = cleanName;
+      }
+    }
+    student.boardedToday = true;
+    student.boardedTime = boardedTime;
+
+    // Bus 1 and Bus 2 segregation: Only count towards the student's assigned bus
+    const finalBusId = student.busId || busId || targetBusId;
     if (isMongoConnected()) {
       await Bus.findOneAndUpdate(
         { id: finalBusId, occupied: { $lt: 50 } },
@@ -1669,7 +1726,7 @@ app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) 
       bus.occupied += 1;
     }
 
-    // Update active trip
+    // Update active trip for this bus
     const trip = db.activeTrips.find(t => t.busId === finalBusId && t.status === 'in_progress');
     if (trip) {
       trip.totalBoarded = (trip.totalBoarded || 0) + 1;
@@ -1678,7 +1735,7 @@ app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) 
         studentId: student.id,
         stopId: stopId || student.stopId,
         time: student.boardedTime,
-        method: method || 'manual'
+        method: method || 'token'
       });
     }
 
@@ -1691,7 +1748,8 @@ app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) 
       success: true,
       message: `${student.name} (${student.rollNo}) marked as boarded!`,
       student,
-      bus
+      bus,
+      boardedTime
     });
   } catch (err) {
     console.error('Error boarding student:', err);

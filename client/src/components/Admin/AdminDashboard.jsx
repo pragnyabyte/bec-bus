@@ -1534,21 +1534,6 @@ export default function AdminDashboard({
           <span className="android-nav-label">Issues</span>
         </button>
 
-        <button
-          type="button"
-          className={`android-nav-item ${activeTab === 'requests' ? 'active' : ''}`}
-          onClick={() => setActiveTab('requests')}
-          id="admin-bottom-nav-requests"
-          aria-label="Requests"
-        >
-          <div className="android-nav-pill" style={{ position: 'relative' }}>
-            <ArrowRightLeft size={20} />
-            {selectedChangeRequests.filter(r => r.status === 'pending').length > 0 && (
-              <span className="android-nav-badge">{selectedChangeRequests.filter(r => r.status === 'pending').length}</span>
-            )}
-          </div>
-          <span className="android-nav-label">Requests</span>
-        </button>
 
         <button
           type="button"

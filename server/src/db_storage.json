@@ -162,7 +162,7 @@
       "busNo": "OD-02-AX-1001",
       "fleetNumber": "Bus 1",
       "capacity": 45,
-      "occupied": 42,
+      "occupied": 43,
       "driverId": "PRAGNYA01",
       "driverName": "Pragnya",
       "routeId": "R-101",
@@ -295,8 +295,8 @@
       "busId": "BUS-01",
       "stopId": "S-104",
       "status": "approved",
-      "boardedToday": false,
-      "boardedTime": null,
+      "boardedToday": true,
+      "boardedTime": "09:20 pm",
       "qrToken": "BEC-STU-02-EC089",
       "__v": 0,
       "createdAt": "2026-09-30T06:16:27.433Z",
@@ -758,7 +758,7 @@
       "status": "in_progress",
       "startTime": "07:30 AM",
       "currentStopIndex": 2,
-      "totalBoarded": 25,
+      "totalBoarded": 26,
       "boardedStudents": [
         {
           "studentId": "STU-01",
@@ -771,6 +771,12 @@
           "stopId": "S-101",
           "time": "08:33 pm",
           "method": "manifest"
+        },
+        {
+          "studentId": "STU-02",
+          "stopId": "S-104",
+          "time": "09:20 pm",
+          "method": "token"
         }
       ],
       "__v": 0,

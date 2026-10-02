@@ -69,9 +69,44 @@ export default function DriverConsole({
     return list;
   }, [students, boardedOverrides, manualBoardedStudents]);
 
+  // Strict Bus 1 and Bus 2 passenger segregation:
+  // Bus 1 passengers only show up/count towards Bus 1; Bus 2 passengers only towards Bus 2
   const routeStudents = useMemo(() => {
-    return mergedStudents.filter(s => s.routeId === route?.id || s.busId === bus?.id || !s.routeId);
-  }, [mergedStudents, route?.id, bus?.id]);
+    const targetBusId = bus?.id || (driver?.id === 'PRAGNYA01' ? 'BUS-01' : 'BUS-02');
+    const targetRouteId = route?.id || (targetBusId === 'BUS-02' ? 'R-102' : 'R-101');
+    return mergedStudents.filter(s => {
+      if (s.busId) {
+        return s.busId === targetBusId;
+      }
+      if (s.routeId) {
+        return s.routeId === targetRouteId;
+      }
+      return targetBusId === 'BUS-01';
+    });
+  }, [mergedStudents, route?.id, bus?.id, driver?.id]);
+
+  // Real-time synchronization when a student boards via their digital pass token
+  useEffect(() => {
+    const handleStudentBoarded = (data) => {
+      if (!data) return;
+      const boardedStu = data.student;
+      const timestamp = data.timestamp || boardedStu?.boardedTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (boardedStu) {
+        setBoardedOverrides(prev => ({
+          ...prev,
+          [boardedStu.id]: { boardedToday: true, boardedTime: timestamp },
+          ...(boardedStu.id ? { [boardedStu.id.toLowerCase()]: { boardedToday: true, boardedTime: timestamp } } : {}),
+          ...(boardedStu.rollNo ? { [boardedStu.rollNo]: { boardedToday: true, boardedTime: timestamp } } : {}),
+          ...(boardedStu.rollNo ? { [boardedStu.rollNo.toLowerCase()]: { boardedToday: true, boardedTime: timestamp } } : {})
+        }));
+      }
+    };
+
+    socket.on('student:boarded', handleStudentBoarded);
+    return () => {
+      socket.off('student:boarded', handleStudentBoarded);
+    };
+  }, []);
 
   // Check valid GPS availability
   const hasValidGps = Boolean(
@@ -865,8 +900,8 @@ export default function DriverConsole({
                     </div>
 
                     {student.boardedToday ? (
-                      <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
-                        <CheckCircle size={12} /> {student.boardedTime || 'Boarded'}
+                      <span className="badge badge-blue" style={{ fontSize: '0.74rem', fontWeight: 800, padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle size={13} /> BOARDED • {student.boardedTime || 'Boarded'}
                       </span>
                     ) : (
                       <button
