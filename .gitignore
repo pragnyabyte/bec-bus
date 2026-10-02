@@ -28,3 +28,8 @@ pnpm-debug.log*
 Thumbs.db
 *.swp
 *.swo
+
+# Temporary & cache
+.firebase/
+scratch/
+

@@ -1,47 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Bus, User, Compass, Shield, LogIn, 
-  CheckCircle2, AlertCircle 
+  Bus, User, Compass, Shield, LogIn, UserPlus,
+  CheckCircle2, AlertCircle, ArrowLeft, Phone,
+  Mail, MapPin, Key, Truck, Award, GraduationCap, Eye, EyeOff
 } from 'lucide-react';
 import { api } from '../../services/api';
 
-export default function AuthPage({ routes = [], onAuthenticated }) {
-  const [selectedRole, setSelectedRole] = useState('student'); // 'student' | 'driver' | 'admin'
+const DEFAULT_ROUTES = [
+  {
+    id: 'R-101',
+    code: 'RT-01',
+    name: 'BEC College ↔ Baramunda',
+    stops: [
+      { id: 'S-101', name: 'Baramunda Bus Stand' },
+      { id: 'S-102', name: 'Khandagiri Square' },
+      { id: 'S-103', name: 'Fire Station' },
+      { id: 'S-104', name: 'Jayadev Vihar' },
+      { id: 'S-105', name: 'BEC Campus Terminal' }
+    ]
+  },
+  {
+    id: 'R-102',
+    code: 'RT-02',
+    name: 'BEC College ↔ Patia',
+    stops: [
+      { id: 'S-201', name: 'Patia Big Bazaar' },
+      { id: 'S-202', name: 'KIIT Square' },
+      { id: 'S-203', name: 'Damana Square' },
+      { id: 'S-204', name: 'Acharya Vihar' },
+      { id: 'S-205', name: 'BEC Campus Terminal' }
+    ]
+  }
+];
 
-  // Student Login State
+export default function AuthPage({ routes = [], onAuthenticated }) {
+  const activeRoutes = (routes && routes.length > 0) ? routes : DEFAULT_ROUTES;
+
+  // Active Role: 'student' | 'driver' | 'admin'
+  const [selectedRole, setSelectedRole] = useState('student');
+
+  // Mode toggles
+  const [studentMode, setStudentMode] = useState('login'); // 'login' | 'register'
+  const [driverMode, setDriverMode] = useState('login');   // 'login' | 'register'
+
+  // Student Login Form State
   const [studentName, setStudentName] = useState('');
   const [studentIdentifier, setStudentIdentifier] = useState('');
 
-  // Driver Login State
+  // Student Registration Form State
+  const [regStudentName, setRegStudentName] = useState('');
+  const [regStudentRoll, setRegStudentRoll] = useState('');
+  const [regStudentEmail, setRegStudentEmail] = useState('');
+  const [regStudentPhone, setRegStudentPhone] = useState('');
+  const [regStudentDept, setRegStudentDept] = useState('Computer Science & Engineering');
+  const [regStudentYear, setRegStudentYear] = useState('1st Year');
+  const [regStudentRouteId, setRegStudentRouteId] = useState(activeRoutes[0]?.id || 'R-101');
+
+  // Driver Login Form State
   const [driverId, setDriverId] = useState('PRAGNYA01');
   const [driverPin, setDriverPin] = useState('');
+  const [showDriverPin, setShowDriverPin] = useState(false);
 
-  // Admin Login State
+  // Driver Registration Form State
+  const [regDriverName, setRegDriverName] = useState('');
+  const [regDriverId, setRegDriverId] = useState('');
+  const [regDriverPin, setRegDriverPin] = useState('');
+  const [regDriverPhone, setRegDriverPhone] = useState('');
+  const [regDriverLicense, setRegDriverLicense] = useState('');
+  const [regDriverBus, setRegDriverBus] = useState('Bus 1 (Baramunda)');
+  const [regDriverExp, setRegDriverExp] = useState('5+ Years');
+
+  // Admin Login State (Strictly Login Only - NO Registration)
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   // Common UI State
   const [loading, setLoading] = useState(false);
+  const [studentSubmittingStep, setStudentSubmittingStep] = useState(''); // '' | 'account' | 'pass'
+  const [driverSubmittingStep, setDriverSubmittingStep] = useState('');   // '' | 'account' | 'pass'
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Handle Student Login
+  // Submission protection ref to prevent duplicate clicks
+  const isSubmittingRef = useRef(false);
+
+  // Reset notifications when switching role tabs
+  const handleRoleTabChange = (role) => {
+    setSelectedRole(role);
+    setErrorMsg('');
+    setSuccessMsg('');
+    if (role === 'student') setStudentMode('login');
+    if (role === 'driver') setDriverMode('login');
+  };
+
+  // ==========================================
+  // 1. STUDENT AUTHENTICATION HANDLERS
+  // ==========================================
   const handleStudentLogin = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || loading) return;
+
     setErrorMsg('');
     setSuccessMsg('');
     const enteredName = studentName.trim();
     const id = studentIdentifier.trim();
 
     if (!enteredName) {
-      setErrorMsg('Please enter your Name.');
+      setErrorMsg('Please enter your Full Name.');
       return;
     }
     if (!id) {
-      setErrorMsg('Please enter your Registration ID.');
+      setErrorMsg('Please enter your Registration ID / Roll Number.');
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
     try {
       const res = await api.loginStudent({ name: enteredName, identifier: id, registrationId: id });
@@ -51,50 +125,154 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
           throw new Error(`The entered Name "${enteredName}" does not match the registered record for Registration ID "${id}".`);
         }
         setSuccessMsg(`Welcome back, ${res.student.name}!`);
-        setTimeout(() => {
-          onAuthenticated({
-            role: 'student',
-            user: res.student,
-            token: res.token
-          });
-        }, 300);
+        // Navigate immediately without artificial delay
+        onAuthenticated({
+          role: 'student',
+          user: res.student,
+          token: res.token
+        });
       } else {
-        throw new Error('Could not retrieve student profile');
+        throw new Error('Could not retrieve student profile.');
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Login failed. Please verify your Name and Registration ID.');
+      setErrorMsg(err.message || 'Login failed. Please verify your Name and Registration ID or Register below.');
     } finally {
+      isSubmittingRef.current = false;
       setLoading(false);
     }
   };
 
-  // Handle Driver Login
-  const handleDriverLogin = async (e) => {
+  const handleStudentRegister = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || loading) return;
+
     setErrorMsg('');
     setSuccessMsg('');
-    if (!driverPin.trim()) {
+
+    const name = regStudentName.trim();
+    const rollNo = regStudentRoll.trim();
+    const phone = regStudentPhone.trim();
+    const email = regStudentEmail.trim();
+
+    // 8. Validate before Firebase
+    if (!name || name.length < 2) {
+      setErrorMsg('Please enter a valid Full Name (minimum 2 characters).');
+      return;
+    }
+    if (!rollNo || rollNo.length < 3) {
+      setErrorMsg('Please enter a valid Registration ID / Roll Number (minimum 3 characters).');
+      return;
+    }
+    if (!phone || phone.replace(/\D/g, '').length < 7) {
+      setErrorMsg('Please enter a valid Contact Mobile Number (at least 7 digits).');
+      return;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrorMsg('Please enter a valid College Email address (e.g. student@bec.edu.in).');
+      return;
+    }
+    if (!regStudentDept) {
+      setErrorMsg('Please select a Department.');
+      return;
+    }
+    if (!regStudentYear) {
+      setErrorMsg('Please select a Year of Study.');
+      return;
+    }
+    if (!regStudentRouteId) {
+      setErrorMsg('Please select an Assigned Bus Route.');
+      return;
+    }
+
+    // 4. Prevent double submission: lock immediately
+    isSubmittingRef.current = true;
+    setLoading(true);
+    setStudentSubmittingStep('account');
+
+    try {
+      const cleanRollNo = rollNo.toUpperCase().replace(/\s+/g, '');
+      const collegeEmail = (email || `${cleanRollNo.toLowerCase()}@bec.edu.in`).trim();
+      const defaultPassword = `BEC@${cleanRollNo.replace(/[^a-zA-Z0-9]/g, '') || '2026'}`;
+
+      const payload = {
+        name,
+        rollNo: cleanRollNo,
+        phone,
+        email: collegeEmail,
+        password: defaultPassword,
+        department: regStudentDept,
+        year: regStudentYear,
+        routeId: regStudentRouteId
+      };
+
+      // 1. Trace & execute registration flow: Step 1 (Auth) -> Step 2 (Firestore pass)
+      const res = await api.registerStudent(payload, (step) => {
+        setStudentSubmittingStep(step);
+      });
+
+      if (!res || !res.success || !res.student) {
+        throw new Error(res?.error || 'Registration failed. Please check your connection and try again.');
+      }
+
+      setSuccessMsg(`Welcome, ${name}! Your student account & pass are active.`);
+
+      // 6. Navigate immediately to Student Dashboard / Bus Pass
+      onAuthenticated({
+        role: 'student',
+        user: res.student,
+        token: res?.token || `token-${Date.now()}`
+      });
+    } catch (err) {
+      console.error('[Student Registration Failure]:', err);
+      // Failsafe error display & reset button immediately
+      const msg = err.message || 'Registration is taking too long. Please check your internet connection and try again.';
+      setErrorMsg(msg);
+    } finally {
+      // Always reset button & loading state on failure or completion
+      isSubmittingRef.current = false;
+      setLoading(false);
+      setStudentSubmittingStep('');
+    }
+  };
+
+  // ==========================================
+  // 2. DRIVER AUTHENTICATION HANDLERS
+  // ==========================================
+  const handleDriverLogin = async (e) => {
+    e.preventDefault();
+    if (isSubmittingRef.current || loading) return;
+
+    setErrorMsg('');
+    setSuccessMsg('');
+    const targetDriverId = driverId.trim().toUpperCase();
+    const enteredPin = driverPin.trim();
+
+    if (!targetDriverId) {
+      setErrorMsg('Please select a Driver Profile.');
+      return;
+    }
+    if (!enteredPin) {
       setErrorMsg('Please enter Driver Access PIN.');
       return;
     }
-    if (driverPin.trim() !== '2026') {
-      setErrorMsg('Invalid Driver Access PIN.');
+    if (enteredPin !== '2026') {
+      setErrorMsg('Invalid Access PIN. Driver login requires PIN 2026.');
       return;
     }
-    setLoading(true);
 
+    isSubmittingRef.current = true;
+    setLoading(true);
     try {
-      const res = await api.driverLogin({ driverId, pin: driverPin.trim() });
+      const res = await api.driverLogin({ driverId: targetDriverId, pin: enteredPin });
       if (res && res.driver) {
         setSuccessMsg(`Welcome, Driver ${res.driver.name}!`);
-        setTimeout(() => {
-          onAuthenticated({
-            role: 'driver',
-            user: res.driver,
-            token: res.token
-          });
-        }, 300);
+        // Navigate immediately without artificial delay
+        onAuthenticated({
+          role: 'driver',
+          user: res.driver,
+          token: res.token
+        });
       } else {
         throw new Error('Driver verification failed.');
       }
@@ -102,36 +280,119 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       console.error(err);
       setErrorMsg(err.message || 'Driver authentication failed.');
     } finally {
+      isSubmittingRef.current = false;
       setLoading(false);
     }
   };
 
-  // Handle Admin Login
-  const handleAdminLogin = async (e) => {
+  const handleDriverRegister = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || loading) return;
+
     setErrorMsg('');
     setSuccessMsg('');
-    if (!adminUsername.trim()) {
+
+    const name = regDriverName.trim();
+    const id = regDriverId.trim().toUpperCase();
+    const pin = regDriverPin.trim();
+    const phone = regDriverPhone.trim();
+
+    if (!name || name.length < 2) {
+      setErrorMsg('Please enter Driver Full Name.');
+      return;
+    }
+    if (!id || id.length < 3) {
+      setErrorMsg('Please enter a valid Driver ID (e.g., DRV-03 or JITENDRA02).');
+      return;
+    }
+    if (!pin || pin.length < 4) {
+      setErrorMsg('Please create an Access PIN (at least 4 digits).');
+      return;
+    }
+    if (!phone || phone.replace(/\D/g, '').length < 7) {
+      setErrorMsg('Please enter a valid Mobile Phone Number.');
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setLoading(true);
+    setDriverSubmittingStep('account');
+
+    try {
+      const payload = {
+        name,
+        driverId: id,
+        id,
+        pin,
+        phone,
+        licenseNumber: regDriverLicense.trim() || `OD-DL-${Math.floor(100000 + Math.random() * 900000)}`,
+        busName: regDriverBus,
+        experience: regDriverExp
+      };
+
+      const res = await api.registerDriver(payload, (step) => {
+        setDriverSubmittingStep(step);
+      });
+
+      if (!res || !res.success || !res.driver) {
+        throw new Error(res?.error || 'Driver registration failed.');
+      }
+
+      setSuccessMsg(`Welcome, Driver ${name}! Your fleet account is active.`);
+
+      onAuthenticated({
+        role: 'driver',
+        user: res.driver,
+        token: res?.token || `token-${Date.now()}`
+      });
+    } catch (err) {
+      console.error('Driver registration error:', err);
+      setErrorMsg(err.message || 'Driver registration failed. Please check your details.');
+    } finally {
+      isSubmittingRef.current = false;
+      setLoading(false);
+      setDriverSubmittingStep('');
+    }
+  };
+
+  // ==========================================
+  // 3. ADMIN AUTHENTICATION HANDLERS (LOGIN ONLY)
+  // ==========================================
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    if (isSubmittingRef.current || loading) return;
+
+    setErrorMsg('');
+    setSuccessMsg('');
+    const enteredUsername = adminUsername.trim();
+    const enteredPassword = adminPassword;
+
+    if (!enteredUsername) {
       setErrorMsg('Please enter Admin Username.');
       return;
     }
-    if (!adminPassword) {
+    if (!enteredPassword) {
       setErrorMsg('Please enter Admin Password.');
       return;
     }
+    if (enteredUsername !== 'admin' || enteredPassword !== 'ad2026') {
+      setErrorMsg('Invalid administrator credentials.');
+      return;
+    }
+
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
-      const res = await api.adminLogin({ username: adminUsername.trim(), password: adminPassword });
+      const res = await api.adminLogin({ username: enteredUsername, password: enteredPassword });
       if (res && res.success) {
         setSuccessMsg('Administrator access granted.');
-        setTimeout(() => {
-          onAuthenticated({
-            role: 'admin',
-            user: res.user || { name: 'Campus Transport Administrator', role: 'admin' },
-            token: res.token
-          });
-        }, 300);
+        // Navigate immediately without artificial delay
+        onAuthenticated({
+          role: 'admin',
+          user: res.user || { name: 'Campus Transport Administrator', role: 'admin' },
+          token: res.token
+        });
       } else {
         throw new Error(res.error || 'Invalid credentials');
       }
@@ -139,6 +400,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       console.error(err);
       setErrorMsg(err.message || 'Invalid administrator credentials.');
     } finally {
+      isSubmittingRef.current = false;
       setLoading(false);
     }
   };
@@ -154,7 +416,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       padding: '2rem 1rem'
     }}>
       {/* Brand Header */}
-      <div style={{ textAlign: 'center', marginBottom: '2rem', maxWidth: '600px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '1.75rem', maxWidth: '620px' }}>
         <div style={{
           width: '56px',
           height: '56px',
@@ -175,20 +437,18 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         <p style={{ color: '#475569', fontSize: '1rem', marginTop: '0.35rem' }}>
           Bhubaneswar Engineering College • Campus Transport & Fleet Management
         </p>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#e0f2fe', color: '#0284c7', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, marginTop: '0.75rem', border: '1px solid #bae6fd' }}>
-          <span>🔒 Please authenticate to enter your transit dashboard</span>
-        </div>
       </div>
 
       {/* Main Authentication Card */}
       <div style={{
         width: '100%',
-        maxWidth: '520px',
+        maxWidth: selectedRole === 'student' && studentMode === 'register' ? '560px' : '520px',
         background: '#ffffff',
         borderRadius: '24px',
         padding: '2rem',
         boxShadow: '0 20px 40px -15px rgba(2, 132, 199, 0.12), 0 0 1px rgba(0,0,0,0.1)',
-        border: '1px solid #e2e8f0'
+        border: '1px solid #e2e8f0',
+        transition: 'all 0.3s ease'
       }}>
         {/* Role Selector Tabs */}
         <div style={{
@@ -202,7 +462,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         }}>
           <button
             type="button"
-            onClick={() => { setSelectedRole('student'); setErrorMsg(''); setSuccessMsg(''); }}
+            onClick={() => handleRoleTabChange('student')}
             id="tab-role-student"
             style={{
               flex: 1,
@@ -227,7 +487,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
 
           <button
             type="button"
-            onClick={() => { setSelectedRole('driver'); setErrorMsg(''); setSuccessMsg(''); }}
+            onClick={() => handleRoleTabChange('driver')}
             id="tab-role-driver"
             style={{
               flex: 1,
@@ -252,7 +512,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
 
           <button
             type="button"
-            onClick={() => { setSelectedRole('admin'); setErrorMsg(''); setSuccessMsg(''); }}
+            onClick={() => handleRoleTabChange('admin')}
             id="tab-role-admin"
             style={{
               flex: 1,
@@ -315,93 +575,355 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
           </div>
         )}
 
-        {/* 1. STUDENT AUTHENTICATION */}
+        {/* ==================================================== */}
+        {/* 1. STUDENT AUTHENTICATION SECTION                     */}
+        {/* ==================================================== */}
         {selectedRole === 'student' && (
           <div>
-            <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-              <div style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                background: '#f0f9ff',
-                color: '#0284c7',
-                border: '1px solid #bae6fd',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '0.5rem'
-              }}>
-                <User size={24} />
-              </div>
-              <h3 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>Student Sign In</h3>
-              <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                Only authorized/registered students can log in with their Name & Registration ID
-              </p>
-            </div>
+            {studentMode === 'login' ? (
+              // Student Sign In View
+              <div>
+                <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    background: '#f0f9ff',
+                    color: '#0284c7',
+                    border: '1px solid #bae6fd',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <User size={24} />
+                  </div>
+                  <h3 style={{ fontSize: '1.2rem', color: '#0f172a', fontWeight: 700 }}>Student Sign In</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.825rem' }}>
+                    Enter your Full Name & Registration ID to access your digital transit pass
+                  </p>
+                </div>
 
-            <form onSubmit={handleStudentLogin}>
-              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                  Name <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Enter your Full Name"
-                  value={studentName}
-                  onChange={e => { setStudentName(e.target.value); if (errorMsg) setErrorMsg(''); }}
-                  id="input-student-name"
-                  required
-                  autoFocus
-                />
-              </div>
+                <form onSubmit={handleStudentLogin}>
+                  <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                      Full Name <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Tanmay Mohanty"
+                      value={studentName}
+                      onChange={e => { setStudentName(e.target.value); if (errorMsg) setErrorMsg(''); }}
+                      id="input-student-name"
+                      required
+                      autoFocus
+                    />
+                  </div>
 
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                  Registration ID <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Enter Registration ID"
-                  value={studentIdentifier}
-                  onChange={e => { setStudentIdentifier(e.target.value); if (errorMsg) setErrorMsg(''); }}
-                  id="input-student-roll"
-                  required
-                />
-                <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.4rem' }}>
-                  Enter your registered Full Name and Registration ID to verify your pass and access your dashboard.
-                </p>
-              </div>
+                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                      Registration ID / Roll Number <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. CS-2024-001 or 25078"
+                      value={studentIdentifier}
+                      onChange={e => { setStudentIdentifier(e.target.value); if (errorMsg) setErrorMsg(''); }}
+                      id="input-student-roll"
+                      required
+                    />
+                  </div>
 
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-                id="btn-submit-student-login"
-                style={{
-                  width: '100%',
-                  padding: '0.85rem',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
-                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-                }}
-              >
-                <LogIn size={18} />
-                <span>{loading ? 'Authenticating...' : 'Log In to Student Portal'}</span>
-              </button>
-            </form>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                    id="btn-submit-student-login"
+                    style={{
+                      width: '100%',
+                      padding: '0.85rem',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                      boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
+                    }}
+                  >
+                    <LogIn size={18} />
+                    <span>{loading ? 'Authenticating...' : 'Sign In to Student Portal'}</span>
+                  </button>
+                </form>
+
+                {/* Clearly visible Register / Sign Up option below Student Login */}
+                <div style={{
+                  marginTop: '1.5rem',
+                  paddingTop: '1.25rem',
+                  borderTop: '1px solid #e2e8f0',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                    New student or don't have a registered account yet?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setStudentMode('register'); setErrorMsg(''); setSuccessMsg(''); }}
+                    id="btn-goto-student-register"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '12px',
+                      border: '1.5px solid #0284c7',
+                      background: '#f0f9ff',
+                      color: '#0284c7',
+                      fontWeight: 700,
+                      fontSize: '0.925rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <UserPlus size={18} />
+                    <span>Register / Sign Up as Student</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Student Registration View
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setStudentMode('login'); setErrorMsg(''); setSuccessMsg(''); }}
+                    id="btn-back-to-student-login"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'none',
+                      border: 'none',
+                      color: '#0284c7',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      padding: '4px 0'
+                    }}
+                  >
+                    <ArrowLeft size={16} /> Back to Sign In
+                  </button>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
+                    New Student
+                  </span>
+                </div>
+
+                <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    background: '#e0f2fe',
+                    color: '#0284c7',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <UserPlus size={24} />
+                  </div>
+                  <h3 style={{ fontSize: '1.2rem', color: '#0f172a', fontWeight: 700 }}>Student Registration</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.825rem' }}>
+                    Fill in your details to create an approved campus bus pass
+                  </p>
+                </div>
+
+                <form onSubmit={handleStudentRegister}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                        Full Name <span style={{ color: '#dc2626' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Rohan Verma"
+                        value={regStudentName}
+                        onChange={e => setRegStudentName(e.target.value)}
+                        id="reg-student-name"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                        Registration ID / Roll No <span style={{ color: '#dc2626' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. CS-2026-888"
+                        value={regStudentRoll}
+                        onChange={e => setRegStudentRoll(e.target.value)}
+                        id="reg-student-roll"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                        Phone Number <span style={{ color: '#dc2626' }}>*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        placeholder="+91 98765 43210"
+                        value={regStudentPhone}
+                        onChange={e => setRegStudentPhone(e.target.value)}
+                        id="reg-student-phone"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                        College Email (Optional)
+                      </label>
+                      <input
+                        type="email"
+                        className="form-input"
+                        placeholder="student@bec.edu.in"
+                        value={regStudentEmail}
+                        onChange={e => setRegStudentEmail(e.target.value)}
+                        id="reg-student-email"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                        Department
+                      </label>
+                      <select
+                        className="form-select"
+                        value={regStudentDept}
+                        onChange={e => setRegStudentDept(e.target.value)}
+                        id="reg-student-dept"
+                      >
+                        <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+                        <option value="Electronics & Communication">Electronics & Communication</option>
+                        <option value="Mechanical Engineering">Mechanical Engineering</option>
+                        <option value="Civil Engineering">Civil Engineering</option>
+                        <option value="Electrical Engineering">Electrical Engineering</option>
+                        <option value="Management Studies / MBA">Management Studies / MBA</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                        Year of Study
+                      </label>
+                      <select
+                        className="form-select"
+                        value={regStudentYear}
+                        onChange={e => setRegStudentYear(e.target.value)}
+                        id="reg-student-year"
+                      >
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                      Assigned Bus Route <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      value={regStudentRouteId}
+                      onChange={e => setRegStudentRouteId(e.target.value)}
+                      id="reg-student-route"
+                      required
+                    >
+                      {activeRoutes.map(r => (
+                        <option key={r.id} value={r.id}>
+                          {r.code ? `${r.code} - ` : ''}{r.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                    id="btn-submit-student-register"
+                    style={{
+                      width: '100%',
+                      padding: '0.85rem',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                      boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      opacity: loading ? 0.85 : 1
+                    }}
+                  >
+                    <UserPlus size={18} />
+                    <span>
+                      {studentSubmittingStep === 'account'
+                        ? 'Creating Account...'
+                        : studentSubmittingStep === 'pass'
+                        ? 'Creating Bus Pass...'
+                        : 'Create Account & Pass'}
+                    </span>
+                  </button>
+                </form>
+
+                <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.825rem', color: '#64748b' }}>
+                    Already have a registered pass?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setStudentMode('login'); setErrorMsg(''); setSuccessMsg(''); }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#0284c7',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      Sign In here
+                    </button>
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* 2. DRIVER AUTHENTICATION */}
+        {/* ==================================================== */}
+        {/* 2. DRIVER AUTHENTICATION SECTION                      */}
+        {/* ==================================================== */}
         {selectedRole === 'driver' && (
-          <form onSubmit={handleDriverLogin}>
+          <div>
             <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
               <div style={{
                 width: '44px',
@@ -417,107 +939,136 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               }}>
                 <Compass size={24} />
               </div>
-              <h3 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>Driver Sign In</h3>
-              <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                Select your driver profile to start route navigation and passenger boarding
+              <h3 style={{ fontSize: '1.2rem', color: '#0f172a', fontWeight: 700 }}>Driver Sign In</h3>
+              <p style={{ color: '#64748b', fontSize: '0.825rem' }}>
+                Select your Driver Profile and enter Access PIN to launch the Driver Console
               </p>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                Assigned Driver Profile
-              </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  border: driverId === 'PRAGNYA01' ? '2px solid #0284c7' : '1px solid #e2e8f0',
-                  background: driverId === 'PRAGNYA01' ? '#f0f9ff' : '#ffffff',
-                  cursor: 'pointer'
-                }}>
-                  <input
-                    type="radio"
-                    name="driverOption"
-                    value="PRAGNYA01"
-                    checked={driverId === 'PRAGNYA01'}
-                    onChange={() => setDriverId('PRAGNYA01')}
-                    style={{ accentColor: '#0284c7' }}
-                  />
-                  <div>
-                    <b style={{ color: '#0f172a', display: 'block' }}>Pragnya (Bus 1)</b>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Route: BEC College ↔ Baramunda • OD-02-AX-1001</span>
+                <form onSubmit={handleDriverLogin}>
+                  <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                      Driver Profile <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+
+                    {/* Driver profile selectors */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        border: driverId === 'PRAGNYA01' ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                        background: driverId === 'PRAGNYA01' ? '#f0f9ff' : '#ffffff',
+                        cursor: 'pointer'
+                      }}>
+                        <input
+                          type="radio"
+                          name="driverOption"
+                          value="PRAGNYA01"
+                          checked={driverId === 'PRAGNYA01'}
+                          onChange={() => setDriverId('PRAGNYA01')}
+                          style={{ accentColor: '#0284c7' }}
+                        />
+                        <div>
+                          <b style={{ color: '#0f172a', display: 'block' }}>Pragnya (Bus 1)</b>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Route: BEC ↔ Baramunda • OD-02-AX-1001</span>
+                        </div>
+                      </label>
+
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        border: driverId === 'JITENDRA01' ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                        background: driverId === 'JITENDRA01' ? '#f0f9ff' : '#ffffff',
+                        cursor: 'pointer'
+                      }}>
+                        <input
+                          type="radio"
+                          name="driverOption"
+                          value="JITENDRA01"
+                          checked={driverId === 'JITENDRA01'}
+                          onChange={() => setDriverId('JITENDRA01')}
+                          style={{ accentColor: '#0284c7' }}
+                        />
+                        <div>
+                          <b style={{ color: '#0f172a', display: 'block' }}>Jitendra (Bus 2)</b>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Route: BEC ↔ Patia • OD-02-AX-2002</span>
+                        </div>
+                      </label>
+                    </div>
                   </div>
-                </label>
 
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  border: driverId === 'JITENDRA01' ? '2px solid #0284c7' : '1px solid #e2e8f0',
-                  background: driverId === 'JITENDRA01' ? '#f0f9ff' : '#ffffff',
-                  cursor: 'pointer'
-                }}>
-                  <input
-                    type="radio"
-                    name="driverOption"
-                    value="JITENDRA01"
-                    checked={driverId === 'JITENDRA01'}
-                    onChange={() => setDriverId('JITENDRA01')}
-                    style={{ accentColor: '#0284c7' }}
-                  />
-                  <div>
-                    <b style={{ color: '#0f172a', display: 'block' }}>Jitendra (Bus 2)</b>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Route: BEC College ↔ Patia • OD-02-AX-2002</span>
+                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
+                      Enter Access PIN <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type={showDriverPin ? 'text' : 'password'}
+                        className="form-input"
+                        placeholder="Enter Access PIN"
+                        value={driverPin}
+                        onChange={e => setDriverPin(e.target.value)}
+                        id="input-driver-pin"
+                        required
+                        style={{ paddingRight: '44px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowDriverPin(prev => !prev)}
+                        aria-label={showDriverPin ? 'Hide Driver PIN' : 'Show Driver PIN'}
+                        id="btn-toggle-driver-pin"
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#64748b'
+                        }}
+                      >
+                        {showDriverPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
-                </label>
-              </div>
-            </div>
 
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
-                Driver Access PIN <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <input
-                type="password"
-                className="form-input"
-                placeholder="Enter Access PIN"
-                value={driverPin}
-                onChange={e => setDriverPin(e.target.value)}
-                id="input-driver-pin"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-              id="btn-submit-driver-login"
-              style={{
-                width: '100%',
-                padding: '0.85rem',
-                fontSize: '1rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-              }}
-            >
-              <Compass size={18} />
-              <span>{loading ? 'Authenticating Driver...' : 'Log In to Driver Console'}</span>
-            </button>
-          </form>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                    id="btn-submit-driver-login"
+                    style={{
+                      width: '100%',
+                      padding: '0.85rem',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                      boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
+                    }}
+                  >
+                    <Compass size={18} />
+                    <span>{loading ? 'Verifying Driver...' : 'Sign In to Driver Console'}</span>
+                  </button>
+                </form>
+          </div>
         )}
 
-        {/* 3. ADMIN AUTHENTICATION */}
+        {/* ==================================================== */}
+        {/* 3. ADMIN AUTHENTICATION SECTION (STRICTLY LOGIN ONLY) */}
+        {/* ==================================================== */}
         {selectedRole === 'admin' && (
           <form onSubmit={handleAdminLogin}>
             <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
@@ -535,8 +1086,8 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               }}>
                 <Shield size={24} />
               </div>
-              <h3 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>Admin Sign In</h3>
-              <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
+              <h3 style={{ fontSize: '1.2rem', color: '#0f172a', fontWeight: 700 }}>Admin Sign In</h3>
+              <p style={{ color: '#64748b', fontSize: '0.825rem' }}>
                 Authorized transport officers & campus administrators only
               </p>
             </div>
@@ -553,6 +1104,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                 onChange={e => setAdminUsername(e.target.value)}
                 id="input-admin-username"
                 required
+                autoFocus
               />
             </div>
 
@@ -560,15 +1112,38 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               <label className="form-label" style={{ fontWeight: 700, color: '#334155' }}>
                 Admin Password <span style={{ color: '#dc2626' }}>*</span>
               </label>
-              <input
-                type="password"
-                className="form-input"
-                placeholder="Enter Admin Password"
-                value={adminPassword}
-                onChange={e => setAdminPassword(e.target.value)}
-                id="input-admin-password"
-                required
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type={showAdminPassword ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="Enter Admin Password"
+                  value={adminPassword}
+                  onChange={e => setAdminPassword(e.target.value)}
+                  id="input-admin-password"
+                  required
+                  style={{ paddingRight: '44px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword(prev => !prev)}
+                  aria-label={showAdminPassword ? 'Hide Admin Password' : 'Show Admin Password'}
+                  id="btn-toggle-admin-password"
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#64748b'
+                  }}
+                >
+                  {showAdminPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button
@@ -592,6 +1167,13 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
               <Shield size={18} />
               <span>{loading ? 'Verifying Admin...' : 'Log In to Admin Dashboard'}</span>
             </button>
+
+            {/* Note confirming strict restriction */}
+            <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '0.775rem', color: '#94a3b8' }}>
+                🔒 Access restricted to authorized administrative personnel. Public registration is disabled.
+              </p>
+            </div>
           </form>
         )}
       </div>

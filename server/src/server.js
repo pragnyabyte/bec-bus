@@ -61,6 +61,18 @@ function generateAuthToken(payload) {
 
 function verifyAuthToken(token) {
   if (!token) return null;
+  // Allow development/demo tokens
+  if (typeof token === 'string') {
+    if (token.startsWith('token-drv-')) {
+      return { role: 'driver', id: 'PRAGNYA01', name: 'Driver' };
+    }
+    if (token.startsWith('token-admin-')) {
+      return { role: 'admin', id: 'admin', name: 'Admin' };
+    }
+    if (token.startsWith('token-demo-') || token.startsWith('token-fb-')) {
+      return { role: 'student', id: 'STU-01', name: 'Student' };
+    }
+  }
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   const [header, body, signature] = parts;
@@ -753,7 +765,7 @@ app.put('/api/students/:id', requireRole(['student', 'admin']), async (req, res)
 
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === 'admin' && (password === '1234' || password === 'admin123')) {
+  if (username === 'admin' && password === 'ad2026') {
     const adminUser = { role: 'admin', name: 'Transport Administrator', id: 'ADMIN-01' };
     const token = generateAuthToken(adminUser);
     return res.json({
@@ -931,22 +943,137 @@ app.post('/api/admin/register-user', requireRole(['admin']), async (req, res) =>
   }
 });
 
+app.post('/api/driver/register', async (req, res) => {
+  const { name, driverId, phone, licenseNo, experienceYears, busId, pin } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Driver Full Name is required' });
+  }
+
+  const cleanName = name.trim();
+  const id = (driverId && driverId.trim()) ? driverId.trim().toUpperCase() : `DRV-${Date.now().toString().slice(-4)}`;
+  const driverPin = (pin && pin.toString().trim()) ? pin.toString().trim() : '2026';
+  const targetBusId = busId || 'BUS-01';
+  const route = db.routes.find(r => r.busId === targetBusId) || db.routes[0];
+  const bus = db.buses.find(b => b.id === targetBusId) || db.buses[0];
+  const targetBusName = bus ? bus.fleetNumber : (targetBusId === 'BUS-02' ? 'Bus 2' : 'Bus 1');
+  const targetRouteName = route ? route.name : 'BEC College ↔ Baramunda';
+  const targetRouteId = route ? route.id : 'R-101';
+
+  try {
+    let savedDriver;
+    if (isMongoConnected()) {
+      let existing = await Driver.findOne({ id });
+      if (existing) {
+        existing.name = cleanName;
+        if (phone) existing.phone = phone.trim();
+        if (licenseNo) existing.licenseNo = licenseNo.trim();
+        existing.busId = targetBusId;
+        existing.busName = targetBusName;
+        existing.routeId = targetRouteId;
+        existing.routeName = targetRouteName;
+        existing.pin = driverPin;
+        await existing.save();
+        savedDriver = existing.toObject();
+      } else {
+        const newDrv = new Driver({
+          id,
+          name: cleanName,
+          phone: phone ? phone.trim() : '+91 94370 00000',
+          licenseNo: licenseNo ? licenseNo.trim() : `OD-02-${Date.now().toString().slice(-4)}-DRV`,
+          experienceYears: Number(experienceYears) || 5,
+          rating: 4.9,
+          busId: targetBusId,
+          busName: targetBusName,
+          routeId: targetRouteId,
+          routeName: targetRouteName,
+          pin: driverPin,
+          status: 'active'
+        });
+        await newDrv.save();
+        savedDriver = newDrv.toObject();
+      }
+    }
+
+    const drvRecord = {
+      id,
+      name: cleanName,
+      phone: phone ? phone.trim() : '+91 94370 00000',
+      licenseNo: licenseNo ? licenseNo.trim() : `OD-02-${Date.now().toString().slice(-4)}-DRV`,
+      experienceYears: Number(experienceYears) || 5,
+      rating: 4.9,
+      busId: targetBusId,
+      busName: targetBusName,
+      routeId: targetRouteId,
+      routeName: targetRouteName,
+      pin: driverPin,
+      status: 'active'
+    };
+
+    const localIdx = db.drivers.findIndex(d => d.id === id);
+    if (localIdx !== -1) {
+      db.drivers[localIdx] = { ...db.drivers[localIdx], ...drvRecord };
+      if (!savedDriver) savedDriver = db.drivers[localIdx];
+    } else {
+      db.drivers.push(drvRecord);
+      if (!savedDriver) savedDriver = drvRecord;
+    }
+
+    saveLocalState();
+    io.emit('drivers:updated', isMongoConnected() ? await Driver.find({}).lean() : db.drivers);
+
+    const token = generateAuthToken({
+      id: savedDriver.id,
+      name: savedDriver.name,
+      role: 'driver'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Driver account for ${savedDriver.name} registered successfully!`,
+      driver: savedDriver,
+      token
+    });
+  } catch (err) {
+    console.error('Driver self-registration error:', err);
+    res.status(500).json({ error: 'Driver registration failed', details: err.message });
+  }
+});
+
 app.post('/api/driver/login', async (req, res) => {
   const { driverId, pin } = req.body;
-  if (!pin || pin.toString().trim() !== '2026') {
-    return res.status(401).json({ error: 'Invalid Driver Access PIN.' });
+  const lookupId = (driverId || '').trim();
+  const enteredPin = (pin || '').toString().trim();
+
+  if (!lookupId) {
+    return res.status(400).json({ error: 'Driver ID is required.' });
   }
+  if (!enteredPin) {
+    return res.status(400).json({ error: 'Driver PIN is required.' });
+  }
+
   try {
     let driver;
     if (isMongoConnected()) {
-      driver = await Driver.findOne({ id: driverId }).lean();
+      driver = await Driver.findOne({
+        $or: [
+          { id: lookupId },
+          { id: lookupId.toUpperCase() }
+        ]
+      }).lean();
     }
     if (!driver) {
-      driver = db.drivers.find(d => d.id === driverId);
+      driver = db.drivers.find(d => d.id.toLowerCase() === lookupId.toLowerCase());
     }
     if (!driver) {
-      return res.status(404).json({ error: 'Driver not found in fleet registry' });
+      return res.status(404).json({ error: `Driver with ID "${lookupId}" not found in fleet registry. Please check your Driver ID or register a new driver account.` });
     }
+
+    // Verify PIN: Driver Access PIN must be exactly '2026'
+    if (enteredPin !== '2026') {
+      return res.status(401).json({ error: 'Invalid Driver Access PIN. Driver login requires PIN 2026.' });
+    }
+
     const token = generateAuthToken({
       id: driver.id,
       name: driver.name,
@@ -1029,19 +1156,27 @@ app.get('/api/complaints', async (req, res) => {
 });
 
 app.post('/api/complaints', requireRole(['student', 'admin']), async (req, res) => {
-  const { studentId, studentName, studentRoll, category, subject, message } = req.body;
+  const { studentId, studentName, studentRoll, category, subject, message, issueType, description, status } = req.body;
   const count = db.complaints.length;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const finalType = issueType || category || subject || 'General Issue';
+  const finalDesc = description || message || '';
+
   const newComplaint = {
     id: `CMP-${String(count + 1).padStart(2, '0')}`,
     studentId: studentId || 'STU-01',
-    studentName: studentName || 'Alex Johnson',
-    studentRoll: studentRoll || 'CS-2024-042',
-    category: category || 'General',
-    subject: subject || 'Feedback',
-    message: message || '',
-    status: 'open',
+    studentName: studentName || 'Student',
+    studentRoll: studentRoll || 'CS-2024-001',
+    issueType: finalType,
+    description: finalDesc,
+    category: finalType,
+    subject: finalType,
+    message: finalDesc,
+    status: status || 'Pending',
     adminReply: null,
-    createdAtString: 'Just now'
+    createdAtString: dateStr,
+    createdAt: now.toISOString()
   };
 
   try {
@@ -1053,8 +1188,8 @@ app.post('/api/complaints', requireRole(['student', 'admin']), async (req, res) 
 
     const notif = {
       id: `NOTIF-${Date.now()}`,
-      title: 'New Student Complaint Received',
-      message: `[${category}] ${subject} from ${studentName}`,
+      title: 'New Student Issue Reported',
+      message: `[${finalType}] from ${newComplaint.studentName} (${newComplaint.studentRoll})`,
       type: 'warning',
       target: 'admin',
       timestamp: 'Just now',
@@ -1071,30 +1206,36 @@ app.post('/api/complaints', requireRole(['student', 'admin']), async (req, res) 
 
     res.status(201).json(newComplaint);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to record complaint', details: err.message });
+    res.status(500).json({ error: 'Failed to record issue', details: err.message });
   }
 });
 
 app.post('/api/complaints/:id/reply', requireRole(['admin']), async (req, res) => {
   const { adminReply, status } = req.body;
   try {
+    const updateFields = {};
+    if (status !== undefined) updateFields.status = status;
+    if (adminReply !== undefined) updateFields.adminReply = adminReply;
+    if (updateFields.status === undefined && updateFields.adminReply !== undefined) {
+      updateFields.status = 'Resolved';
+    }
+
     let complaint;
     if (isMongoConnected()) {
       complaint = await Complaint.findOneAndUpdate(
         { id: req.params.id },
-        { $set: { adminReply, status: status || 'resolved' } },
+        { $set: updateFields },
         { new: true }
       ).lean();
     }
 
     const localCmp = db.complaints.find(c => c.id === req.params.id);
     if (localCmp) {
-      localCmp.adminReply = adminReply;
-      localCmp.status = status || 'resolved';
+      Object.assign(localCmp, updateFields);
       if (!complaint) complaint = localCmp;
     }
 
-    if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+    if (!complaint) return res.status(404).json({ error: 'Issue not found' });
 
     saveLocalState();
     io.emit('complaints:updated', isMongoConnected() ? await Complaint.find({}).lean() : db.complaints);
@@ -1408,49 +1549,131 @@ app.post('/api/trips/end', requireRole(['driver', 'admin']), async (req, res) =>
   }
 });
 
-// Board student (QR scan or manual check)
+// Board student (QR scan, roll number, name or manual check)
 app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) => {
-  const { studentId, busId, stopId, method } = req.body;
+  const { studentId, rollNo, name, studentName, busId, routeId, stopId, method } = req.body;
+  const cleanRoll = (rollNo || studentId || '').trim();
+  const cleanName = (studentName || name || '').trim();
+
+  if (!cleanRoll && !cleanName) {
+    return res.status(400).json({ error: 'Student Roll Number or ID is required to board.' });
+  }
 
   try {
-    let student;
+    let student = null;
     const boardedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const targetBusId = busId || 'BUS-01';
+    const targetRouteId = routeId || (targetBusId === 'BUS-02' ? 'R-102' : 'R-101');
 
+    // 1. Try finding existing student in MongoDB Atlas
     if (isMongoConnected()) {
-      student = await Student.findOneAndUpdate(
-        { $or: [{ id: studentId }, { rollNo: studentId }, { qrToken: studentId }] },
-        { $set: { boardedToday: true, boardedTime } },
-        { new: true }
-      ).lean();
+      const matchCriteria = [];
+      if (cleanRoll) {
+        const rollRegex = new RegExp(`^${cleanRoll.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        matchCriteria.push({ id: rollRegex }, { rollNo: rollRegex }, { qrToken: rollRegex });
+      }
+      if (cleanName) {
+        const nameRegex = new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        matchCriteria.push({ name: nameRegex });
+      }
+
+      const existingMongo = await Student.findOne({ $or: matchCriteria });
+      if (existingMongo) {
+        existingMongo.boardedToday = true;
+        existingMongo.boardedTime = boardedTime;
+        if (cleanName && (!existingMongo.name || existingMongo.name.startsWith('Student '))) {
+          existingMongo.name = cleanName;
+        }
+        await existingMongo.save();
+        student = existingMongo.toObject();
+      } else if (cleanName && cleanRoll) {
+        // Auto-create in MongoDB
+        const count = await Student.countDocuments();
+        const nextId = `STU-${String(count + 1).padStart(2, '0')}`;
+        const newStu = new Student({
+          id: nextId,
+          name: cleanName,
+          rollNo: cleanRoll,
+          email: `${cleanRoll.toLowerCase()}@bec.edu.in`,
+          department: 'Engineering',
+          year: '1st Year',
+          phone: '+91 90000 00000',
+          routeId: targetRouteId,
+          busId: targetBusId,
+          status: 'approved',
+          boardedToday: true,
+          boardedTime,
+          qrToken: `BEC-${nextId}-${cleanRoll}`
+        });
+        await newStu.save();
+        student = newStu.toObject();
+      }
     }
 
-    const localStu = db.students.find(s => s.id === studentId || s.rollNo === studentId || s.qrToken === studentId);
+    // 2. Mirror/Fallback in local memory cache (db.students)
+    let localStu = db.students.find(s => {
+      if (cleanRoll) {
+        if (s.id?.toLowerCase() === cleanRoll.toLowerCase()) return true;
+        if (s.rollNo?.toLowerCase() === cleanRoll.toLowerCase()) return true;
+        if (s.qrToken?.toLowerCase() === cleanRoll.toLowerCase()) return true;
+      }
+      if (cleanName && s.name?.toLowerCase() === cleanName.toLowerCase()) return true;
+      return false;
+    });
+
     if (localStu) {
       localStu.boardedToday = true;
       localStu.boardedTime = boardedTime;
+      if (cleanName && (!localStu.name || localStu.name.startsWith('Student '))) {
+        localStu.name = cleanName;
+      }
       if (!student) student = localStu;
+    } else if (cleanName && cleanRoll) {
+      const nextId = `STU-${String(db.students.length + 1).padStart(2, '0')}`;
+      const newLocal = {
+        id: nextId,
+        name: cleanName,
+        rollNo: cleanRoll,
+        email: `${cleanRoll.toLowerCase()}@bec.edu.in`,
+        department: 'Engineering',
+        year: '1st Year',
+        phone: '+91 90000 00000',
+        routeId: targetRouteId,
+        busId: targetBusId,
+        status: 'approved',
+        boardedToday: true,
+        boardedTime,
+        qrToken: `BEC-${nextId}-${cleanRoll}`
+      };
+      db.students.push(newLocal);
+      if (!student) student = newLocal;
     }
 
-    if (!student) return res.status(404).json({ error: 'Student not found in registry' });
+    if (!student) {
+      return res.status(404).json({
+        error: `Student "${cleanRoll || cleanName}" not found. Please provide both Student Name and Roll No to register and board.`
+      });
+    }
 
     // Update bus occupied count
-    const targetBusId = busId || student.busId;
+    const finalBusId = busId || student.busId || targetBusId;
     if (isMongoConnected()) {
       await Bus.findOneAndUpdate(
-        { id: targetBusId, occupied: { $lt: 50 } },
+        { id: finalBusId, occupied: { $lt: 50 } },
         { $inc: { occupied: 1 } }
       );
     }
 
-    const bus = db.buses.find(b => b.id === targetBusId);
+    const bus = db.buses.find(b => b.id === finalBusId);
     if (bus && bus.occupied < bus.capacity) {
       bus.occupied += 1;
     }
 
     // Update active trip
-    const trip = db.activeTrips.find(t => t.busId === targetBusId && t.status === 'in_progress');
+    const trip = db.activeTrips.find(t => t.busId === finalBusId && t.status === 'in_progress');
     if (trip) {
       trip.totalBoarded = (trip.totalBoarded || 0) + 1;
+      if (!Array.isArray(trip.boardedStudents)) trip.boardedStudents = [];
       trip.boardedStudents.push({
         studentId: student.id,
         stopId: stopId || student.stopId,
@@ -1464,8 +1687,14 @@ app.post('/api/trips/board', requireRole(['driver', 'admin']), async (req, res) 
     io.emit('buses:updated', isMongoConnected() ? await Bus.find({}).lean() : db.buses);
     io.emit('students:updated', isMongoConnected() ? await Student.find({}).lean() : db.students);
 
-    res.json({ message: `${student.name} marked as boarded!`, student });
+    res.json({
+      success: true,
+      message: `${student.name} (${student.rollNo}) marked as boarded!`,
+      student,
+      bus
+    });
   } catch (err) {
+    console.error('Error boarding student:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -3,7 +3,7 @@ import {
   Play, Square, AlertOctagon, CheckCircle, QrCode, 
   MapPin, Clock, Users, Fuel, AlertTriangle, Radio, 
   Navigation2, Send, Sparkles, Phone, 
-  ArrowRightLeft, ShieldCheck, LogOut
+  ArrowRightLeft, ShieldCheck, LogOut, Navigation, Compass
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import LiveMap from '../Map/LiveMap';
@@ -18,13 +18,17 @@ export default function DriverConsole({
   onDataRefresh,
   onLogout
 }) {
-  const [activeTab, setActiveTab] = useState('passengers'); // 'passengers' | 'schedule'
+  const [activeTab, setActiveTab] = useState('tracker'); // 'tracker' | 'passengers' | 'schedule'
   const [isTripActive, setIsTripActive] = useState(false);
   const [isSimulatingGps, setIsSimulatingGps] = useState(true);
   const [useDeviceGps, setUseDeviceGps] = useState(false);
   const [simSpeed, setSimSpeed] = useState(1); // 1x, 2x, 4x
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState(0);
   const [qrInput, setQrInput] = useState('');
+  const [studentNameInput, setStudentNameInput] = useState('');
+  const [studentRollInput, setStudentRollInput] = useState('');
+  const [boardedOverrides, setBoardedOverrides] = useState({});
+  const [manualBoardedStudents, setManualBoardedStudents] = useState([]);
   const [incidentType, setIncidentType] = useState('traffic');
   const [incidentDelay, setIncidentDelay] = useState(15);
   const [incidentDesc, setIncidentDesc] = useState('');
@@ -36,7 +40,38 @@ export default function DriverConsole({
   // Find Driver's Assigned Bus & Route (Bus 1 permanently Pragnya, Bus 2 permanently Jitendra)
   const bus = buses.find(b => b.id === driver?.busId) || (driver?.id === 'PRAGNYA01' ? buses[0] : buses[1]) || buses[0];
   const route = routes.find(r => r.id === (driver?.routeId || bus?.routeId)) || routes[0];
-  const routeStudents = students.filter(s => s.routeId === route?.id);
+
+  // Merge prop students with optimistic boardedOverrides & newly manualBoardedStudents
+  const mergedStudents = useMemo(() => {
+    // 1. Apply overrides to existing students
+    const list = students.map(s => {
+      const override = 
+        boardedOverrides[s.id] || 
+        boardedOverrides[s.id?.toLowerCase()] || 
+        (s.rollNo ? boardedOverrides[s.rollNo] : null) || 
+        (s.rollNo ? boardedOverrides[s.rollNo.toLowerCase()] : null);
+      if (override) {
+        return { ...s, ...override };
+      }
+      return s;
+    });
+
+    // 2. Append newly manually boarded students if not already present
+    for (const mb of manualBoardedStudents) {
+      const alreadyInList = list.some(s => 
+        (s.id && mb.id && s.id.toLowerCase() === mb.id.toLowerCase()) ||
+        (s.rollNo && mb.rollNo && s.rollNo.toLowerCase() === mb.rollNo.toLowerCase())
+      );
+      if (!alreadyInList) {
+        list.push(mb);
+      }
+    }
+    return list;
+  }, [students, boardedOverrides, manualBoardedStudents]);
+
+  const routeStudents = useMemo(() => {
+    return mergedStudents.filter(s => s.routeId === route?.id || s.busId === bus?.id || !s.routeId);
+  }, [mergedStudents, route?.id, bus?.id]);
 
   // Check valid GPS availability
   const hasValidGps = Boolean(
@@ -62,8 +97,8 @@ export default function DriverConsole({
 
   // Trip Direction Labels for Bus 1 and Bus 2
   const destination = bus?.id === 'BUS-02' || route?.id === 'R-102' ? 'Patia' : 'Baramunda';
-  const morningLabel = `From BEC College → ${destination}`;
-  const eveningLabel = `From ${destination} → BEC College`;
+  const morningLabel = `BEC College → ${destination}`;
+  const eveningLabel = `${destination} → BEC College`;
 
   // Bidirectional active stops
   const activeStops = useMemo(() => {
@@ -99,7 +134,7 @@ export default function DriverConsole({
   }, [hasValidGps, route, bus?.currentLat, bus?.currentLng]);
 
   const locationDisplay = hasValidGps 
-    ? (nearestStop ? `${nearestStop.name} (${bus.currentLat.toFixed(4)}, ${bus.currentLng.toFixed(4)})` : `${bus.currentLat.toFixed(4)}, ${bus.currentLng.toFixed(4)}`)
+    ? (nearestStop ? `${nearestStop.name}` : `${bus.currentLat.toFixed(4)}, ${bus.currentLng.toFixed(4)}`)
     : 'Location unavailable';
 
   const busTitle = `${bus?.fleetNumber || (driver?.id === 'PRAGNYA01' ? 'Bus 1' : 'Bus 2')} - Live Location`;
@@ -124,10 +159,10 @@ export default function DriverConsole({
       intervalId = setInterval(() => {
         setCurrentWaypointIndex(prevIndex => {
           const nextIndex = (prevIndex + 1) % activeStops.length;
-          const nextStop = activeStops[nextIndex];
+          const targetStop = activeStops[nextIndex];
 
-          const lat = nextStop.lat;
-          const lng = nextStop.lng;
+          const lat = targetStop.lat;
+          const lng = targetStop.lng;
           const speed = Math.floor(32 + Math.random() * 12);
           const heading = Math.floor(Math.random() * 360);
 
@@ -139,7 +174,7 @@ export default function DriverConsole({
             lng,
             speed,
             heading,
-            nextStopId: nextStop.id
+            nextStopId: targetStop.id
           });
 
           return nextIndex;
@@ -213,22 +248,99 @@ export default function DriverConsole({
     }
   };
 
-  // Board Student (QR or 1-tap manual)
-  const handleBoardStudent = async (studentId, method = 'manual') => {
+  // Unified Board Student logic for both Manual Form and Passenger Manifest
+  const handleBoardStudent = async ({ studentId, rollNo, name, stopId, method = 'manual' }) => {
+    const targetRoll = (rollNo || studentId || '').trim();
+    const targetName = (name || '').trim();
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // 1. Immediate optimistic UI updates:
+    const overrideKey = studentId || targetRoll;
+    setBoardedOverrides(prev => ({
+      ...prev,
+      [overrideKey]: { boardedToday: true, boardedTime: currentTime },
+      ...(targetRoll ? { [targetRoll.toLowerCase()]: { boardedToday: true, boardedTime: currentTime } } : {}),
+      ...(studentId ? { [studentId.toLowerCase()]: { boardedToday: true, boardedTime: currentTime } } : {})
+    }));
+
+    // If student entered manually, add to manualBoardedStudents list optimistically
+    if (targetName && targetRoll) {
+      setManualBoardedStudents(prev => {
+        const exists = prev.some(s => 
+          (s.rollNo && s.rollNo.toLowerCase() === targetRoll.toLowerCase()) || 
+          (s.id && s.id.toLowerCase() === overrideKey.toLowerCase())
+        );
+        if (exists) return prev;
+        return [
+          ...prev,
+          {
+            id: studentId || `STU-${targetRoll}`,
+            name: targetName,
+            rollNo: targetRoll,
+            routeId: route?.id,
+            busId: bus?.id,
+            boardedToday: true,
+            boardedTime: currentTime,
+            stopId: stopId || (route?.stops?.[0]?.id || 'STOP-01')
+          }
+        ];
+      });
+    }
+
+    // Trigger visual celebration and status message immediately
+    confetti({ particleCount: 35, spread: 50 });
+    setStatusMessage(`${targetName || targetRoll} boarded successfully!`);
+    setStudentNameInput('');
+    setStudentRollInput('');
+    setQrInput('');
+
+    // 2. Persist to Backend API / Database
     try {
-      await api.boardStudent({
-        studentId,
+      const res = await api.boardStudent({
+        studentId: studentId || targetRoll,
+        rollNo: targetRoll,
+        name: targetName,
+        studentName: targetName,
         busId: bus.id,
+        routeId: route.id,
+        stopId: stopId || (route?.stops?.[0]?.id || null),
         method
       });
-      confetti({ particleCount: 30, spread: 45 });
-      setQrInput('');
-      setStatusMessage(`Student boarded successfully!`);
-      if (onDataRefresh) onDataRefresh();
-      setTimeout(() => setStatusMessage(''), 3000);
+
+      if (res && res.student) {
+        setBoardedOverrides(prev => ({
+          ...prev,
+          [res.student.id]: { boardedToday: true, boardedTime: res.student.boardedTime || currentTime },
+          [res.student.id.toLowerCase()]: { boardedToday: true, boardedTime: res.student.boardedTime || currentTime },
+          ...(res.student.rollNo ? { [res.student.rollNo.toLowerCase()]: { boardedToday: true, boardedTime: res.student.boardedTime || currentTime } } : {})
+        }));
+      }
+
+      // 3. Refresh app state from database so all components stay 100% in sync
+      if (onDataRefresh) {
+        await onDataRefresh();
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error boarding student:', err);
+    } finally {
+      setTimeout(() => setStatusMessage(''), 3000);
     }
+  };
+
+  const handleManualBoardSubmit = () => {
+    const cleanName = studentNameInput.trim();
+    const cleanRoll = studentRollInput.trim();
+    if (!cleanName || !cleanRoll) {
+      setStatusMessage('Please enter both Student Name and Roll Number.');
+      setTimeout(() => setStatusMessage(''), 3000);
+      return;
+    }
+    handleBoardStudent({
+      studentId: cleanRoll,
+      rollNo: cleanRoll,
+      name: cleanName,
+      method: 'manual'
+    });
   };
 
   // Report Traffic / Breakdown Incident
@@ -251,33 +363,164 @@ export default function DriverConsole({
   };
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
-      {/* SOS Alert Banner if in emergency (Preserve warning/danger purpose) */}
-      {bus?.status === 'emergency' && (
+    <div className="android-driver-app">
+      {/* ==========================================
+          1. ANDROID APP PROFILE & DRIVER HEADER CARD
+          ========================================== */}
+      <div className="android-card" style={{ padding: '1rem', background: '#ffffff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+            {/* Driver Avatar */}
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: '1.25rem',
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)'
+            }}>
+              {driver?.name?.charAt(0) || 'D'}
+            </div>
+
+            {/* Driver Info */}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.25 }}>
+                  {driver?.name}
+                </h2>
+                <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+                  {isTripActive ? 'On Trip' : 'On Duty'}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <span>ID: <b style={{ color: '#0284c7' }}>{driver?.id}</b></span>
+                <span>•</span>
+                <span>{driver?.licenseNo || 'Authorized'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Compact Logout Icon Button */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              id="btn-driver-logout"
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#dc2626',
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+              title="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Assigned Route & Bus Banner */}
         <div style={{
-          background: '#fef2f2',
-          border: '2px solid #ef4444',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1rem 1.5rem',
-          marginBottom: '1.5rem',
+          background: '#f0f9ff',
+          border: '1px solid #bae6fd',
+          borderRadius: '12px',
+          padding: '0.55rem 0.85rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          animation: 'emergency-throb 1s infinite alternate'
+          fontSize: '0.8rem',
+          flexWrap: 'wrap',
+          gap: '6px',
+          marginBottom: '0.75rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <AlertOctagon size={32} style={{ color: '#dc2626' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: '#0369a1', fontWeight: 700 }}>
+              Route: <b>{route?.code || 'RT-01'} ({route?.name || 'Assigned Corridor'})</b>
+            </span>
+          </div>
+          <span style={{ fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', fontWeight: 800 }}>
+            {bus?.fleetNumber} ({bus?.busNo})
+          </span>
+        </div>
+
+        {/* Trip Direction Segmented Control */}
+        <div className="android-segmented-control" style={{ marginBottom: '0.75rem' }}>
+          <button
+            type="button"
+            className={`android-segment-btn ${tripDirection === 'morning' ? 'active-morning' : ''}`}
+            onClick={() => setTripDirection('morning')}
+          >
+            ☀️ Morning: {morningLabel}
+          </button>
+          <button
+            type="button"
+            className={`android-segment-btn ${tripDirection === 'evening' ? 'active-blue' : ''}`}
+            onClick={() => setTripDirection('evening')}
+          >
+            🌙 Evening: {eveningLabel}
+          </button>
+        </div>
+
+        {/* Quick Action Chips: Call Co-Driver & Report Delay */}
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+          {coDriver && (
+            <a
+              href={`tel:${(coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
+              className="android-chip"
+              style={{ textDecoration: 'none' }}
+              title={`Call Co-Driver ${coDriver.name}`}
+            >
+              <Phone size={13} />
+              <span>Call Co-Driver ({coDriver.name})</span>
+            </a>
+          )}
+          <button
+            type="button"
+            className="android-chip"
+            onClick={() => setShowIncidentModal(true)}
+            style={{ color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' }}
+          >
+            <AlertTriangle size={13} />
+            <span>Report Delay</span>
+          </button>
+        </div>
+      </div>
+
+      {/* SOS Emergency Banner if Active */}
+      {bus?.status === 'emergency' && (
+        <div className="android-card" style={{
+          background: '#fef2f2',
+          border: '2px solid #ef4444',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertOctagon size={24} style={{ color: '#dc2626' }} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#991b1b' }}>
-                🚨 EMERGENCY SOS ACTIVE FOR THIS BUS
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#991b1b' }}>
+                🚨 EMERGENCY SOS ACTIVE
               </div>
-              <div style={{ color: '#b91c1c', fontSize: '0.85rem' }}>
-                Campus transport authorities and police dispatch have been notified of your location.
+              <div style={{ color: '#b91c1c', fontSize: '0.75rem' }}>
+                Campus transport authorities and dispatch are monitoring this bus.
               </div>
             </div>
           </div>
           <button
-            className="btn btn-outline btn-sm"
+            className="android-touch-btn"
+            style={{ background: '#dc2626', color: '#ffffff', minHeight: '38px', fontSize: '0.8rem' }}
             onClick={async () => {
               await api.updateBus(bus.id, { status: 'on_trip' });
               if (onDataRefresh) onDataRefresh();
@@ -288,596 +531,367 @@ export default function DriverConsole({
         </div>
       )}
 
-      {/* Driver Header Card with Profile, Phone Call & Controls (SINGLE Logout in top header) */}
-      <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.5rem',
-              fontWeight: 800,
-              color: 'white',
-              boxShadow: '0 3px 12px rgba(2, 132, 199, 0.3)',
-              flexShrink: 0
-            }}>
-              {driver?.name?.charAt(0) || 'D'}
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '1.6rem', color: '#0f172a' }}>{driver?.name}</h2>
-                <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontWeight: 800 }}>
-                  ID: {driver?.id}
-                </span>
-                <span className="badge badge-blue">On Duty</span>
-              </div>
-              <div style={{ color: '#64748b', fontSize: '0.85rem', display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginTop: '3px' }}>
-                <span>Assigned Bus: <b style={{ color: '#0284c7' }}>{bus?.fleetNumber} ({bus?.busNo})</b></span>
-                <span>Route: <b style={{ color: '#0f172a' }}>{route?.name}</b></span>
-                <span>License: <b style={{ color: '#334155' }}>{driver?.licenseNo}</b></span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Action Buttons: Driver Phone Call (Only ONE Logout button exists in top navbar) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{
-              background: '#f0f9ff',
-              border: '1px solid #bae6fd',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.45rem 0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.65rem'
-            }}>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: '#0369a1', fontWeight: 700 }}>YOUR PHONE</div>
-                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>{driver?.phone || (driver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}</div>
-              </div>
-              <a
-                href={`tel:${(driver?.phone || (driver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
-                className="btn btn-sm"
-                style={{
-                  background: '#0284c7',
-                  color: '#ffffff',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '0.35rem 0.7rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-sm)',
-                  textDecoration: 'none'
-                }}
-                title={`Open dialer for ${driver?.name} (${driver?.phone})`}
-              >
-                <Phone size={13} /> Call
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Lower Row: Bidirectional Trip Direction Selector & Co-Driver Coordination */}
-        <div style={{
-          marginTop: '1rem',
-          paddingTop: '0.85rem',
-          borderTop: '1px solid #e2e8f0',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem'
-        }}>
-          {/* Direction Switcher (Blue Theme) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>Trip Direction:</span>
-            <div style={{
-              display: 'inline-flex',
-              background: '#f1f5f9',
-              padding: '3px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid #cbd5e1',
-              gap: '4px'
-            }}>
-              <button
-                type="button"
-                onClick={() => setTripDirection('morning')}
-                style={{
-                  padding: '0.4rem 0.85rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: tripDirection === 'morning' ? '#0284c7' : 'transparent',
-                  color: tripDirection === 'morning' ? '#ffffff' : '#475569',
-                  boxShadow: tripDirection === 'morning' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-              >
-                ☀️ Morning: {morningLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => setTripDirection('evening')}
-                style={{
-                  padding: '0.4rem 0.85rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: tripDirection === 'evening' ? '#0369a1' : 'transparent',
-                  color: tripDirection === 'evening' ? '#ffffff' : '#475569',
-                  boxShadow: tripDirection === 'evening' ? '0 2px 6px rgba(3, 105, 161, 0.3)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-              >
-                🌙 Evening: {eveningLabel}
-              </button>
-            </div>
-          </div>
-
-          {/* Co-Driver Quick Call Block */}
-          {coDriver && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: '#f0f9ff',
-              border: '1px solid #bae6fd',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.35rem 0.75rem',
-              fontSize: '0.75rem'
-            }}>
-              <span style={{ color: '#0369a1', fontWeight: 600 }}>Co-Driver ({coDriver.busName || (coDriver.id === 'PRAGNYA01' ? 'Bus 1' : 'Bus 2')}):</span>
-              <b style={{ color: '#0f172a' }}>{coDriver.name}</b>
-              <span style={{ color: '#475569' }}>{coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}</span>
-              <a
-                href={`tel:${(coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
-                className="btn btn-sm"
-                style={{
-                  background: '#0284c7',
-                  color: '#ffffff',
-                  padding: '0.2rem 0.5rem',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  borderRadius: '4px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  textDecoration: 'none'
-                }}
-                title={`Call Co-Driver ${coDriver.name} at ${coDriver.phone}`}
-              >
-                <Phone size={11} /> Call Co-Driver
-              </a>
-            </div>
-          )}
-        </div>
-      </div>
-
+      {/* Status Snackbar Notification */}
       {statusMessage && (
         <div style={{
-          padding: '0.85rem 1.25rem',
+          padding: '0.75rem 1rem',
           background: '#f0f9ff',
-          border: '1px solid #bae6fd',
-          borderRadius: 'var(--radius-md)',
+          border: '1.5px solid #bae6fd',
+          borderRadius: '14px',
           color: '#0284c7',
-          fontSize: '0.9rem',
-          marginBottom: '1.25rem',
+          fontSize: '0.85rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.6rem',
-          fontWeight: 600
+          fontWeight: 700,
+          boxShadow: '0 2px 8px rgba(2, 132, 199, 0.15)'
         }}>
-          <CheckCircle size={18} /> {statusMessage}
+          <CheckCircle size={18} style={{ flexShrink: 0 }} />
+          <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* ========================================================
-          BUS LIVE TRACKER SECTION (Dedicated prominent card)
-          ======================================================== */}
-      <div className="glass-card" style={{ marginBottom: '1.5rem', borderTop: '4px solid #0284c7' }}>
-        {/* Section Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-              <div style={{
-                background: '#e0f2fe',
-                color: '#0284c7',
-                padding: '6px',
-                borderRadius: '8px',
-                display: 'inline-flex'
-              }}>
-                <Radio size={20} />
-              </div>
-              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                Bus Live Tracker
-              </h3>
-              <span className="badge badge-blue" style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}>
-                {busTitle}
-              </span>
+      {/* ==========================================
+          2. TAB 1: BUS TRACKER & TELEMETRY STREAM
+          ========================================== */}
+      {activeTab === 'tracker' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* PRIMARY TRIP CONTROLS CARD */}
+          <div className="android-card">
+            <div style={{ marginBottom: '0.85rem' }}>
+              {!isTripActive ? (
+                <button
+                  className="android-touch-btn"
+                  onClick={handleStartTrip}
+                  id="btn-driver-start-trip"
+                  style={{
+                    background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                    color: '#ffffff',
+                    fontSize: '0.95rem',
+                    boxShadow: '0 3px 12px rgba(2, 132, 199, 0.35)'
+                  }}
+                >
+                  <Play size={20} fill="white" /> START TRIP & SHARE LOCATION
+                </button>
+              ) : (
+                <button
+                  className="android-touch-btn"
+                  onClick={handleEndTrip}
+                  id="btn-driver-end-trip"
+                  style={{
+                    background: 'linear-gradient(135deg, #dc2626, #ef4444)',
+                    color: '#ffffff',
+                    fontSize: '0.95rem',
+                    boxShadow: '0 3px 12px rgba(220, 38, 38, 0.35)'
+                  }}
+                >
+                  <Square size={18} fill="white" /> END TRIP & CONCLUDE ROUTE
+                </button>
+              )}
             </div>
-            <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
-              Real-time GPS transit monitoring and live telemetry broadcast for {bus?.fleetNumber || 'Bus'}
-            </p>
+
+            {/* GPS Broadcast Mode Control */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>
+                <span>GPS TRANSMITTER MODE</span>
+                <span>{useDeviceGps ? 'Phone Hardware GPS' : `Virtual Sim (${simSpeed}x)`}</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="android-segment-btn"
+                  onClick={() => setUseDeviceGps(false)}
+                  style={{
+                    background: !useDeviceGps ? '#0284c7' : '#f1f5f9',
+                    color: !useDeviceGps ? '#ffffff' : '#64748b',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Simulation
+                </button>
+                <button
+                  type="button"
+                  className="android-segment-btn"
+                  onClick={() => setUseDeviceGps(true)}
+                  style={{
+                    background: useDeviceGps ? '#0284c7' : '#f1f5f9',
+                    color: useDeviceGps ? '#ffffff' : '#64748b',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Phone GPS
+                </button>
+              </div>
+
+              {!useDeviceGps && (
+                <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                  {[1, 2, 4].map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSimSpeed(s)}
+                      style={{
+                        flex: 1,
+                        padding: '4px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        background: simSpeed === s ? '#e0f2fe' : '#ffffff',
+                        color: simSpeed === s ? '#0284c7' : '#64748b'
+                      }}
+                    >
+                      {s}x Speed
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-            {/* Clean Blue "Live" Indicator */}
-            {hasValidGps ? (
+          {/* TELEMETRY STATS GRID (Android Cards) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+            <div className="android-stat-card">
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>SPEED</div>
+              <div style={{ fontWeight: 800, fontSize: '1.25rem', color: '#0f172a', marginTop: '2px' }}>
+                {bus?.speed || 0} <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>km/h</span>
+              </div>
+              <div style={{ fontSize: '0.7rem', color: isTripActive ? '#0284c7' : '#64748b', fontWeight: 700, marginTop: '2px' }}>
+                {isTripActive ? '● Broadcasting' : '○ Standby'}
+              </div>
+            </div>
+
+            <div className="android-stat-card">
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>LOCATION</div>
               <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: '#e0f2fe',
-                border: '1.5px solid #bae6fd',
-                borderRadius: 'var(--radius-full)',
-                padding: '0.4rem 0.9rem',
-                color: '#0284c7',
                 fontWeight: 800,
-                fontSize: '0.8rem',
-                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.15)'
+                fontSize: '0.92rem',
+                color: hasValidGps ? '#0284c7' : '#d97706',
+                marginTop: '4px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }} title={locationDisplay}>
+                {locationDisplay}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                {hasValidGps ? `${bus.currentLat.toFixed(3)}, ${bus.currentLng.toFixed(3)}` : 'Awaiting signal'}
+              </div>
+            </div>
+
+            <div className="android-stat-card">
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>NEXT STOP</div>
+              <div style={{
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                color: '#0f172a',
+                marginTop: '4px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}>
+                {nextStop?.name || 'BEC Campus'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 700, marginTop: '2px' }}>
+                Upcoming Waypoint
+              </div>
+            </div>
+
+            <div className="android-stat-card">
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>FUEL & ATTENDANCE</div>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0284c7', marginTop: '2px' }}>
+                {bus?.fuelPercent || 88}%
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                {routeStudents.filter(s => s.boardedToday).length}/{routeStudents.length} Boarded
+              </div>
+            </div>
+          </div>
+
+          {/* LIVE MAP CARD */}
+          <div className="android-card" style={{ padding: '0.85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className="pulse-dot blue" />
-                <span>{isTripActive ? 'LIVE TRACKING ACTIVE' : 'LIVE'}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>Live Route Map</span>
               </div>
-            ) : (
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: '#fef3c7',
-                border: '1.5px solid #fde68a',
-                borderRadius: 'var(--radius-full)',
-                padding: '0.4rem 0.9rem',
-                color: '#b45309',
-                fontWeight: 800,
-                fontSize: '0.8rem'
-              }}>
-                <AlertTriangle size={14} style={{ color: '#d97706' }} />
-                <span>Location unavailable</span>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                Updated: <b style={{ color: '#0f172a' }}>{lastUpdatedTime}</b>
               </div>
-            )}
+            </div>
 
-            {/* Last Updated Timestamp */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '0.4rem 0.75rem',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.775rem',
-              color: '#475569',
-              fontWeight: 600
-            }}>
-              <Clock size={13} style={{ color: '#0284c7' }} />
-              <span>Last updated: <b style={{ color: '#0f172a' }}>{lastUpdatedTime}</b></span>
+            <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+              {hasValidGps ? (
+                <LiveMap
+                  routes={route ? [route] : []}
+                  buses={bus ? [bus] : []}
+                  highlightBusId={bus?.id}
+                  height="340px"
+                  autoCenterBus={true}
+                />
+              ) : (
+                <div style={{
+                  height: '240px',
+                  background: '#f8fafc',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '1.5rem',
+                  textAlign: 'center'
+                }}>
+                  <AlertTriangle size={36} style={{ color: '#d97706' }} />
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                    Location unavailable
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                    Tap <b>Start Trip & Share Location</b> to broadcast real-time GPS coordinates.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
+      )}
 
-        {/* Telemetry Stats Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '0.75rem',
-          marginBottom: '1rem'
-        }}>
-          {/* 1. Bus Name & Plate */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>BUS</div>
-            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', marginTop: '2px' }}>
-              {bus?.fleetNumber || 'Bus'}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>{bus?.busNo}</div>
-          </div>
-
-          {/* 2. Current Location */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT LOCATION</div>
-            <div style={{
-              fontWeight: 800,
-              fontSize: '0.875rem',
-              color: hasValidGps ? '#0284c7' : '#d97706',
-              marginTop: '2px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }} title={hasValidGps ? locationDisplay : 'Location unavailable'}>
-              {hasValidGps ? locationDisplay : 'Location unavailable'}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              {hasValidGps ? `Lat: ${bus.currentLat.toFixed(4)}, Lng: ${bus.currentLng.toFixed(4)}` : 'Awaiting GPS acquisition'}
-            </div>
-          </div>
-
-          {/* 3. Current Speed */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT SPEED</div>
-            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', marginTop: '2px' }}>
-              {bus?.speed || 0} km/h
-            </div>
-            <div style={{ fontSize: '0.75rem', color: isTripActive ? '#0284c7' : '#64748b', fontWeight: 600 }}>
-              {isTripActive ? 'En Route (Broadcasting)' : 'Stationary / Standby'}
-            </div>
-          </div>
-
-          {/* 4. Current Route */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CURRENT ROUTE</div>
-            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: '#0f172a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={route?.name}>
-              {route?.name || 'Assigned Transit Corridor'}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              {tripDirection === 'morning' ? `☀️ ${morningLabel}` : `🌙 ${eveningLabel}`}
-            </div>
-          </div>
-
-          {/* 5. Next Stop */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>NEXT STOP</div>
-            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: '#0284c7', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {nextStop ? nextStop.name : 'BEC College Campus'}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              Upcoming Waypoint
-            </div>
-          </div>
-
-          {/* 6. Fuel & Transmitter */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>FUEL & TRANSMITTER</div>
-            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0284c7', marginTop: '2px' }}>
-              {bus?.fuelPercent || 88}% Fuel
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              Mode: {useDeviceGps ? 'Phone GPS' : `Sim ${simSpeed}x`}
-            </div>
-          </div>
-        </div>
-
-        {/* Live Map Area (Responsive map showing current bus location automatically) */}
-        <div style={{ marginBottom: '1.25rem', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
-          {hasValidGps ? (
-            <LiveMap
-              routes={route ? [route] : []}
-              buses={bus ? [bus] : []}
-              highlightBusId={bus?.id}
-              height="430px"
-              autoCenterBus={true}
-            />
-          ) : (
-            <div style={{
-              height: '350px',
-              background: '#f8fafc',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.75rem',
-              padding: '2rem',
-              textAlign: 'center'
-            }}>
-              <AlertTriangle size={44} style={{ color: '#d97706' }} />
-              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0f172a' }}>
-                Location unavailable
-              </div>
-              <div style={{ color: '#64748b', fontSize: '0.875rem', maxWidth: '400px' }}>
-                GPS coordinates are currently offline or awaiting signal. Press <b>Start Trip & Share Location</b> below to broadcast live coordinates.
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Trip Operations & Telemetry Transmitter Bar */}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          padding: '1rem',
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: 'var(--radius-md)'
-        }}>
-          {/* Primary Start / End Trip Button (Blue primary for start, Red warning for end) */}
-          <div style={{ flex: '1 1 280px' }}>
-            {!isTripActive ? (
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={handleStartTrip}
-                style={{ width: '100%', gap: '0.75rem', fontWeight: 800, padding: '0.85rem 1.5rem' }}
-              >
-                <Play size={22} fill="white" /> START TRIP & SHARE LOCATION
-              </button>
-            ) : (
-              <button
-                className="btn btn-danger btn-lg"
-                onClick={handleEndTrip}
-                style={{ width: '100%', gap: '0.75rem', fontWeight: 800, padding: '0.85rem 1.5rem' }}
-              >
-                <Square size={20} fill="white" /> END TRIP & CONCLUDE ROUTE
-              </button>
-            )}
-          </div>
-
-          {/* Quick Delay Report Button */}
-          <button
-            className="btn btn-outline"
-            onClick={() => setShowIncidentModal(true)}
-            style={{ fontWeight: 700, borderColor: '#cbd5e1', padding: '0.75rem 1.1rem' }}
-          >
-            <AlertTriangle size={16} style={{ color: '#d97706' }} /> Report Traffic / Delay
-          </button>
-
-          {/* GPS Transmitter Toggle (Simulation vs Phone GPS) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>GPS Mode:</span>
-            <div style={{
-              display: 'inline-flex',
-              background: '#f1f5f9',
-              padding: '3px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid #cbd5e1',
-              gap: '4px'
-            }}>
-              <button
-                type="button"
-                className={`btn btn-sm ${!useDeviceGps ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setUseDeviceGps(false)}
-                style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
-              >
-                Simulation
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${useDeviceGps ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setUseDeviceGps(true)}
-                style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
-              >
-                Device GPS (Phone)
-              </button>
-            </div>
-
-            {!useDeviceGps && (
-              <div style={{ display: 'inline-flex', gap: '3px', marginLeft: '4px' }}>
-                {[1, 2, 4].map(s => (
-                  <button
-                    key={s}
-                    type="button"
-                    className={`btn btn-sm ${simSpeed === s ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setSimSpeed(s)}
-                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                  >
-                    {s}x
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Driver Operations Tabs: Passengers & Schedule */}
-      <div className="tabs-container" style={{ marginBottom: '1.25rem' }}>
-        <button
-          className={`tab-btn ${activeTab === 'passengers' ? 'active' : ''}`}
-          onClick={() => setActiveTab('passengers')}
-        >
-          <Users size={16} /> Student Attendance & QR Scan ({bus?.occupied || 0}/{bus?.capacity || 45})
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'schedule' ? 'active' : ''}`}
-          onClick={() => setActiveTab('schedule')}
-        >
-          <Clock size={16} /> Route Waypoints & Stops ({route?.stops?.length || 0})
-        </button>
-      </div>
-
-      {/* Tab 1: Student Attendance & QR Scan */}
+      {/* ==========================================
+          3. TAB 2: STUDENT PASSENGERS & QR SCANNER
+          ========================================== */}
       {activeTab === 'passengers' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-          {/* Quick QR Scanner Simulator Card */}
-          <div className="glass-card">
-            <h4 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-              <QrCode size={18} style={{ color: '#0284c7' }} /> Student QR Pass Scanner
-            </h4>
-            <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-              Scan the student's digital college ID or enter their Roll Number to mark boarding.
-            </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* QR Pass Scanner Card */}
+          <div className="android-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.65rem' }}>
+              <QrCode size={18} style={{ color: '#0284c7' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                Student Pass Scanner
+              </h3>
+            </div>
 
             <div style={{
               background: '#f0f9ff',
               border: '2px dashed #bae6fd',
-              borderRadius: 'var(--radius-lg)',
-              padding: '2rem 1rem',
+              borderRadius: '14px',
+              padding: '1.25rem 1rem',
               textAlign: 'center',
-              marginBottom: '1.25rem'
+              marginBottom: '0.85rem'
             }}>
-              <QrCode size={56} style={{ color: '#0284c7', margin: '0 auto 0.75rem' }} />
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>Ready to Scan Pass</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-                Camera scanner ready or enter Roll Number below
+              <QrCode size={44} style={{ color: '#0284c7', margin: '0 auto 0.5rem' }} />
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>Scan Pass or Enter Details</div>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                Enter student name and roll number to board
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <input
                 type="text"
                 className="form-input"
-                placeholder="Enter Student Roll No or Token..."
-                value={qrInput}
-                onChange={e => setQrInput(e.target.value)}
-              />
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  if (qrInput.trim()) {
-                    handleBoardStudent(qrInput.trim(), 'qr');
-                  }
+                placeholder="Student Name"
+                value={studentNameInput}
+                onChange={e => setStudentNameInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleManualBoardSubmit();
                 }}
-              >
-                Scan & Board
-              </button>
+                style={{ width: '100%', minHeight: '44px' }}
+              />
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Student Roll No"
+                  value={studentRollInput}
+                  onChange={e => setStudentRollInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleManualBoardSubmit();
+                  }}
+                  style={{ flex: 1, minHeight: '44px' }}
+                />
+                <button
+                  className="android-touch-btn"
+                  onClick={handleManualBoardSubmit}
+                  style={{
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    width: 'auto',
+                    padding: '0 1.25rem',
+                    flexShrink: 0,
+                    fontWeight: 700
+                  }}
+                >
+                  Board
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Route Student Checklist Manifest */}
-          <div className="glass-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          {/* Passenger Manifest Card */}
+          <div className="android-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <div>
-                <h4 style={{ fontSize: '1.1rem', color: '#0f172a' }}>Passenger Manifest ({routeStudents.length})</h4>
-                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Students registered for {route?.code}</div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Passenger Manifest ({routeStudents.length})
+                </h3>
+                <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  Registered students for {route?.code}
+                </div>
               </div>
-              <span className="badge badge-blue">
+              <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
                 {routeStudents.filter(s => s.boardedToday).length} Boarded
               </span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', maxHeight: '380px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {routeStudents.map(student => (
                 <div
                   key={student.id}
+                  className="android-list-card"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.75rem 1rem',
-                    background: student.boardedToday ? '#f0f9ff' : '#f8fafc',
-                    border: `1px solid ${student.boardedToday ? '#bae6fd' : '#e2e8f0'}`,
-                    borderRadius: 'var(--radius-md)'
+                    background: student.boardedToday ? '#f0f9ff' : '#ffffff',
+                    borderColor: student.boardedToday ? '#bae6fd' : '#e2e8f0'
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{student.name}</div>
-                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                      {student.rollNo} • Stop: {route?.stops?.find(s => s.id === student.stopId)?.name || 'Stop'}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0f172a' }}>
+                        {student.name}
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>
+                        Roll: <b style={{ color: '#0284c7' }}>{student.rollNo}</b> • Stop: {route?.stops?.find(s => s.id === student.stopId)?.name || 'Designated Stop'}
+                      </div>
                     </div>
-                  </div>
 
-                  {student.boardedToday ? (
-                    <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
-                      <CheckCircle size={12} /> {student.boardedTime || 'Boarded'}
-                    </span>
-                  ) : (
-                    <button
-                      className="btn btn-outline btn-sm"
-                      onClick={() => handleBoardStudent(student.id, 'manual')}
-                      style={{ fontSize: '0.75rem', borderColor: '#bae6fd', color: '#0284c7', background: '#ffffff' }}
-                    >
-                      Mark Boarded
-                    </button>
-                  )}
+                    {student.boardedToday ? (
+                      <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
+                        <CheckCircle size={12} /> {student.boardedTime || 'Boarded'}
+                      </span>
+                    ) : (
+                      <button
+                        className="android-touch-btn"
+                        onClick={() => handleBoardStudent({
+                          studentId: student.id,
+                          rollNo: student.rollNo,
+                          name: student.name,
+                          stopId: student.stopId,
+                          method: 'manifest'
+                        })}
+                        style={{
+                          background: '#ffffff',
+                          border: '1.5px solid #bae6fd',
+                          color: '#0284c7',
+                          width: 'auto',
+                          padding: '0.35rem 0.75rem',
+                          minHeight: '34px',
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        Mark Boarded
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -885,63 +899,66 @@ export default function DriverConsole({
         </div>
       )}
 
-      {/* Tab 2: Route Schedule & Stops */}
+      {/* ==========================================
+          4. TAB 3: ROUTE STOPS & TIMETABLE
+          ========================================== */}
       {activeTab === 'schedule' && (
-        <div className="glass-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <h4 style={{ fontSize: '1.2rem', color: '#0f172a' }}>
-              Schedule & Stops: {route?.name}
-            </h4>
-            <span style={{ fontSize: '0.75rem', padding: '3px 8px', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', fontWeight: 700 }}>
-              {tripDirection === 'morning' ? `☀️ Morning: ${morningLabel}` : `🌙 Evening: ${eveningLabel}`}
+        <div className="android-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '4px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                {route?.code}: {route?.name}
+              </h3>
+              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                {activeStops.length} Designated Waypoint Stops
+              </div>
+            </div>
+            <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '10px', fontWeight: 800 }}>
+              {tripDirection === 'morning' ? '☀️ Morning' : '🌙 Evening'}
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {activeStops.map((stop, i) => (
               <div
                 key={stop.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '1rem',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 'var(--radius-md)'
-                }}
+                className="android-list-card"
+                style={{ padding: '0.75rem 0.85rem' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: '#0284c7',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: '0.85rem'
-                  }}>
-                    {i + 1}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{stop.name}</div>
-                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                      Coordinates: {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: '#0284c7',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      flexShrink: 0
+                    }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {stop.name}
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
+                        {stop.lat.toFixed(3)}, {stop.lng.toFixed(3)}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div style={{ display: 'flex', gap: '2rem', textAlign: 'right' }}>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Morning Schedule</div>
-                    <div style={{ fontWeight: 700, color: '#0284c7' }}>{stop.morningTime}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Evening Return</div>
-                    <div style={{ fontWeight: 600, color: '#334155' }}>{stop.eveningTime}</div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                      {tripDirection === 'morning' ? 'Pickup' : 'Drop'}
+                    </div>
+                    <div style={{ fontWeight: 800, color: '#0284c7', fontSize: '0.85rem' }}>
+                      {tripDirection === 'morning' ? stop.morningTime : stop.eveningTime}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -950,20 +967,82 @@ export default function DriverConsole({
         </div>
       )}
 
-      {/* Incident Report Modal */}
+      {/* ==========================================
+          5. ANDROID BOTTOM NAVIGATION BAR
+          ========================================== */}
+      <nav className="android-bottom-nav">
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'tracker' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tracker')}
+          id="driver-bottom-nav-tracker"
+          aria-label="Bus Tracker"
+        >
+          <div className="android-nav-pill">
+            <Compass size={20} />
+          </div>
+          <span className="android-nav-label">Tracker</span>
+        </button>
+
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'passengers' ? 'active' : ''}`}
+          onClick={() => setActiveTab('passengers')}
+          id="driver-bottom-nav-passengers"
+          aria-label="Passengers"
+        >
+          <div className="android-nav-pill">
+            <Users size={20} />
+          </div>
+          <span className="android-nav-label">Passengers</span>
+        </button>
+
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'schedule' ? 'active' : ''}`}
+          onClick={() => setActiveTab('schedule')}
+          id="driver-bottom-nav-stops"
+          aria-label="Stops & Timetable"
+        >
+          <div className="android-nav-pill">
+            <MapPin size={20} />
+          </div>
+          <span className="android-nav-label">Stops</span>
+        </button>
+
+        <button
+          type="button"
+          className="android-nav-item"
+          onClick={() => setShowIncidentModal(true)}
+          id="driver-bottom-nav-delay"
+          aria-label="Report Delay"
+        >
+          <div className="android-nav-pill">
+            <AlertTriangle size={20} />
+          </div>
+          <span className="android-nav-label">Report Delay</span>
+        </button>
+      </nav>
+
+      {/* ==========================================
+          6. INCIDENT REPORT MODAL (ANDROID DIALOG)
+          ========================================== */}
       {showIncidentModal && (
         <div className="modal-overlay" onClick={() => setShowIncidentModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-              <AlertTriangle style={{ color: '#d97706' }} /> Report Route Delay or Issue
-            </h3>
-            <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', borderRadius: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.45rem' }}>
+              <AlertTriangle style={{ color: '#d97706' }} size={22} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                Report Route Delay
+              </h3>
+            </div>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '1rem' }}>
               Broadcast an immediate notification to students waiting at upcoming stops.
             </p>
 
             <form onSubmit={handleReportIncident}>
               <div className="form-group">
-                <label className="form-label">Incident Type</label>
+                <label className="form-label" style={{ fontWeight: 700 }}>Incident Type</label>
                 <select className="form-select" value={incidentType} onChange={e => setIncidentType(e.target.value)}>
                   <option value="traffic">Heavy Traffic Jam</option>
                   <option value="breakdown">Bus Mechanical Breakdown</option>
@@ -974,7 +1053,7 @@ export default function DriverConsole({
 
               {incidentType === 'traffic' && (
                 <div className="form-group">
-                  <label className="form-label">Estimated Delay (Minutes)</label>
+                  <label className="form-label" style={{ fontWeight: 700 }}>Estimated Delay</label>
                   <select className="form-select" value={incidentDelay} onChange={e => setIncidentDelay(e.target.value)}>
                     <option value={10}>10 Minutes Delay</option>
                     <option value={15}>15 Minutes Delay</option>
@@ -985,29 +1064,37 @@ export default function DriverConsole({
               )}
 
               <div className="form-group">
-                <label className="form-label">Remarks / Location Note</label>
+                <label className="form-label" style={{ fontWeight: 700 }}>Remarks / Location Note</label>
                 <textarea
                   className="form-textarea"
-                  placeholder="e.g. Stuck near Silk Board flyover due to heavy bottleneck..."
+                  placeholder="e.g. Stuck near flyover due to heavy bottleneck..."
                   value={incidentDesc}
                   onChange={e => setIncidentDesc(e.target.value)}
+                  style={{ minHeight: '80px' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setShowIncidentModal(false)} style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+                <button
+                  type="button"
+                  className="android-touch-btn"
+                  onClick={() => setShowIncidentModal(false)}
+                  style={{ flex: 1, background: '#f1f5f9', color: '#475569' }}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 2 }}>
-                  <Send size={16} /> Broadcast Incident Alert
+                <button
+                  type="submit"
+                  className="android-touch-btn"
+                  style={{ flex: 2, background: '#0284c7', color: '#ffffff' }}
+                >
+                  <Send size={16} /> Broadcast Alert
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-
     </div>
   );
 }

@@ -524,3 +524,293 @@ button {
   border: none !important;
 }
 
+/* ==========================================
+   ANDROID MATERIAL MOBILE APP SYSTEM
+   ========================================== */
+
+/* Mobile Touch & Tap Optimizations */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Mobile-first Android Container */
+.android-student-app,
+.android-driver-app,
+.android-admin-app,
+.android-app-container {
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
+  padding: 0.85rem 1rem 6.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 641px) {
+  .android-student-app,
+  .android-driver-app,
+  .android-admin-app,
+  .android-app-container {
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.06);
+    border-left: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+  }
+}
+
+/* Android Cards */
+.android-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.15rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.android-card:active {
+  transform: scale(0.995);
+}
+
+.android-stat-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.android-list-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.9rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Android Quick Action Touch Chips */
+.android-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.45rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #f0f9ff;
+  border: 1.5px solid #bae6fd;
+  color: #0284c7;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 40px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.android-chip:active {
+  transform: scale(0.96);
+  background: #e0f2fe;
+}
+
+/* Android Touch Friendly Full Buttons */
+.android-touch-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  width: 100%;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  border: none;
+}
+
+.android-touch-btn:active {
+  transform: scale(0.98);
+}
+
+/* Android Segmented Control (Morning/Evening, Bus 1/Bus 2) */
+.android-segmented-control {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+}
+
+.android-segment-btn {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  transition: all 0.2s ease;
+}
+
+.android-segment-btn.active-morning,
+.android-segment-btn.active-blue {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+
+.android-segment-btn.active-evening,
+.android-segment-btn.active-purple {
+  background: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+
+.android-segment-btn:not(.active-morning):not(.active-evening):not(.active-blue):not(.active-purple) {
+  background: transparent;
+  color: #64748b;
+}
+
+.android-nav-badge {
+  position: absolute;
+  top: 3px;
+  right: 18%;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+/* Android Bottom Navigation Bar (Material 3 style) */
+.android-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -2px 14px rgba(15, 23, 42, 0.08);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (min-width: 641px) {
+  .android-bottom-nav {
+    max-width: 640px;
+    margin: 0 auto;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-radius: 18px 18px 0 0;
+  }
+}
+
+.android-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  gap: 2px;
+  color: #64748b;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.android-nav-item:active {
+  transform: scale(0.92);
+}
+
+.android-nav-item.active {
+  color: #0284c7;
+}
+
+.android-nav-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 30px;
+  border-radius: 15px;
+  transition: all 0.2s ease;
+}
+
+.android-nav-item.active .android-nav-pill {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.android-nav-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.android-nav-item.active .android-nav-label {
+  font-weight: 800;
+  color: #0284c7;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 640px) {
+  .desktop-only-text {
+    display: none !important;
+  }
+
+  .glass-card {
+    padding: 1rem !important;
+    border-radius: 16px !important;
+  }
+
+  .modal-content {
+    width: 95% !important;
+    max-height: 90vh !important;
+    border-radius: 20px !important;
+    padding: 1.25rem !important;
+  }
+
+  /* Prevent zoom on input focus and ensure 44px touch targets */
+  .form-input, .form-select {
+    min-height: 44px;
+    font-size: 1rem !important;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  .tab-btn {
+    min-height: 42px;
+  }
+}
+
+body {
+  overflow-x: hidden;
+}
+

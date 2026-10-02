@@ -5,16 +5,18 @@ const complaintSchema = new mongoose.Schema({
   studentId: { type: String },
   studentName: { type: String, default: 'Student' },
   studentRoll: { type: String },
+  issueType: { type: String, default: 'General Issue' },
+  description: { type: String, default: '' },
   category: { type: String, default: 'General' },
-  subject: { type: String, required: true },
-  message: { type: String, required: true },
+  subject: { type: String, default: 'Issue Report' },
+  message: { type: String, default: '' },
   status: {
     type: String,
-    enum: ['open', 'in_review', 'resolved', 'closed'],
-    default: 'open'
+    default: 'Pending'
   },
   adminReply: { type: String, default: null },
   createdAtString: { type: String, default: 'Just now' }
 }, { timestamps: true });
 
 export default mongoose.models.Complaint || mongoose.model('Complaint', complaintSchema);
+

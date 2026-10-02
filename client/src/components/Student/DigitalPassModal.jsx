@@ -19,10 +19,26 @@ export default function DigitalPassModal({ student, route, stop, bus, driver, on
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', textAlign: 'center' }}>
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', color: '#64748b', cursor: 'pointer', padding: '4px', border: 'none' }}
+          id="btn-close-digital-pass"
+          style={{
+            position: 'absolute',
+            top: '14px',
+            right: '14px',
+            background: '#f1f5f9',
+            color: '#475569',
+            cursor: 'pointer',
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: 'none',
+            transition: 'background 0.15s ease'
+          }}
           title="Close Pass"
         >
-          <X size={22} />
+          <X size={20} />
         </button>
 
         {/* Card Header */}
@@ -210,7 +226,17 @@ export default function DigitalPassModal({ student, route, stop, bus, driver, on
           </div>
         </div>
 
-        <button className="btn btn-outline" onClick={onClose} style={{ marginTop: '1.5rem', width: '100%' }}>
+        <button
+          className="android-touch-btn"
+          onClick={onClose}
+          style={{
+            marginTop: '1.5rem',
+            background: '#f1f5f9',
+            color: '#0f172a',
+            border: '1px solid #cbd5e1',
+            fontWeight: 700
+          }}
+        >
           Close Pass
         </button>
       </div>

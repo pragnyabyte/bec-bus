@@ -55,7 +55,24 @@ export default function ComplaintModal({ student, complaints = [], onComplaintSu
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px' }}>
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', color: '#64748b' }}
+          id="btn-close-complaint-modal"
+          style={{
+            position: 'absolute',
+            top: '14px',
+            right: '14px',
+            background: '#f1f5f9',
+            color: '#475569',
+            cursor: 'pointer',
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: 'none',
+            transition: 'background 0.15s ease'
+          }}
+          title="Close"
         >
           <X size={20} />
         </button>

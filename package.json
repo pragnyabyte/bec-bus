@@ -1,8 +1,10 @@
 {
   "name": "college-bus-management-system",
   "version": "1.0.0",
-  "description": "Smart College Bus Management & Live GPS Tracking System",
+  "type": "module",
   "scripts": {
+    "dev": "node scripts/dev.js",
+    "start": "node scripts/dev.js",
     "dev:server": "cd server && npm start",
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm run build",

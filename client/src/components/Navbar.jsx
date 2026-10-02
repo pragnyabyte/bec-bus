@@ -51,59 +51,59 @@ export default function Navbar({
       <header style={{
         background: '#ffffff',
         borderBottom: '1px solid #e0f2fe',
-        boxShadow: '0 2px 10px rgba(2, 132, 199, 0.05)',
+        boxShadow: '0 2px 8px rgba(2, 132, 199, 0.05)',
         position: 'sticky',
         top: 0,
         zIndex: 900,
-        padding: '0.65rem 1.5rem'
+        padding: '0.5rem 1rem'
       }}>
         <div style={{
           maxWidth: '1360px',
           margin: '0 auto',
           display: 'flex',
-          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '0.85rem'
+          gap: '0.5rem'
         }}>
           {/* Brand Logo & Name */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: 'var(--radius-md)',
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
               background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.3)'
+              boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
+              flexShrink: 0
             }}>
-              <Bus size={24} />
+              <Bus size={20} />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.5px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.15rem', letterSpacing: '-0.5px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px', lineHeight: 1.2 }}>
                 BEC Transit
-                <span style={{ fontSize: '0.65rem', padding: '2px 8px', background: '#e0f2fe', color: '#0284c7', borderRadius: '4px', border: '1px solid #bae6fd', textTransform: 'uppercase', fontWeight: 800 }}>
+                <span className="desktop-only-text" style={{ fontSize: '0.65rem', padding: '2px 8px', background: '#e0f2fe', color: '#0284c7', borderRadius: '4px', border: '1px solid #bae6fd', textTransform: 'uppercase', fontWeight: 800 }}>
                   2 Buses Fleet
                 </span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              <div className="desktop-only-text" style={{ fontSize: '0.72rem', color: '#64748b' }}>
                 Bhubaneswar Engineering College • Live Bus Telemetry
               </div>
             </div>
           </div>
 
           {/* Authenticated Portal Badge (Read-only, non-clickable) */}
-          <div style={{
+          <div className="desktop-only-text" style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '0.45rem 1.15rem',
+            padding: '0.4rem 1rem',
             background: currentRole === 'admin' ? '#f0fdf4' : currentRole === 'driver' ? '#f0f9ff' : '#eff6ff',
             border: `1.5px solid ${currentRole === 'admin' ? '#bbf7d0' : currentRole === 'driver' ? '#bae6fd' : '#bfdbfe'}`,
             borderRadius: '9999px',
-            fontSize: '0.85rem',
+            fontSize: '0.8rem',
             fontWeight: 700,
             color: currentRole === 'admin' ? '#15803d' : currentRole === 'driver' ? '#0369a1' : '#1d4ed8'
           }}>
@@ -114,9 +114,9 @@ export default function Navbar({
               background: currentRole === 'admin' ? '#16a34a' : currentRole === 'driver' ? '#0284c7' : '#2563eb',
               boxShadow: `0 0 6px ${currentRole === 'admin' ? 'rgba(22, 163, 74, 0.6)' : currentRole === 'driver' ? 'rgba(2, 132, 199, 0.6)' : 'rgba(37, 99, 235, 0.6)'}`
             }} />
-            {currentRole === 'admin' && <><Shield size={15} /> Admin Console</>}
-            {currentRole === 'driver' && <><Compass size={15} /> Driver Console</>}
-            {currentRole === 'student' && <><User size={15} /> Student Portal</>}
+            {currentRole === 'admin' && <><Shield size={14} /> Admin Console</>}
+            {currentRole === 'driver' && <><Compass size={14} /> Driver Console</>}
+            {currentRole === 'student' && <><User size={14} /> Student Portal</>}
           </div>
 
           {/* Right Controls: Active Driver console switcher, Notification Bell */}

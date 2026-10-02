@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  Bus, MapPin, Clock, ShieldCheck, UserCheck, AlertTriangle, 
-  QrCode, ArrowRightLeft, MessageSquare, Phone, BellRing, 
+  Bus, MapPin, Clock, ShieldCheck, AlertTriangle, 
+  QrCode, ArrowRightLeft, MessageSquare, Phone, 
   Navigation, CheckCircle2, AlertCircle, Info, ChevronRight,
-  Edit3, LogOut, Radio, Compass, Play, Pause, Square
+  Edit3, LogOut, Radio, Compass, Footprints, RefreshCw, User
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import DigitalPassModal from './DigitalPassModal';
 import ComplaintModal from './ComplaintModal';
 import RouteChangeModal from './RouteChangeModal';
+import SeeAllStopsModal from './SeeAllStopsModal';
 
 export default function StudentDashboard({
   student,
@@ -25,23 +26,36 @@ export default function StudentDashboard({
   const [showPassModal, setShowPassModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showRouteChangeModal, setShowRouteChangeModal] = useState(false);
+  const [showSeeAllStopsModal, setShowSeeAllStopsModal] = useState(false);
 
   // Explicitly ensure Student Dashboard loads directly with NO pop-ups or overlays covering the view
   useEffect(() => {
     setShowPassModal(false);
     setShowComplaintModal(false);
     setShowRouteChangeModal(false);
+    setShowSeeAllStopsModal(false);
   }, []);
 
-  const [activeTab, setActiveTab] = useState('bus_tracker'); // 'bus_tracker' | 'live_track' | 'route_details' | 'history'
+  const [activeTab, setActiveTab] = useState('bus_tracker'); // 'bus_tracker' | 'live_track' | 'route_details' | 'issues'
   const [userLiveLocation, setUserLiveLocation] = useState(null); // Real device GPS from browser
-  const [routeDirection, setRouteDirection] = useState('morning'); // 'morning' (To BEC College) | 'evening' (From BEC College)
-
-  // Bus Tracker Section States
-  const [trackerBusId, setTrackerBusId] = useState(student?.busId || 'BUS-01');
+  const [routeDirection, setRouteDirection] = useState('morning'); // 'morning' | 'evening'
   const [trackerDirection, setTrackerDirection] = useState('morning'); // 'morning' | 'evening'
 
-  // Coordinate validity check (strict Odisha / Bhubaneswar bounds - no Bangalore or random coordinates)
+  // Student Issue Reporting State
+  const [issueType, setIssueType] = useState('Bus Delay & Timing');
+  const [issueDescription, setIssueDescription] = useState('');
+  const [issueSubmitting, setIssueSubmitting] = useState(false);
+  const [issueSuccessMsg, setIssueSuccessMsg] = useState('');
+  const [issueErrorMsg, setIssueErrorMsg] = useState('');
+
+  // ==========================================
+  // REAL-TIME DEVICE GEOLOCATION STATE
+  // ==========================================
+  const [gpsStatus, setGpsStatus] = useState('requesting'); // 'requesting' | 'granted' | 'denied' | 'unavailable' | 'error'
+  const [gpsCoords, setGpsCoords] = useState(null); // { lat, lng, accuracy }
+  const [gpsErrorMsg, setGpsErrorMsg] = useState('');
+
+  // Coordinate validity check (strict Odisha / Bhubaneswar bounds)
   const isCoordValid = (lat, lng) => {
     if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return false;
     return lat >= 19.5 && lat <= 21.0 && lng >= 85.0 && lng <= 86.5;
@@ -60,62 +74,360 @@ export default function StudentDashboard({
     return R * c;
   };
 
-  // Both Buses Data
-  const bus1 = useMemo(() => {
+  // ==========================================
+  // STUDENT BUS ASSIGNMENT & PRIVACY FILTERING
+  // If assigned to Bus 1: Student sees ONLY Bus 1 information.
+  // If assigned to Bus 2: Student sees ONLY Bus 2 information.
+  // ==========================================
+  const assignedBusId = useMemo(() => {
+    if (
+      student?.busId === 'BUS-02' ||
+      student?.busId === 'BUS-2' ||
+      student?.fleetNumber === 'Bus 2' ||
+      student?.bus === 'Bus 2' ||
+      student?.routeId === 'R-102' ||
+      student?.routeId === 'RT-02'
+    ) {
+      return 'BUS-02';
+    }
+    const r = routes.find(route => route.id === student?.routeId || route.code === student?.routeId);
+    if (r && (r.busId === 'BUS-02' || r.id === 'R-102' || r.code === 'RT-02')) {
+      return 'BUS-02';
+    }
+    return 'BUS-01';
+  }, [student, routes]);
+
+  const isBus2 = assignedBusId === 'BUS-02';
+
+  // Strictly Assigned Bus Object
+  const assignedBus = useMemo(() => {
+    if (isBus2) {
+      return buses.find(b => b.id === 'BUS-02' || b.fleetNumber === 'Bus 2') || {
+        id: 'BUS-02',
+        fleetNumber: 'Bus 2',
+        busNo: 'OD-02-AX-2002',
+        driverName: 'Jitendra',
+        driverId: 'JITENDRA01',
+        routeId: 'R-102',
+        routeName: 'BEC College ↔ Patia',
+        capacity: 50,
+        status: 'idle',
+        speed: 0,
+        currentLat: 20.3548,
+        currentLng: 85.8197
+      };
+    }
     return buses.find(b => b.id === 'BUS-01' || b.fleetNumber === 'Bus 1') || {
       id: 'BUS-01',
       fleetNumber: 'Bus 1',
       busNo: 'OD-02-AX-1001',
       driverName: 'Pragnya',
+      driverId: 'PRAGNYA01',
       routeId: 'R-101',
+      routeName: 'BEC College ↔ Baramunda',
+      capacity: 50,
       status: 'idle',
-      speed: 0
+      speed: 0,
+      currentLat: 20.2798,
+      currentLng: 85.7972
     };
-  }, [buses]);
+  }, [buses, isBus2]);
 
-  const bus2 = useMemo(() => {
-    return buses.find(b => b.id === 'BUS-02' || b.fleetNumber === 'Bus 2') || {
-      id: 'BUS-02',
-      fleetNumber: 'Bus 2',
-      busNo: 'OD-02-AX-2002',
-      driverName: 'Jitendra',
-      routeId: 'R-102',
-      status: 'idle',
-      speed: 0
+  // Strictly Assigned Route Object
+  const assignedRoute = useMemo(() => {
+    if (isBus2) {
+      return routes.find(r => r.id === 'R-102' || r.code === 'RT-02') || {
+        id: 'R-102',
+        code: 'RT-02',
+        name: 'BEC College ↔ Patia',
+        busId: 'BUS-02',
+        startPoint: 'Patia Big Bazaar',
+        distanceKm: 18.2,
+        totalDurationMin: 45,
+        stops: [
+          { id: 'S-201', name: 'Patia Big Bazaar', lat: 20.3548, lng: 85.8197, morningPickup: '07:10 AM', eveningDrop: '05:35 PM', morningTime: '07:10 AM', eveningTime: '05:35 PM', sequence: 1 },
+          { id: 'S-202', name: 'KIIT Square', lat: 20.3533, lng: 85.8166, morningPickup: '07:20 AM', eveningDrop: '05:25 PM', morningTime: '07:20 AM', eveningTime: '05:25 PM', sequence: 2 },
+          { id: 'S-203', name: 'Damana Square', lat: 20.3275, lng: 85.8188, morningPickup: '07:30 AM', eveningDrop: '05:15 PM', morningTime: '07:30 AM', eveningTime: '05:15 PM', sequence: 3 },
+          { id: 'S-204', name: 'Acharya Vihar', lat: 20.3032, lng: 85.8309, morningPickup: '07:45 AM', eveningDrop: '05:00 PM', morningTime: '07:45 AM', eveningTime: '05:00 PM', sequence: 4 },
+          { id: 'S-205', name: 'BEC Campus Terminal', lat: 20.2195, lng: 85.7360, morningPickup: '08:15 AM', eveningDrop: '04:30 PM', morningTime: '08:15 AM', eveningTime: '04:30 PM', sequence: 5 }
+        ]
+      };
+    }
+    return routes.find(r => r.id === 'R-101' || r.code === 'RT-01') || {
+      id: 'R-101',
+      code: 'RT-01',
+      name: 'BEC College ↔ Baramunda',
+      busId: 'BUS-01',
+      startPoint: 'Baramunda Bus Stand',
+      distanceKm: 14.5,
+      totalDurationMin: 40,
+      stops: [
+        { id: 'S-101', name: 'Baramunda Bus Stand', lat: 20.2798, lng: 85.7972, morningPickup: '07:15 AM', eveningDrop: '05:30 PM', morningTime: '07:15 AM', eveningTime: '05:30 PM', sequence: 1 },
+        { id: 'S-102', name: 'Khandagiri Square', lat: 20.2601, lng: 85.7877, morningPickup: '07:25 AM', eveningDrop: '05:20 PM', morningTime: '07:25 AM', eveningTime: '05:20 PM', sequence: 2 },
+        { id: 'S-103', name: 'Fire Station', lat: 20.2872, lng: 85.8142, morningPickup: '07:35 AM', eveningDrop: '05:10 PM', morningTime: '07:35 AM', eveningTime: '05:10 PM', sequence: 3 },
+        { id: 'S-104', name: 'Jayadev Vihar', lat: 20.3015, lng: 85.8239, morningPickup: '07:45 AM', eveningDrop: '05:00 PM', morningTime: '07:45 AM', eveningTime: '05:00 PM', sequence: 4 },
+        { id: 'S-105', name: 'BEC Campus Terminal', lat: 20.2195, lng: 85.7360, morningPickup: '08:15 AM', eveningDrop: '04:30 PM', morningTime: '08:15 AM', eveningTime: '04:30 PM', sequence: 5 }
+      ]
     };
-  }, [buses]);
+  }, [routes, isBus2]);
 
-  const route1 = useMemo(() => {
-    return routes.find(r => r.id === 'R-101' || r.code === 'RT-01') || routes[0];
-  }, [routes]);
-
-  const route2 = useMemo(() => {
-    return routes.find(r => r.id === 'R-102' || r.code === 'RT-02') || routes[1] || routes[0];
-  }, [routes]);
-
-  const driver1 = useMemo(() => {
-    return drivers.find(d => d.id === 'PRAGNYA01' || d.name === 'Pragnya') || {
+  // Strictly Assigned Driver Object
+  const assignedDriver = useMemo(() => {
+    if (isBus2) {
+      return drivers.find(d => d.id === 'JITENDRA01' || d.name === 'Jitendra' || d.busId === 'BUS-02') || {
+        id: 'JITENDRA01',
+        name: 'Jitendra',
+        phone: '+916370998587',
+        licenseNo: 'OD-02-2018-DL9942',
+        rating: 4.8
+      };
+    }
+    return drivers.find(d => d.id === 'PRAGNYA01' || d.name === 'Pragnya' || d.busId === 'BUS-01') || {
       id: 'PRAGNYA01',
       name: 'Pragnya',
-      phone: '+919040833547'
+      phone: '+919040833547',
+      licenseNo: 'OD-02-2016-DL8812',
+      rating: 4.9
     };
-  }, [drivers]);
+  }, [drivers, isBus2]);
 
-  const driver2 = useMemo(() => {
-    return drivers.find(d => d.id === 'JITENDRA01' || d.name === 'Jitendra') || {
-      id: 'JITENDRA01',
-      name: 'Jitendra',
-      phone: '+916370998587'
+  // Assigned stop fallback to start point of route (index 0) instead of index 2
+  const assignedStop = useMemo(() => {
+    return assignedRoute?.stops?.find(s => s.id === student?.stopId) || assignedRoute?.stops?.[0];
+  }, [assignedRoute, student]);
+
+  // Configured stops for assigned route only (Candidate stops for nearest calculation)
+  const candidateStops = useMemo(() => {
+    return assignedRoute?.stops || [];
+  }, [assignedRoute]);
+
+  // ==========================================
+  // REAL-TIME GEOLOCATION REQUEST & WATCH
+  // Automatically requests location on load and watches continuously
+  // ==========================================
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGpsStatus('unavailable');
+      setGpsErrorMsg('Geolocation is not supported by your browser.');
+      return null;
+    }
+
+    setGpsStatus('requesting');
+    setGpsErrorMsg('');
+
+    // 1. Initial Position Request
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+        setGpsCoords(coords);
+        setUserLiveLocation(coords);
+        setGpsStatus('granted');
+        setGpsErrorMsg('');
+      },
+      (err) => {
+        console.warn('[GPS Position Warning]:', err.code, err.message);
+        if (err.code === 1) { // PERMISSION_DENIED
+          setGpsStatus('denied');
+          setGpsErrorMsg('Location permission was denied. Please allow location access in your browser to detect your nearest bus stop.');
+        } else if (err.code === 2) { // POSITION_UNAVAILABLE
+          setGpsStatus('unavailable');
+          setGpsErrorMsg('Location is unavailable. Please check that device GPS is enabled.');
+        } else if (err.code === 3) { // TIMEOUT
+          setGpsStatus('unavailable');
+          setGpsErrorMsg('Location request timed out. Please try again.');
+        } else {
+          setGpsStatus('error');
+          setGpsErrorMsg(err.message || 'Unable to retrieve your current location.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 }
+    );
+
+    // 2. Continuous watchPosition to track movement dynamically
+    try {
+      const id = navigator.geolocation.watchPosition(
+        (pos) => {
+          const coords = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          };
+          setGpsCoords(coords);
+          setUserLiveLocation(coords);
+          setGpsStatus('granted');
+          setGpsErrorMsg('');
+        },
+        (err) => {
+          if (err.code === 1) {
+            setGpsStatus('denied');
+            setGpsErrorMsg('Location permission was denied.');
+          }
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
+      );
+      return id;
+    } catch (e) {
+      console.warn('[GPS Watch Exception]:', e);
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = requestLocation();
+    return () => {
+      if (id !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(id);
+      }
     };
-  }, [drivers]);
+  }, [requestLocation]);
 
-  // Determine Tracking, Movement, Nearest & Next Stop for a bus
+  // ==========================================
+  // DYNAMIC NEAREST BUS STOP CALCULATION
+  // Compares student's real-time GPS location with configured stops
+  // ==========================================
+  const nearestBusStopData = useMemo(() => {
+    if (!gpsCoords || !candidateStops.length) return null;
+
+    let nearest = null;
+    let minDistanceKm = Infinity;
+
+    for (const stop of candidateStops) {
+      if (typeof stop.lat === 'number' && typeof stop.lng === 'number') {
+        const d = calcHaversineKm(gpsCoords.lat, gpsCoords.lng, stop.lat, stop.lng);
+        if (d < minDistanceKm) {
+          minDistanceKm = d;
+          nearest = stop;
+        }
+      }
+    }
+
+    if (!nearest) return null;
+
+    // Standard human walking speed: ~4.8 km/h (approx 80 meters per minute)
+    const walkingMinutes = Math.max(1, Math.round((minDistanceKm / 4.8) * 60));
+
+    return {
+      stop: nearest,
+      distanceKm: minDistanceKm,
+      walkingMinutes
+    };
+  }, [gpsCoords, candidateStops]);
+
+  // Helper to parse timetable time ("07:25 AM", "05:20 PM") into minutes from midnight
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return null;
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const meridiem = match[3].toUpperCase();
+    if (meridiem === 'PM' && hours !== 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  // ==========================================
+  // NEXT BUS CALCULATION FOR DETECTED NEAREST STOP
+  // Displays only the student's assigned bus and calculates next arrival
+  // ==========================================
+  const nextBusInfo = useMemo(() => {
+    const targetStop = nearestBusStopData?.stop || candidateStops[0];
+    if (!targetStop) return null;
+
+    const fleetName = assignedBus?.fleetNumber || (isBus2 ? 'Bus 2' : 'Bus 1');
+    const busStatus = assignedBus?.status || 'idle';
+    const isEnRoute = (busStatus === 'on_trip' || busStatus === 'emergency') && isCoordValid(assignedBus?.currentLat, assignedBus?.currentLng);
+
+    // 1. Bus is actively on trip with live GPS telemetry
+    if (isEnRoute) {
+      const isEvening = assignedBus?.activeTrip?.direction === 'evening' || (new Date().getHours() >= 12);
+      const destination = isEvening 
+        ? (isBus2 ? 'Patia' : 'Baramunda')
+        : 'BEC College Main Campus';
+
+      const distBusToStop = calcHaversineKm(assignedBus.currentLat, assignedBus.currentLng, targetStop.lat, targetStop.lng);
+      const effectiveSpeed = (assignedBus.speed && assignedBus.speed > 5) ? assignedBus.speed : 28;
+      const etaMin = Math.max(1, Math.round((distBusToStop / effectiveSpeed) * 60));
+
+      const arrivalDate = new Date(Date.now() + etaMin * 60000);
+      const arrivalTimeFormatted = arrivalDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      return {
+        operating: true,
+        isLive: true,
+        busName: fleetName,
+        scheduledOrLiveTime: arrivalTimeFormatted,
+        destination,
+        statusLabel: `Live ETA (~${etaMin} min)`,
+        badgeBg: '#e0f2fe',
+        badgeColor: '#0284c7',
+        badgeBorder: '#bae6fd'
+      };
+    }
+
+    // 2. Bus is idle: calculate next scheduled run based on timetable
+    const morningTimeStr = targetStop.morningPickup || targetStop.morningTime || '07:25 AM';
+    const eveningTimeStr = targetStop.eveningDrop || targetStop.eveningTime || '05:20 PM';
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const morningMinutes = parseTimeToMinutes(morningTimeStr) ?? (7 * 60 + 25);
+    const eveningMinutes = parseTimeToMinutes(eveningTimeStr) ?? (17 * 60 + 20);
+
+    // Morning trip is upcoming or current
+    if (currentMinutes <= morningMinutes + 35) {
+      return {
+        operating: true,
+        isLive: false,
+        busName: fleetName,
+        scheduledOrLiveTime: morningTimeStr,
+        destination: 'BEC College Main Campus',
+        statusLabel: 'Scheduled Inbound',
+        badgeBg: '#f0f9ff',
+        badgeColor: '#0369a1',
+        badgeBorder: '#bae6fd'
+      };
+    }
+
+    // Evening drop trip is upcoming
+    if (currentMinutes <= eveningMinutes + 45) {
+      return {
+        operating: true,
+        isLive: false,
+        busName: fleetName,
+        scheduledOrLiveTime: eveningTimeStr,
+        destination: isBus2 ? 'Patia' : 'Baramunda',
+        statusLabel: 'Scheduled Outbound',
+        badgeBg: '#faf5ff',
+        badgeColor: '#7c3aed',
+        badgeBorder: '#e9d5ff'
+      };
+    }
+
+    // Past late evening run and bus is idle
+    return {
+      operating: false,
+      isLive: false,
+      busName: fleetName,
+      scheduledOrLiveTime: 'No upcoming bus',
+      destination: 'Service completed for today',
+      statusLabel: 'Idle at Terminal',
+      badgeBg: '#f1f5f9',
+      badgeColor: '#64748b',
+      badgeBorder: '#cbd5e1'
+    };
+  }, [nearestBusStopData, candidateStops, assignedBus, isBus2]);
+
+  // Determine Tracking, Movement, Nearest & Next Stop for assigned bus
   const getBusTrackingDetails = (bus, route) => {
     const hasValidCoords = bus && isCoordValid(bus.currentLat, bus.currentLng);
     const isEnRoute = bus && (bus.status === 'on_trip' || bus.status === 'emergency');
 
-    // 1. Movement Status: moving, stopped, or has not started its route
-    let movementState = 'not_started'; // 'moving' | 'stopped' | 'not_started'
+    let movementState = 'not_started';
     let movementLabel = 'Has not started route';
     let movementBadgeBg = '#f1f5f9';
     let movementBadgeColor = '#64748b';
@@ -141,7 +453,6 @@ export default function StudentDashboard({
       movementBadgeBorder = '#fde68a';
     }
 
-    // 2. Location / Nearest Stop & Next Stop
     const isLiveAvailable = hasValidCoords && isEnRoute;
     let locationText = 'Live location unavailable';
     let nearestStop = null;
@@ -165,12 +476,11 @@ export default function StudentDashboard({
       });
 
       if (nearestDistKm <= 0.15) {
-        locationText = `At ${nearestStop.name} (Stop #${nearestStop.sequence})`;
+        locationText = `At ${nearestStop.name} (Stop #${nearestStop.sequence || nearestIdx + 1})`;
       } else {
         locationText = `Near ${nearestStop.name} (${nearestDistKm.toFixed(1)} km away)`;
       }
 
-      // Next Stop determination
       if (bus.nextStopId) {
         nextStop = route.stops.find(s => s.id === bus.nextStopId);
       }
@@ -207,44 +517,18 @@ export default function StudentDashboard({
     };
   };
 
-  const bus1Tracking = useMemo(() => getBusTrackingDetails(bus1, route1), [bus1, route1]);
-  const bus2Tracking = useMemo(() => getBusTrackingDetails(bus2, route2), [bus2, route2]);
+  const assignedTracking = useMemo(() => getBusTrackingDetails(assignedBus, assignedRoute), [assignedBus, assignedRoute]);
 
-  const activeTrackerBus = trackerBusId === 'BUS-02' ? bus2 : bus1;
-  const activeTrackerRoute = trackerBusId === 'BUS-02' ? route2 : route1;
-  const activeTrackerDriver = trackerBusId === 'BUS-02' ? driver2 : driver1;
-  const activeTrackerInfo = trackerBusId === 'BUS-02' ? bus2Tracking : bus1Tracking;
-
+  // Stops for tracker display with direction reversing
   const trackerDisplayStops = useMemo(() => {
-    if (!activeTrackerRoute?.stops) return [];
+    if (!assignedRoute?.stops) return [];
     if (trackerDirection === 'evening') {
-      return [...activeTrackerRoute.stops].reverse();
+      return [...assignedRoute.stops].reverse();
     }
-    return activeTrackerRoute.stops;
-  }, [activeTrackerRoute, trackerDirection]);
+    return assignedRoute.stops;
+  }, [assignedRoute, trackerDirection]);
 
-  // Identify assigned Route, Bus, Stop, and Driver
-  const assignedRoute = useMemo(() => {
-    return routes.find(r => r.id === student?.routeId) || routes[0];
-  }, [routes, student]);
-
-  const assignedBus = useMemo(() => {
-    if (student?.busId) {
-      const bus = buses.find(b => b.id === student.busId);
-      if (bus) return bus;
-    }
-    return buses.find(b => b.routeId === assignedRoute?.id) || buses[0];
-  }, [buses, student, assignedRoute]);
-
-  const assignedStop = useMemo(() => {
-    return assignedRoute?.stops?.find(s => s.id === student?.stopId) || assignedRoute?.stops?.[2] || assignedRoute?.stops?.[0];
-  }, [assignedRoute, student]);
-
-  const assignedDriver = useMemo(() => {
-    return drivers.find(d => d.id === assignedBus?.driverId) || drivers[0];
-  }, [drivers, assignedBus]);
-
-  // Bidirectional stops calculation
+  // Bidirectional stops calculation for timetable tab
   const displayStops = useMemo(() => {
     if (!assignedRoute?.stops) return [];
     if (routeDirection === 'evening') {
@@ -253,798 +537,663 @@ export default function StudentDashboard({
     return assignedRoute.stops;
   }, [assignedRoute, routeDirection]);
 
-  // Real device GPS distances
+  // Distance from student GPS to assigned bus and boarding stop
   const userDistances = useMemo(() => {
-    if (!userLiveLocation) return null;
-    const R = 6371;
+    const coords = gpsCoords || userLiveLocation;
+    if (!coords) return null;
 
     let distToStop = null;
-    if (assignedStop?.lat && assignedStop?.lng) {
-      const dLat = (assignedStop.lat - userLiveLocation.lat) * Math.PI / 180;
-      const dLon = (assignedStop.lng - userLiveLocation.lng) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(userLiveLocation.lat * Math.PI / 180) * Math.cos(assignedStop.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-      distToStop = (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+    const refStop = nearestBusStopData?.stop || assignedStop;
+    if (refStop?.lat && refStop?.lng) {
+      distToStop = calcHaversineKm(coords.lat, coords.lng, refStop.lat, refStop.lng).toFixed(1);
     }
 
     let distToBus = null;
     if (assignedBus?.currentLat && assignedBus?.currentLng) {
-      const dLat = (assignedBus.currentLat - userLiveLocation.lat) * Math.PI / 180;
-      const dLon = (assignedBus.currentLng - userLiveLocation.lng) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(userLiveLocation.lat * Math.PI / 180) * Math.cos(assignedBus.currentLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-      distToBus = (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+      distToBus = calcHaversineKm(coords.lat, coords.lng, assignedBus.currentLat, assignedBus.currentLng).toFixed(1);
     }
 
     return { distToStop, distToBus };
-  }, [userLiveLocation, assignedStop, assignedBus]);
+  }, [gpsCoords, userLiveLocation, nearestBusStopData, assignedStop, assignedBus]);
 
-  // Dynamic ETA & Distance calculation
-  const { etaMinutes, distanceKm } = useMemo(() => {
-    if (!assignedBus || !assignedStop) {
-      return { etaMinutes: 12, distanceKm: 4.2 };
+  // Past reported issues by this student
+  const myStudentIssues = useMemo(() => {
+    return complaints.filter(c => 
+      c.studentId === student?.id || 
+      (c.studentRoll && student?.rollNo && c.studentRoll.toLowerCase() === student.rollNo.toLowerCase())
+    );
+  }, [complaints, student?.id, student?.rollNo]);
+
+  // Handle student issue submission
+  const handleStudentIssueSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!issueDescription.trim()) {
+      setIssueErrorMsg('Please describe your issue before submitting.');
+      return;
     }
 
-    // Haversine formula
-    const R = 6371;
-    const dLat = (assignedStop.lat - assignedBus.currentLat) * Math.PI / 180;
-    const dLon = (assignedStop.lng - assignedBus.currentLng) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(assignedBus.currentLat * Math.PI / 180) * Math.cos(assignedStop.lat * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const dist = R * c;
+    setIssueSubmitting(true);
+    setIssueErrorMsg('');
+    try {
+      await api.submitComplaint({
+        studentId: student?.id || 'STU-01',
+        studentName: student?.name || 'Student',
+        studentRoll: student?.rollNo || student?.id,
+        issueType,
+        category: issueType,
+        subject: issueType,
+        description: issueDescription.trim(),
+        message: issueDescription.trim(),
+        busId: assignedBus?.id,
+        routeId: assignedRoute?.id,
+        status: 'Pending'
+      });
 
-    // Estimate based on current bus speed (or default 30 km/h)
-    const effectiveSpeed = (assignedBus.speed && assignedBus.speed > 5) ? assignedBus.speed : 28;
-    const minutes = Math.max(1, Math.round((dist / effectiveSpeed) * 60));
-
-    return {
-      etaMinutes: minutes,
-      distanceKm: dist.toFixed(1)
-    };
-  }, [assignedBus, assignedStop]);
-
-  // Route specific alerts
-  const routeNotifications = useMemo(() => {
-    return notifications.filter(n => n.target === 'all' || n.target === assignedRoute?.id || n.target === 'students');
-  }, [notifications, assignedRoute]);
+      setIssueSuccessMsg('Issue submitted successfully! Transport administration has been notified.');
+      setIssueDescription('');
+      if (onDataRefresh) await onDataRefresh();
+      setTimeout(() => setIssueSuccessMsg(''), 4000);
+    } catch (err) {
+      console.error('Error submitting issue:', err);
+      setIssueErrorMsg(err.message || 'Failed to submit issue. Please try again.');
+    } finally {
+      setIssueSubmitting(false);
+    }
+  };
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
-      {/* Main Student Header Card */}
-      <div className="glass-card" style={{ marginBottom: '1.5rem', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1.25rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
-              <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>Welcome, {student?.name}</h2>
-              <span className={`badge ${student?.status === 'approved' ? 'badge-blue' : 'badge-amber'}`}>
-                {student?.status === 'approved' ? 'Active Pass' : 'Verification Pending'}
-              </span>
+    <div className="android-student-app">
+      {/* ==========================================
+          1. ANDROID APP COMPACT PROFILE & ROUTE CARD
+          ========================================== */}
+      <div className="android-card" style={{ padding: '1rem', background: '#ffffff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+            {/* Student Avatar */}
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: '1.25rem',
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)'
+            }}>
+              {student?.name?.charAt(0) || 'S'}
             </div>
-            <div style={{ color: '#475569', fontSize: '0.9rem', display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-              <span>Roll: <b style={{ color: '#0284c7' }}>{student?.rollNo}</b></span>
-              <span>Branch: <b style={{ color: '#0f172a' }}>{student?.department} ({student?.year})</b></span>
-              <span>Assigned Route: <b style={{ color: '#0284c7' }}>{assignedRoute?.code} ({assignedRoute?.name})</b></span>
+
+            {/* Student Info */}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.25 }}>
+                  {student?.name}
+                </h2>
+                <span className={`badge ${student?.status === 'approved' ? 'badge-blue' : 'badge-amber'}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+                  {student?.status === 'approved' ? 'Active Pass' : 'Pending'}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <span>Roll: <b style={{ color: '#0284c7' }}>{student?.rollNo}</b></span>
+                <span>•</span>
+                <span>{student?.department}</span>
+              </div>
             </div>
           </div>
 
-          {/* Quick Action Badges */}
-          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {/* Compact Logout Icon Button */}
+          {onLogout && (
             <button
-              className="btn btn-outline btn-sm"
-              onClick={() => onOpenAuthModal && onOpenAuthModal('update', student)}
-              id="btn-student-update-user"
-              style={{ borderColor: '#bae6fd', color: '#0284c7', background: '#f0f9ff', fontWeight: 700 }}
-              title="Update profile details in MongoDB Atlas"
-            >
-              <Edit3 size={15} /> Update User
-            </button>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowPassModal(true)}
-            >
-              <QrCode size={15} /> Digital Bus Pass
-            </button>
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => setShowRouteChangeModal(true)}
-            >
-              <ArrowRightLeft size={15} /> Change Route
-            </button>
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => setShowComplaintModal(true)}
-            >
-              <MessageSquare size={15} /> Report Issue
-            </button>
-            {onLogout && (
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={onLogout}
-                id="btn-student-logout"
-                style={{ borderColor: '#fca5a5', color: '#dc2626', background: '#fef2f2', fontWeight: 700 }}
-                title="Log out and return to Login screen"
-              >
-                <LogOut size={15} /> Logout
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Top 3 Metric Cards: Assigned Bus, Stop & Timing, Attendance */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '1.25rem',
-        marginBottom: '1.5rem'
-      }}>
-        {/* Card 1: Live Transit Status */}
-        <div className="glass-card" style={{ borderLeft: '4px solid #0284c7' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.85rem' }}>
-            <div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                Assigned Fleet Bus
-              </span>
-              <h3 style={{ fontSize: '1.4rem', color: '#0f172a', marginTop: '2px' }}>
-                {assignedBus?.fleetNumber}
-              </h3>
-            </div>
-            <span className={`badge ${assignedBus?.status === 'on_trip' ? 'badge-blue' : assignedBus?.status === 'emergency' ? 'badge-red' : 'badge-blue'}`}>
-              <span className={`pulse-dot ${assignedBus?.status === 'on_trip' ? 'blue' : ''}`} />
-              {assignedBus?.status === 'on_trip' ? 'En Route' : assignedBus?.status?.toUpperCase()}
-            </span>
-          </div>
-
-          {/* Driver Profile & Quick Call Box */}
-          <div style={{
-            background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
-            border: '1.5px solid #bae6fd',
-            padding: '0.85rem',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '0.75rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.65rem' }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                background: '#0284c7',
+              onClick={onLogout}
+              id="btn-student-logout"
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#dc2626',
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white',
-                fontWeight: 800,
-                fontSize: '1.25rem',
-                flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.3)'
-              }}>
-                {assignedDriver?.name?.charAt(0) || 'D'}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>{assignedDriver?.name}</span>
-                  <span style={{ fontSize: '0.7rem', padding: '1px 6px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontWeight: 800 }}>
-                    ID: {assignedDriver?.id}
-                  </span>
-                </div>
-                <div style={{ color: '#0284c7', fontSize: '0.75rem', fontWeight: 700, marginTop: '2px' }}>
-                  Assigned Bus: <b>{assignedBus?.fleetNumber}</b> • ★ {assignedDriver?.rating || 4.9}
-                </div>
-              </div>
-            </div>
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+              title="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
+        </div>
 
-            {/* Driver Phone & Call Button Row */}
+        {/* Assigned Route Banner */}
+        <div style={{
+          background: '#f0f9ff',
+          border: '1px solid #bae6fd',
+          borderRadius: '12px',
+          padding: '0.55rem 0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.8rem',
+          flexWrap: 'wrap',
+          gap: '6px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: '#0369a1', fontWeight: 700 }}>
+              Route: <b>{assignedRoute?.code} ({assignedRoute?.name})</b>
+            </span>
+          </div>
+          <span style={{ fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', fontWeight: 800 }}>
+            {assignedBus?.fleetNumber}
+          </span>
+        </div>
+      </div>
+
+      {/* ==========================================
+          2. TAB 0: BUS TRACKER STREAM
+          ========================================== */}
+      {activeTab === 'bus_tracker' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* CARD A: NEAREST BUS STOP (Clean modern Android card) */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{
               display: 'flex',
-              alignItems: 'center',
               justifyContent: 'space-between',
-              background: '#ffffff',
-              padding: '0.5rem 0.75rem',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid #bae6fd',
-              gap: '0.5rem',
-              flexWrap: 'wrap'
+              alignItems: 'center',
+              marginBottom: '0.45rem',
+              padding: '0 4px'
             }}>
+              <span style={{
+                fontSize: '0.92rem',
+                fontWeight: 800,
+                color: '#0f172a',
+                letterSpacing: '-0.2px'
+              }}>
+                Nearest bus stop
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowSeeAllStopsModal(true)}
+                id="btn-nearest-bus-stop-see-all"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#0284c7',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  borderRadius: '6px'
+                }}
+                title="View all configured bus stops for your assigned bus"
+              >
+                See All
+              </button>
+            </div>
+
+            <div
+              className="android-card"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minHeight: '190px'
+              }}
+            >
+              {/* STATE 1: Real-time GPS Location Granted & Stop Found */}
+              {gpsStatus === 'granted' && nearestBusStopData && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '12px',
+                        background: '#f0f9ff',
+                        border: '1.5px solid #bae6fd',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.3rem',
+                        flexShrink: 0
+                      }}>
+                        🚌
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            fontSize: '1.1rem',
+                            color: '#0f172a',
+                            lineHeight: 1.25,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={nearestBusStopData.stop.name}
+                        >
+                          {nearestBusStopData.stop.name}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                          {nearestBusStopData.distanceKm < 1
+                            ? `${Math.round(nearestBusStopData.distanceKm * 1000)} m away`
+                            : `${nearestBusStopData.distanceKm.toFixed(1)} km away`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      padding: '4px 10px',
+                      borderRadius: '20px',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      color: '#1e293b',
+                      flexShrink: 0
+                    }}>
+                      <span style={{ fontSize: '0.95rem' }}>🚶</span>
+                      <span>{nearestBusStopData.walkingMinutes} min</span>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '0.9rem', marginBottom: '0.25rem' }}>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      color: '#94a3b8',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.6px'
+                    }}>
+                      Next Bus
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>
+                      {nextBusInfo?.busName || assignedBus?.fleetNumber}
+                    </div>
+                    <div style={{
+                      fontSize: '1.2rem',
+                      fontWeight: 800,
+                      color: nextBusInfo?.isLive ? '#0284c7' : '#0f172a'
+                    }}>
+                      {nextBusInfo?.scheduledOrLiveTime}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '0.35rem',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem'
+                  }}>
+                    <div style={{ color: '#475569', fontSize: '0.85rem', fontWeight: 600 }}>
+                      {nextBusInfo?.operating ? `To ${nextBusInfo?.destination}` : nextBusInfo?.destination}
+                    </div>
+                    <span style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      background: nextBusInfo?.badgeBg,
+                      color: nextBusInfo?.badgeColor,
+                      border: `1px solid ${nextBusInfo?.badgeBorder}`,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {nextBusInfo?.isLive && <span className="pulse-dot blue" style={{ width: '6px', height: '6px' }} />}
+                      {nextBusInfo?.statusLabel}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {/* STATE 2: Requesting Location */}
+              {gpsStatus === 'requesting' && (
+                <div style={{
+                  padding: '1.5rem 0.5rem',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.65rem'
+                }}>
+                  <div className="pulse-dot blue" style={{ width: '16px', height: '16px' }} />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0f172a' }}>
+                      Requesting device location...
+                    </div>
+                    <p style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '2px' }}>
+                      Allow browser location to detect closest stop on {assignedBus?.fleetNumber}.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* STATE 3: Location Denied */}
+              {gpsStatus === 'denied' && (
+                <div style={{
+                  padding: '0.75rem 0.25rem',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.65rem'
+                }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    background: '#fef2f2',
+                    border: '1.5px solid #fecaca',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#dc2626'
+                  }}>
+                    <AlertCircle size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#991b1b' }}>
+                      Location Permission Required
+                    </div>
+                    <p style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '3px', lineHeight: 1.35 }}>
+                      Enable device GPS to detect your nearest bus stop automatically.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', justifyContent: 'center' }}>
+                    <button
+                      onClick={requestLocation}
+                      className="android-touch-btn"
+                      style={{ background: '#0284c7', color: '#ffffff', fontSize: '0.8rem', padding: '0.45rem 1rem' }}
+                      id="btn-retry-location"
+                    >
+                      <Navigation size={13} /> Allow GPS Access
+                    </button>
+                    <button
+                      onClick={() => setShowSeeAllStopsModal(true)}
+                      className="android-touch-btn"
+                      style={{ background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.8rem', padding: '0.45rem 1rem' }}
+                    >
+                      All Stops
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STATE 4: GPS Unavailable */}
+              {(gpsStatus === 'unavailable' || gpsStatus === 'error') && (
+                <div style={{
+                  padding: '0.75rem 0.25rem',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.55rem'
+                }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: '#fffbeb',
+                    border: '1.5px solid #fde68a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#d97706'
+                  }}>
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#92400e' }}>
+                      GPS Signal Unavailable
+                    </div>
+                    <p style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '2px' }}>
+                      {gpsErrorMsg || 'Verify that location is enabled on your device.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={requestLocation}
+                    className="android-touch-btn"
+                    style={{ background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.8rem', maxWidth: '160px' }}
+                  >
+                    <RefreshCw size={13} /> Retry GPS
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CARD B: ASSIGNED FLEET BUS STATUS */}
+          <div className="android-card" style={{ borderLeft: '4px solid #0284c7' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
               <div>
-                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>DRIVER PHONE</div>
-                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>
-                  {assignedDriver?.phone || (assignedBus?.id === 'BUS-01' || assignedDriver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')}
+                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Assigned Fleet Bus
+                </span>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', margin: '2px 0 0 0' }}>
+                  {assignedBus?.fleetNumber} • {assignedRoute?.code}
+                </h3>
+              </div>
+              <span style={{
+                padding: '4px 10px',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                background: assignedTracking.movementBadgeBg,
+                color: assignedTracking.movementBadgeColor,
+                border: `1px solid ${assignedTracking.movementBadgeBorder}`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}>
+                {assignedTracking.movementState === 'moving' && <span className="pulse-dot online" />}
+                {assignedTracking.movementLabel}
+              </span>
+            </div>
+
+            {/* Driver Box & Touch Call Button */}
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '14px',
+              padding: '0.85rem',
+              marginBottom: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    background: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 800,
+                    fontSize: '1.15rem',
+                    flexShrink: 0
+                  }}>
+                    {assignedDriver?.name?.charAt(0) || 'D'}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                      {assignedDriver?.name}
+                    </div>
+                    <div style={{ color: '#0284c7', fontSize: '0.75rem', fontWeight: 700 }}>
+                      ★ {assignedDriver?.rating || 4.9} • ID: {assignedDriver?.id}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 700 }}>BUS PLATE</div>
+                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>
+                    {assignedBus?.busNo}
+                  </div>
                 </div>
               </div>
+
+              {/* Touch Call Driver Button (min 44px height) */}
               <a
-                href={`tel:${(assignedDriver?.phone || (assignedBus?.id === 'BUS-01' || assignedDriver?.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
-                className="btn btn-sm"
+                href={`tel:${(assignedDriver?.phone || (isBus2 ? '+916370998587' : '+919040833547')).replace(/\s+/g, '')}`}
+                className="android-touch-btn"
                 style={{
                   background: '#0284c7',
                   color: '#ffffff',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.4rem 0.85rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-md)',
                   textDecoration: 'none',
-                  boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
+                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)'
                 }}
-                title={`Call ${assignedDriver?.name || 'Driver'}`}
+                id="btn-call-driver"
+                title={`Call ${assignedDriver?.name}`}
               >
-                <Phone size={14} /> Call Driver
+                <Phone size={15} /> Call Driver ({assignedDriver?.name})
               </a>
             </div>
 
-            <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#475569', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <span>Route: <b style={{ color: '#0284c7' }}>{assignedRoute?.name}</b></span>
-              <span>License: <b style={{ color: '#334155' }}>{assignedDriver?.licenseNo}</b></span>
+            {/* Status chips */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b' }}>
+              <span>Speed: <b style={{ color: '#0284c7' }}>{assignedBus?.speed || 0} km/h</b></span>
+              <span>Capacity: <b style={{ color: '#0f172a' }}>{assignedBus?.occupied || 0}/{assignedBus?.capacity || 50}</b></span>
+              <span>Route: <b style={{ color: '#0f172a' }}>{assignedRoute?.name}</b></span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#475569' }}>
-            <span>Speed: <b style={{ color: '#0284c7' }}>{assignedBus?.speed || 0} km/h</b></span>
-            <span>Capacity: <b style={{ color: '#0f172a' }}>{assignedBus?.occupied || 0}/{assignedBus?.capacity || 45}</b></span>
-            <span>Plate: <b style={{ color: '#0f172a' }}>{assignedBus?.busNo}</b></span>
-          </div>
-        </div>
-
-        {/* Card 2: Your Stop & Live ETA */}
-        <div className="glass-card" style={{ borderLeft: '4px solid #d97706' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.85rem' }}>
-            <div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                Your Boarding Stop
-              </span>
-              <h3 style={{ fontSize: '1.3rem', color: '#b45309', marginTop: '2px' }}>
-                {assignedStop?.name}
-              </h3>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Scheduled</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>{assignedStop?.morningTime}</div>
-            </div>
-          </div>
-
-          <div style={{
-            background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
-            padding: '0.85rem',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid #bae6fd',
-            marginBottom: '0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <div>
-              <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 700 }}>ESTIMATED TIME TO ARRIVE</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0284c7', lineHeight: 1.1 }}>
-                ~{etaMinutes} <span style={{ fontSize: '1rem', fontWeight: 600 }}>mins</span>
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Remaining Distance</div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>{distanceKm} km</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#64748b' }}>
-            <Clock size={14} style={{ color: '#d97706' }} />
-            Evening Drop scheduled at <b>{assignedStop?.eveningTime}</b>
-          </div>
-        </div>
-
-        {/* Card 3: Boarding & Attendance Status */}
-        <div className="glass-card" style={{ borderLeft: '4px solid #0284c7' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.85rem' }}>
-            <div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                Today's Trip Attendance
-              </span>
-              <h3 style={{ fontSize: '1.4rem', color: student?.boardedToday ? '#0284c7' : '#d97706', marginTop: '2px' }}>
-                {student?.boardedToday ? 'Boarded ✓' : 'Awaiting Boarding'}
-              </h3>
-            </div>
-            <span className={`badge ${student?.boardedToday ? 'badge-blue' : 'badge-amber'}`}>
-              {student?.boardedToday ? 'Checked-In' : 'Pending'}
-            </span>
-          </div>
-
-          <div style={{
-            background: student?.boardedToday ? '#f0f9ff' : '#fffbeb',
-            padding: '0.85rem',
-            borderRadius: 'var(--radius-md)',
-            border: `1px solid ${student?.boardedToday ? '#bae6fd' : '#fde68a'}`,
-            marginBottom: '0.85rem'
-          }}>
-            {student?.boardedToday ? (
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 700 }}>BOARDED TIMESTAMP</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0284c7' }}>
-                  {student?.boardedTime || '07:56 AM'} (Verified via QR)
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 700 }}>PASS NOT YET SCANNED</div>
-                <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: '2px' }}>
-                  Tap below to display your student QR pass for the driver.
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => setShowPassModal(true)}
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            <QrCode size={14} /> View Student Transit Pass
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="tabs-container" style={{ marginBottom: '1.25rem' }}>
-        <button
-          className={`tab-btn ${activeTab === 'bus_tracker' ? 'active' : ''}`}
-          onClick={() => setActiveTab('bus_tracker')}
-          id="tab-btn-bus-tracker"
-          style={{ fontWeight: 700 }}
-        >
-          <Bus size={16} /> Bus Tracker
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'live_track' ? 'active' : ''}`}
-          onClick={() => setActiveTab('live_track')}
-          id="tab-btn-my-stop-map"
-        >
-          <Navigation size={16} /> My Boarding Stop Map
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'route_details' ? 'active' : ''}`}
-          onClick={() => setActiveTab('route_details')}
-          id="tab-btn-assigned-route"
-        >
-          <MapPin size={16} /> Stops Sequence & Timetable ({assignedRoute?.stops?.length || 0})
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-          id="tab-btn-history"
-        >
-          <Clock size={16} /> Trip History & Requests
-        </button>
-      </div>
-
-      {/* TAB 0: STUDENT BUS TRACKER SECTION (Both Buses, Live Tracking, Movement Status, Stops & Timetable) */}
-      {activeTab === 'bus_tracker' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Both Buses Overview Cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-            gap: '1.25rem'
-          }}>
-            {/* BUS 1 CARD: Pragnya – Bus 1: BEC College ↔ Baramunda */}
-            <div 
-              className="glass-card" 
-              onClick={() => setTrackerBusId('BUS-01')}
-              style={{
-                cursor: 'pointer',
-                border: trackerBusId === 'BUS-01' ? '2.5px solid #0284c7' : '1px solid #e2e8f0',
-                background: trackerBusId === 'BUS-01' ? '#f0f9ff' : '#ffffff',
-                boxShadow: trackerBusId === 'BUS-01' ? '0 8px 24px rgba(2, 132, 199, 0.15)' : 'none',
-                position: 'relative',
-                transition: 'all 0.2s ease'
-              }}
-              id="card-tracker-bus-1"
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    BUS 1 • ROUTE RT-01
-                  </span>
-                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
-                    Pragnya – Bus 1: BEC College ↔ Baramunda
-                  </h4>
-                </div>
-                {/* Movement Status Badge */}
-                <span style={{
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  background: bus1Tracking.movementBadgeBg,
-                  color: bus1Tracking.movementBadgeColor,
-                  border: `1px solid ${bus1Tracking.movementBadgeBorder}`,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {bus1Tracking.movementState === 'moving' && <span className="pulse-dot online" />}
-                  {bus1Tracking.movementLabel}
-                </span>
-              </div>
-
-              {/* Status Metrics Box */}
-              <div style={{
-                background: '#ffffff',
-                border: '1px solid #bae6fd',
-                borderRadius: 'var(--radius-md)',
-                padding: '0.85rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                marginBottom: '0.85rem',
-                fontSize: '0.85rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#64748b' }}>Current Location:</span>
-                  <span style={{ fontWeight: 700, color: bus1Tracking.isLiveAvailable ? '#0f172a' : '#b45309' }}>
-                    {bus1Tracking.isLiveAvailable ? (
-                      `📍 ${bus1Tracking.locationText}`
-                    ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#b45309' }}>
-                        <AlertCircle size={14} /> Live location unavailable
-                      </span>
-                    )}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#64748b' }}>Next Upcoming Stop:</span>
-                  <span style={{ fontWeight: 700, color: bus1Tracking.isLiveAvailable && bus1Tracking.nextStop ? '#0284c7' : '#64748b' }}>
-                    {bus1Tracking.isLiveAvailable && bus1Tracking.nextStop ? (
-                      `⏭ ${bus1Tracking.nextStop.name}`
-                    ) : (
-                      'Route not started'
-                    )}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#64748b' }}>Time Remaining to Next Stop:</span>
-                  <span style={{ fontWeight: 800, color: bus1Tracking.isLiveAvailable && bus1Tracking.etaMinutes ? '#0284c7' : '#64748b' }}>
-                    {bus1Tracking.isLiveAvailable && bus1Tracking.etaMinutes ? (
-                      `⏱ ~${bus1Tracking.etaMinutes} mins (${bus1Tracking.nextStopDistKm?.toFixed(1)} km)`
-                    ) : (
-                      '--'
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Driver Details & Actions */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b' }}>DRIVER & BUS PLATE</div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                    Pragnya • <span style={{ color: '#0284c7' }}>OD-02-AX-1001</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <a
-                    href="tel:+919040833547"
-                    onClick={e => e.stopPropagation()}
-                    className="btn btn-sm btn-outline"
-                    style={{ borderColor: '#bae6fd', color: '#0284c7', background: '#f0f9ff', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
-                    title="Call Driver Pragnya"
-                  >
-                    <Phone size={13} /> Call Pragnya
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setTrackerBusId('BUS-01')}
-                    className="btn btn-sm btn-primary"
-                    style={{ fontSize: '0.75rem', fontWeight: 700 }}
-                  >
-                    {trackerBusId === 'BUS-01' ? 'Active' : 'Track Bus 1'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* BUS 2 CARD: Jitendra – Bus 2: BEC College ↔ Patia */}
-            <div 
-              className="glass-card" 
-              onClick={() => setTrackerBusId('BUS-02')}
-              style={{
-                cursor: 'pointer',
-                border: trackerBusId === 'BUS-02' ? '2.5px solid #0284c7' : '1px solid #e2e8f0',
-                background: trackerBusId === 'BUS-02' ? '#f0f9ff' : '#ffffff',
-                boxShadow: trackerBusId === 'BUS-02' ? '0 8px 24px rgba(2, 132, 199, 0.15)' : 'none',
-                position: 'relative',
-                transition: 'all 0.2s ease'
-              }}
-              id="card-tracker-bus-2"
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    BUS 2 • ROUTE RT-02
-                  </span>
-                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
-                    Jitendra – Bus 2: BEC College ↔ Patia
-                  </h4>
-                </div>
-                {/* Movement Status Badge */}
-                <span style={{
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  background: bus2Tracking.movementBadgeBg,
-                  color: bus2Tracking.movementBadgeColor,
-                  border: `1px solid ${bus2Tracking.movementBadgeBorder}`,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {bus2Tracking.movementState === 'moving' && <span className="pulse-dot online" />}
-                  {bus2Tracking.movementLabel}
-                </span>
-              </div>
-
-              {/* Status Metrics Box */}
-              <div style={{
-                background: '#ffffff',
-                border: '1px solid #bae6fd',
-                borderRadius: 'var(--radius-md)',
-                padding: '0.85rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                marginBottom: '0.85rem',
-                fontSize: '0.85rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#64748b' }}>Current Location:</span>
-                  <span style={{ fontWeight: 700, color: bus2Tracking.isLiveAvailable ? '#0f172a' : '#b45309' }}>
-                    {bus2Tracking.isLiveAvailable ? (
-                      `📍 ${bus2Tracking.locationText}`
-                    ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#b45309' }}>
-                        <AlertCircle size={14} /> Live location unavailable
-                      </span>
-                    )}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#64748b' }}>Next Upcoming Stop:</span>
-                  <span style={{ fontWeight: 700, color: bus2Tracking.isLiveAvailable && bus2Tracking.nextStop ? '#0284c7' : '#64748b' }}>
-                    {bus2Tracking.isLiveAvailable && bus2Tracking.nextStop ? (
-                      `⏭ ${bus2Tracking.nextStop.name}`
-                    ) : (
-                      'Route not started'
-                    )}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#64748b' }}>Time Remaining to Next Stop:</span>
-                  <span style={{ fontWeight: 800, color: bus2Tracking.isLiveAvailable && bus2Tracking.etaMinutes ? '#0284c7' : '#64748b' }}>
-                    {bus2Tracking.isLiveAvailable && bus2Tracking.etaMinutes ? (
-                      `⏱ ~${bus2Tracking.etaMinutes} mins (${bus2Tracking.nextStopDistKm?.toFixed(1)} km)`
-                    ) : (
-                      '--'
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Driver Details & Actions */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b' }}>DRIVER & BUS PLATE</div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                    Jitendra • <span style={{ color: '#0284c7' }}>OD-02-AX-2002</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <a
-                    href="tel:+916370998587"
-                    onClick={e => e.stopPropagation()}
-                    className="btn btn-sm btn-outline"
-                    style={{ borderColor: '#bae6fd', color: '#0284c7', background: '#f0f9ff', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
-                    title="Call Driver Jitendra"
-                  >
-                    <Phone size={13} /> Call Jitendra
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setTrackerBusId('BUS-02')}
-                    className="btn btn-sm btn-primary"
-                    style={{ fontSize: '0.75rem', fontWeight: 700 }}
-                  >
-                    {trackerBusId === 'BUS-02' ? 'Active' : 'Track Bus 2'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Selected Bus Live Route Tracking & Stop Sequence */}
-          <div className="glass-card" style={{ padding: '1.25rem' }}>
-            {/* Header for Selected Bus Tracker */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h4 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>
-                    {activeTrackerBus.fleetNumber}: {activeTrackerRoute.name}
-                  </h4>
-                  <span style={{
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    background: activeTrackerInfo.movementBadgeBg,
-                    color: activeTrackerInfo.movementBadgeColor,
-                    border: `1px solid ${activeTrackerInfo.movementBadgeBorder}`
-                  }}>
-                    {activeTrackerInfo.movementLabel}
-                  </span>
-                </div>
-                <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>
-                  Driver: <b style={{ color: '#0f172a' }}>{activeTrackerDriver.name}</b> (<a href={`tel:${activeTrackerDriver.phone.replace(/\s+/g, '')}`} style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 700 }}>{activeTrackerDriver.phone}</a>) • Plate: <b style={{ color: '#0f172a' }}>{activeTrackerBus.busNo}</b> • Total Distance: <b>{activeTrackerRoute.distanceKm} km</b>
-                </p>
-              </div>
-
-              {/* Morning Pickup vs Evening Return Toggle */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: '#f1f5f9',
-                padding: '4px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid #cbd5e1',
-                gap: '4px'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setTrackerDirection('morning')}
-                  style={{
-                    padding: '0.45rem 0.9rem',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    borderRadius: 'var(--radius-sm)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: trackerDirection === 'morning' ? '#0284c7' : 'transparent',
-                    color: trackerDirection === 'morning' ? '#ffffff' : '#475569',
-                    boxShadow: trackerDirection === 'morning' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  ☀️ Morning Pickup (To Campus)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrackerDirection('evening')}
-                  style={{
-                    padding: '0.45rem 0.9rem',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    borderRadius: 'var(--radius-sm)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: trackerDirection === 'evening' ? '#7c3aed' : 'transparent',
-                    color: trackerDirection === 'evening' ? '#ffffff' : '#475569',
-                    boxShadow: trackerDirection === 'evening' ? '0 2px 6px rgba(124, 58, 237, 0.3)' : 'none',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  🌙 Evening Return (From Campus)
-                </button>
-              </div>
+          {/* CARD C: LIVE ROUTE MAP & DIRECTION SWITCH */}
+          <div className="android-card">
+            {/* Direction Segmented Control */}
+            <div className="android-segmented-control" style={{ marginBottom: '1rem' }}>
+              <button
+                type="button"
+                className={`android-segment-btn ${trackerDirection === 'morning' ? 'active-morning' : ''}`}
+                onClick={() => setTrackerDirection('morning')}
+              >
+                ☀️ Morning Pickup
+              </button>
+              <button
+                type="button"
+                className={`android-segment-btn ${trackerDirection === 'evening' ? 'active-evening' : ''}`}
+                onClick={() => setTrackerDirection('evening')}
+              >
+                🌙 Evening Return
+              </button>
             </div>
 
             {/* Live Location Alert / Status Banner */}
-            {!activeTrackerInfo.isLiveAvailable ? (
+            {!assignedTracking.isLiveAvailable ? (
               <div style={{
                 background: '#fffbeb',
-                border: '1.5px solid #f59e0b',
+                border: '1px solid #fde68a',
                 borderRadius: '12px',
-                padding: '0.85rem 1rem',
-                marginBottom: '1.25rem',
+                padding: '0.7rem 0.85rem',
+                marginBottom: '1rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.75rem',
+                gap: '0.65rem',
                 color: '#92400e',
-                fontSize: '0.875rem',
+                fontSize: '0.8rem',
                 fontWeight: 600
               }}>
-                <AlertCircle size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+                <AlertCircle size={18} style={{ color: '#d97706', flexShrink: 0 }} />
                 <span>
-                  <b>Live location unavailable:</b> Driver {activeTrackerDriver.name} is not currently broadcasting live GPS for this trip. The scheduled stop sequence and timetable below remain active.
+                  <b>Driver offline:</b> Live GPS is currently inactive for this run. Timetable is displayed below.
                 </span>
               </div>
             ) : (
               <div style={{
                 background: '#f0f9ff',
-                border: '1.5px solid #bae6fd',
+                border: '1px solid #bae6fd',
                 borderRadius: '12px',
-                padding: '0.85rem 1rem',
-                marginBottom: '1.25rem',
+                padding: '0.7rem 0.85rem',
+                marginBottom: '1rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '0.75rem',
+                gap: '0.5rem',
                 color: '#0369a1',
-                fontSize: '0.875rem',
+                fontSize: '0.8rem',
                 fontWeight: 600
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span className="pulse-dot blue" />
                   <span>
-                    <b>Live GPS Active:</b> Bus is currently {activeTrackerInfo.locationText}. Next stop: <b>{activeTrackerInfo.nextStop?.name}</b> in ~{activeTrackerInfo.etaMinutes} mins.
+                    Next: <b>{assignedTracking.nextStop?.name}</b> in ~{assignedTracking.etaMinutes} mins.
                   </span>
                 </div>
-                <span style={{ fontSize: '0.8rem', background: '#e0f2fe', padding: '3px 8px', borderRadius: '6px', color: '#0284c7', fontWeight: 800 }}>
-                  Speed: {activeTrackerBus.speed || 0} km/h
+                <span style={{ fontSize: '0.72rem', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px', color: '#0284c7', fontWeight: 800 }}>
+                  {assignedBus.speed || 0} km/h
                 </span>
               </div>
             )}
 
-            {/* Live Interactive Leaflet Map for Selected Bus */}
-            <div style={{ marginBottom: '1.5rem' }}>
+            {/* Mobile Leaflet Map (Height 320px for phones) */}
+            <div style={{ borderRadius: '14px', overflow: 'hidden', marginBottom: '1rem' }}>
               <LiveMap
-                routes={[activeTrackerRoute]}
-                buses={activeTrackerInfo.isLiveAvailable ? [activeTrackerBus] : []}
-                highlightStopId={activeTrackerInfo.nearestStop?.id || assignedStop?.id}
-                highlightBusId={activeTrackerBus?.id}
-                height="400px"
-                autoCenterBus={activeTrackerInfo.isLiveAvailable}
-                onUserLocationChange={setUserLiveLocation}
+                routes={[assignedRoute]}
+                buses={assignedTracking.isLiveAvailable ? [assignedBus] : []}
+                highlightStopId={nearestBusStopData?.stop?.id || assignedStop?.id}
+                highlightBusId={assignedBus?.id}
+                height="320px"
+                autoCenterBus={assignedTracking.isLiveAvailable}
+                onUserLocationChange={(pos) => {
+                  setGpsCoords(pos);
+                  setUserLiveLocation(pos);
+                  setGpsStatus('granted');
+                }}
               />
             </div>
 
-            {/* Stop Sequence & Timetable Header */}
-            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div>
-                <h5 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
-                  Route Stop Sequence & Scheduled Timetable
-                </h5>
-                <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                  {trackerDirection === 'morning'
-                    ? `Direction: ${activeTrackerRoute.startPoint} ➔ BEC College Main Campus`
-                    : `Direction: BEC College Main Campus ➔ ${activeTrackerRoute.startPoint}`}
-                </p>
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#0284c7', background: '#e0f2fe', padding: '3px 10px', borderRadius: '12px', fontWeight: 700 }}>
-                {trackerDisplayStops.length} Total Route Stops
+            {/* Stops Timeline Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h5 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                Route Stops & Timetable
+              </h5>
+              <span style={{ fontSize: '0.72rem', color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
+                {trackerDisplayStops.length} Stops
               </span>
             </div>
 
-            {/* Sequential Stops Cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {/* Sequential Stops Timeline List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
               {trackerDisplayStops.map((stop, idx) => {
-                const isNearest = activeTrackerInfo.isLiveAvailable && stop.id === activeTrackerInfo.nearestStop?.id;
-                const isNext = activeTrackerInfo.isLiveAvailable && stop.id === activeTrackerInfo.nextStop?.id;
+                const isNearest = nearestBusStopData?.stop?.id === stop.id;
+                const isNext = assignedTracking.isLiveAvailable && stop.id === assignedTracking.nextStop?.id;
                 const isMyAssignedStop = stop.id === assignedStop?.id;
 
                 return (
                   <div
-                    key={stop.id}
+                    key={stop.id || idx}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '0.85rem 1rem',
+                      padding: '0.75rem 0.85rem',
                       background: isNearest ? '#e0f2fe' : isNext ? '#fffbeb' : isMyAssignedStop ? '#eff6ff' : '#f8fafc',
-                      border: `1.5px solid ${isNearest ? '#bae6fd' : isNext ? '#fde68a' : isMyAssignedStop ? '#bae6fd' : '#e2e8f0'}`,
-                      borderRadius: 'var(--radius-md)',
-                      transition: 'all 0.2s',
-                      flexWrap: 'wrap',
-                      gap: '0.75rem'
+                      border: `1.5px solid ${isNearest ? '#0284c7' : isNext ? '#fde68a' : isMyAssignedStop ? '#bae6fd' : '#e2e8f0'}`,
+                      borderRadius: '12px',
+                      gap: '0.65rem',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
                       <div style={{
-                        width: '32px',
-                        height: '32px',
+                        width: '28px',
+                        height: '28px',
                         borderRadius: '50%',
                         background: isNearest ? '#0284c7' : isNext ? '#d97706' : isMyAssignedStop ? '#0284c7' : '#64748b',
                         color: '#ffffff',
@@ -1052,53 +1201,41 @@ export default function StudentDashboard({
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 800,
-                        fontSize: '0.85rem',
+                        fontSize: '0.75rem',
                         flexShrink: 0
                       }}>
                         {idx + 1}
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span>{stop.name}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {stop.name}
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
                           {isNearest && (
-                            <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
-                              📍 Nearest Location ({activeTrackerInfo.nearestDistKm?.toFixed(1)} km)
+                            <span className="badge badge-blue" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>
+                              📍 Nearest ({nearestBusStopData ? `${nearestBusStopData.distanceKm < 1 ? Math.round(nearestBusStopData.distanceKm * 1000) + 'm' : nearestBusStopData.distanceKm.toFixed(1) + 'km'}` : ''})
                             </span>
                           )}
                           {isNext && (
-                            <span className="badge badge-amber" style={{ fontSize: '0.7rem' }}>
-                              ⏭ Next Stop (~{activeTrackerInfo.etaMinutes} mins)
+                            <span className="badge badge-amber" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>
+                              ⏭ Next (~{assignedTracking.etaMinutes}m)
                             </span>
                           )}
-                          {isMyAssignedStop && (
-                            <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
-                              ⭐ Your Assigned Stop
+                          {isMyAssignedStop && !isNearest && (
+                            <span className="badge badge-blue" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>
+                              ⭐ Your Stop
                             </span>
                           )}
-                        </div>
-                        <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>
-                          GPS: {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
                         </div>
                       </div>
                     </div>
 
-                    {/* Scheduled Timetable on Right */}
-                    <div style={{ display: 'flex', gap: '1.5rem', textAlign: 'right', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
-                          Morning Pickup
-                        </div>
-                        <div style={{ fontWeight: 800, color: '#0284c7', fontSize: '0.9rem' }}>
-                          {stop.morningTime}
-                        </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                        {trackerDirection === 'morning' ? 'Pickup' : 'Drop'}
                       </div>
-                      <div>
-                        <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
-                          Evening Drop
-                        </div>
-                        <div style={{ fontWeight: 800, color: '#7c3aed', fontSize: '0.9rem' }}>
-                          {stop.eveningTime}
-                        </div>
+                      <div style={{ fontWeight: 800, color: trackerDirection === 'morning' ? '#0284c7' : '#7c3aed', fontSize: '0.85rem' }}>
+                        {trackerDirection === 'morning' ? (stop.morningPickup || stop.morningTime) : (stop.eveningDrop || stop.eveningTime)}
                       </div>
                     </div>
                   </div>
@@ -1109,182 +1246,143 @@ export default function StudentDashboard({
         </div>
       )}
 
-      {/* Tab 1: Live Interactive Leaflet Map */}
+      {/* ==========================================
+          3. TAB 1: ROUTE LIVE MAP VIEW
+          ========================================== */}
       {activeTab === 'live_track' && (
-        <div className="glass-card" style={{ padding: '1rem', position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 0.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div className="android-card" style={{ padding: '0.85rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
-              <h4 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-                <span className="pulse-dot online" /> Live Fleet Tracking: {assignedRoute?.name}
+              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="pulse-dot online" /> Live Map: {assignedRoute?.name}
               </h4>
-              <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                Map follows your real device GPS location • Bus position tracked from driver GPS
+              <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '2px 0 0 0' }}>
+                Tracks your device GPS & bus live telemetry
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', fontSize: '0.8rem', flexWrap: 'wrap' }}>
-              {userLiveLocation && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#0284c7', background: '#e0f2fe', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '0.75rem' }}>
-                  📍 My GPS: {userLiveLocation.lat.toFixed(4)}, {userLiveLocation.lng.toFixed(4)}
-                  {userDistances?.distToStop && ` • ${userDistances.distToStop} km to Stop`}
-                </span>
-              )}
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#b45309', fontWeight: 600 }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#d97706' }} />
-                Your Stop ({assignedStop?.name})
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 600 }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#0284c7' }} />
-                Active Bus
-              </span>
-            </div>
+            <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0284c7', padding: '3px 8px', borderRadius: '8px', fontWeight: 800 }}>
+              {assignedBus?.fleetNumber}
+            </span>
           </div>
 
-          <LiveMap
-            routes={assignedRoute ? [assignedRoute] : routes}
-            buses={assignedBus ? [assignedBus] : buses}
-            highlightStopId={assignedStop?.id}
-            highlightBusId={assignedBus?.id}
-            height="480px"
-            autoCenterBus={false}
-            onUserLocationChange={setUserLiveLocation}
-          />
+          <div style={{ borderRadius: '14px', overflow: 'hidden' }}>
+            <LiveMap
+              routes={[assignedRoute]}
+              buses={assignedBus ? [assignedBus] : []}
+              highlightStopId={nearestBusStopData?.stop?.id || assignedStop?.id}
+              highlightBusId={assignedBus?.id}
+              height="440px"
+              autoCenterBus={false}
+              onUserLocationChange={(pos) => {
+                setGpsCoords(pos);
+                setUserLiveLocation(pos);
+                setGpsStatus('granted');
+              }}
+            />
+          </div>
         </div>
       )}
 
-      {/* Tab 2: Route Stops & Timetable */}
+      {/* ==========================================
+          4. TAB 2: STOPS & TIMETABLE VIEW
+          ========================================== */}
       {activeTab === 'route_details' && (
-        <div className="glass-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-            <div>
-              <h4 style={{ fontSize: '1.25rem', marginBottom: '0.25rem', color: '#0f172a' }}>
-                {assignedRoute?.code}: {assignedRoute?.name}
-              </h4>
-              <p style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                Total Distance: <b>{assignedRoute?.distanceKm} km</b> • Estimated transit time: <b>{assignedRoute?.totalDurationMin} mins</b> • Fixed Bus: <b>{assignedBus?.fleetNumber} (Driver: {assignedDriver?.name})</b>
-              </p>
-            </div>
+        <div className="android-card">
+          <div style={{ marginBottom: '1rem' }}>
+            <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
+              {assignedRoute?.code}: {assignedRoute?.name}
+            </h4>
+            <p style={{ color: '#64748b', fontSize: '0.78rem', margin: 0 }}>
+              Distance: <b>{assignedRoute?.distanceKm} km</b> • Duration: <b>~{assignedRoute?.totalDurationMin} mins</b> • Bus: <b>{assignedBus?.fleetNumber}</b>
+            </p>
+          </div>
 
-            {/* Bidirectional Route Switcher */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: '#f1f5f9',
-              padding: '4px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid #cbd5e1',
-              gap: '4px'
-            }}>
-              <button
-                type="button"
-                onClick={() => setRouteDirection('morning')}
-                style={{
-                  padding: '0.45rem 0.9rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: routeDirection === 'morning' ? '#0284c7' : 'transparent',
-                  color: routeDirection === 'morning' ? '#ffffff' : '#475569',
-                  boxShadow: routeDirection === 'morning' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-              >
-                ☀️ Morning Pickup (To Campus)
-              </button>
-              <button
-                type="button"
-                onClick={() => setRouteDirection('evening')}
-                style={{
-                  padding: '0.45rem 0.9rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: routeDirection === 'evening' ? '#7c3aed' : 'transparent',
-                  color: routeDirection === 'evening' ? '#ffffff' : '#475569',
-                  boxShadow: routeDirection === 'evening' ? '0 2px 6px rgba(124, 58, 237, 0.3)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-              >
-                🌙 Evening Return (From Campus)
-              </button>
-            </div>
+          {/* Direction Switcher */}
+          <div className="android-segmented-control" style={{ marginBottom: '1rem' }}>
+            <button
+              type="button"
+              className={`android-segment-btn ${routeDirection === 'morning' ? 'active-morning' : ''}`}
+              onClick={() => setRouteDirection('morning')}
+            >
+              ☀️ Morning Pickup
+            </button>
+            <button
+              type="button"
+              className={`android-segment-btn ${routeDirection === 'evening' ? 'active-evening' : ''}`}
+              onClick={() => setRouteDirection('evening')}
+            >
+              🌙 Evening Return
+            </button>
           </div>
 
           {/* Direction Banner */}
           <div style={{
             background: routeDirection === 'morning' ? '#f0f9ff' : '#f5f3ff',
             border: `1px solid ${routeDirection === 'morning' ? '#bae6fd' : '#ddd6fe'}`,
-            borderRadius: 'var(--radius-md)',
-            padding: '0.75rem 1rem',
-            marginBottom: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.85rem'
+            borderRadius: '12px',
+            padding: '0.65rem 0.85rem',
+            marginBottom: '0.85rem',
+            fontSize: '0.78rem',
+            color: routeDirection === 'morning' ? '#0369a1' : '#6d28d9',
+            fontWeight: 700
           }}>
-            <span style={{ color: routeDirection === 'morning' ? '#0369a1' : '#6d28d9', fontWeight: 700 }}>
-              {routeDirection === 'morning'
-                ? `Direction: ${assignedRoute?.startPoint} ➔ BEC College Main Campus (Morning Inbound)`
-                : `Direction: BEC College Main Campus ➔ ${assignedRoute?.startPoint} (Evening Outbound)`}
-            </span>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              Showing {displayStops.length} stops in sequence
-            </span>
+            {routeDirection === 'morning'
+              ? `Direction: ${assignedRoute?.startPoint} ➔ BEC Campus`
+              : `Direction: BEC Campus ➔ ${assignedRoute?.startPoint}`}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {/* Stops List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {displayStops.map((stop, index) => {
+              const isNearest = nearestBusStopData?.stop?.id === stop.id;
               const isMyStop = stop.id === assignedStop?.id;
               return (
                 <div
-                  key={stop.id}
+                  key={stop.id || index}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '1rem',
-                    background: isMyStop ? '#fffbeb' : '#f8fafc',
-                    border: `1.5px solid ${isMyStop ? '#f59e0b' : '#e2e8f0'}`,
-                    borderRadius: 'var(--radius-md)',
-                    transition: 'all 0.2s'
+                    padding: '0.85rem',
+                    background: isNearest ? '#f0f9ff' : isMyStop ? '#fffbeb' : '#f8fafc',
+                    border: `1.5px solid ${isNearest ? '#0284c7' : isMyStop ? '#f59e0b' : '#e2e8f0'}`,
+                    borderRadius: '14px',
+                    gap: '0.75rem'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                     <div style={{
-                      width: '32px',
-                      height: '32px',
+                      width: '30px',
+                      height: '30px',
                       borderRadius: '50%',
-                      background: isMyStop ? '#d97706' : (routeDirection === 'morning' ? '#0284c7' : '#7c3aed'),
+                      background: isNearest ? '#0284c7' : isMyStop ? '#d97706' : (routeDirection === 'morning' ? '#0284c7' : '#7c3aed'),
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 800,
-                      fontSize: '0.85rem'
+                      fontSize: '0.8rem',
+                      flexShrink: 0
                     }}>
                       {index + 1}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 700, color: isMyStop ? '#92400e' : '#0f172a', fontSize: '0.95rem' }}>
-                        {stop.name} {isMyStop && <span className="badge badge-amber" style={{ marginLeft: '6px' }}>Your Stop</span>}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {stop.name}
                       </div>
-                      <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                        Coordinates: {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
+                        {isNearest && <span className="badge badge-blue" style={{ fontSize: '0.65rem' }}>Nearest Stop</span>}
+                        {isMyStop && <span className="badge badge-amber" style={{ fontSize: '0.65rem' }}>Your Stop</span>}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '2rem', textAlign: 'right' }}>
-                    <div style={{ opacity: routeDirection === 'morning' ? 1 : 0.65 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Morning Pickup</div>
-                      <div style={{ fontWeight: 700, color: '#0284c7', fontSize: '0.9rem' }}>{stop.morningTime}</div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                      {routeDirection === 'morning' ? 'Pickup' : 'Drop'}
                     </div>
-                    <div style={{ opacity: routeDirection === 'evening' ? 1 : 0.65 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Evening Drop</div>
-                      <div style={{ fontWeight: 700, color: '#7c3aed', fontSize: '0.9rem' }}>{stop.eveningTime}</div>
+                    <div style={{ fontWeight: 800, color: routeDirection === 'morning' ? '#0284c7' : '#7c3aed', fontSize: '0.88rem' }}>
+                      {routeDirection === 'morning' ? (stop.morningPickup || stop.morningTime) : (stop.eveningDrop || stop.eveningTime)}
                     </div>
                   </div>
                 </div>
@@ -1294,72 +1392,270 @@ export default function StudentDashboard({
         </div>
       )}
 
-      {/* Tab 3: Trip History & Requests */}
-      {activeTab === 'history' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
-          {/* Attendance History */}
-          <div className="glass-card">
-            <h4 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-              <UserCheck size={18} style={{ color: '#0284c7' }} /> Recent Attendance History
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>Today (Morning Trip)</div>
-                  <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{assignedStop?.name}</div>
-                </div>
-                <span className={`badge ${student?.boardedToday ? 'badge-blue' : 'badge-amber'}`}>
-                  {student?.boardedToday ? `Boarded (${student.boardedTime})` : 'Pending'}
-                </span>
+      {/* ==========================================
+          4. TAB 3: REPORT AN ISSUE
+          ========================================== */}
+      {activeTab === 'issues' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="android-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.85rem' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <AlertCircle size={20} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>Yesterday (Morning Trip)</div>
-                  <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{assignedStop?.name}</div>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Report an Issue
+                </h3>
+                <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  Direct line to Campus Transport Desk
                 </div>
-                <span className="badge badge-blue">Boarded (07:58 AM)</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>Yesterday (Evening Drop)</div>
-                  <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Apex University Main Gate</div>
-                </div>
-                <span className="badge badge-blue">Boarded (04:35 PM)</span>
               </div>
             </div>
+
+            {issueSuccessMsg && (
+              <div style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                color: '#15803d',
+                borderRadius: '12px',
+                padding: '0.75rem',
+                fontSize: '0.82rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '1rem'
+              }}>
+                <CheckCircle2 size={16} />
+                <span>{issueSuccessMsg}</span>
+              </div>
+            )}
+
+            {issueErrorMsg && (
+              <div style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#dc2626',
+                borderRadius: '12px',
+                padding: '0.75rem',
+                fontSize: '0.82rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '1rem'
+              }}>
+                <AlertCircle size={16} />
+                <span>{issueErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleStudentIssueSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.85rem', color: '#334155' }}>
+                  Issue Type <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <select
+                  className="form-select"
+                  value={issueType}
+                  onChange={e => setIssueType(e.target.value)}
+                  style={{ minHeight: '44px', fontSize: '0.88rem' }}
+                >
+                  <option value="Bus Delay & Timing">Bus Delay & Timing</option>
+                  <option value="Overcrowding / Seating">Overcrowding / Seating</option>
+                  <option value="Driver Behavior / Rash Driving">Driver Behavior / Rash Driving</option>
+                  <option value="Route & Bus Stop Issue">Route & Bus Stop Issue</option>
+                  <option value="Bus Pass / App Problem">Bus Pass / App Problem</option>
+                  <option value="Cleanliness & AC / Fan">Cleanliness & AC / Fan</option>
+                  <option value="Other / General Issue">Other / General Issue</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.85rem', color: '#334155' }}>
+                  Description <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Describe your issue or concern in detail..."
+                  value={issueDescription}
+                  onChange={e => {
+                    setIssueDescription(e.target.value);
+                    if (issueErrorMsg) setIssueErrorMsg('');
+                  }}
+                  rows={4}
+                  style={{ minHeight: '100px', fontSize: '0.88rem', resize: 'vertical' }}
+                  required
+                />
+              </div>
+
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '0.65rem 0.85rem',
+                fontSize: '0.75rem',
+                color: '#64748b'
+              }}>
+                Reporting Student: <b style={{ color: '#0f172a' }}>{student?.name || 'Student'}</b> • Roll: <b style={{ color: '#0284c7' }}>{student?.rollNo}</b> • Route: {assignedRoute?.code || 'Assigned Route'}
+              </div>
+
+              <button
+                type="submit"
+                className="android-touch-btn"
+                disabled={issueSubmitting}
+                id="btn-submit-student-issue"
+                style={{
+                  background: '#0284c7',
+                  color: '#ffffff',
+                  minHeight: '46px',
+                  fontSize: '0.92rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                  cursor: issueSubmitting ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {issueSubmitting ? 'Submitting...' : 'Submit Issue'}
+              </button>
+            </form>
           </div>
 
-          {/* Transport Announcements */}
-          <div className="glass-card">
-            <h4 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' }}>
-              <BellRing size={18} style={{ color: '#0284c7' }} /> Route & Fleet Alerts
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {routeNotifications.slice(0, 3).map(n => (
-                <div key={n.id} style={{
-                  padding: '0.75rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: n.type === 'emergency' ? '#fef2f2' : n.type === 'delay' ? '#fffbeb' : '#f0f9ff',
-                  border: `1px solid ${n.type === 'emergency' ? '#fecaca' : n.type === 'delay' ? '#fde68a' : '#bae6fd'}`
-                }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f172a', marginBottom: '2px' }}>
-                    {n.title}
+          {/* Past Reported Issues by this Student */}
+          {myStudentIssues.length > 0 && (
+            <div className="android-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  My Reported Issues ({myStudentIssues.length})
+                </h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {myStudentIssues.map(issue => (
+                  <div key={issue.id} className="android-list-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 700, color: '#0284c7', fontSize: '0.75rem' }}>
+                        {issue.issueType || issue.category || issue.subject}
+                      </span>
+                      <span className={`badge ${issue.status?.toLowerCase() === 'resolved' ? 'badge-green' : 'badge-amber'}`} style={{ fontSize: '0.68rem' }}>
+                        {issue.status || 'Pending'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: '#334155' }}>
+                      {issue.description || issue.message}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px' }}>
+                      Submitted: {issue.createdAtString || issue.timestamp || 'Recently'}
+                    </div>
+                    {issue.adminReply && (
+                      <div style={{
+                        marginTop: '6px',
+                        background: '#f0fdf4',
+                        borderLeft: '3px solid #059669',
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        color: '#15803d'
+                      }}>
+                        <b>Admin Response:</b> {issue.adminReply}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ color: '#475569', fontSize: '0.75rem' }}>{n.message}</div>
-                  <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px' }}>{n.timestamp}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* Modals */}
+      {/* ==========================================
+          5. ANDROID BOTTOM NAVIGATION BAR (Fixed at bottom)
+          ========================================== */}
+      <nav className="android-bottom-nav">
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'bus_tracker' ? 'active' : ''}`}
+          onClick={() => setActiveTab('bus_tracker')}
+          id="bottom-nav-tracker"
+          aria-label="Bus Tracker"
+        >
+          <div className="android-nav-pill">
+            <Bus size={20} />
+          </div>
+          <span className="android-nav-label">Tracker</span>
+        </button>
+
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'live_track' ? 'active' : ''}`}
+          onClick={() => setActiveTab('live_track')}
+          id="bottom-nav-map"
+          aria-label="Route Live Map"
+        >
+          <div className="android-nav-pill">
+            <Navigation size={20} />
+          </div>
+          <span className="android-nav-label">Live Map</span>
+        </button>
+
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'route_details' ? 'active' : ''}`}
+          onClick={() => setActiveTab('route_details')}
+          id="bottom-nav-timetable"
+          aria-label="Stops and Timetable"
+        >
+          <div className="android-nav-pill">
+            <MapPin size={20} />
+          </div>
+          <span className="android-nav-label">Timetable</span>
+        </button>
+
+        <button
+          type="button"
+          className="android-nav-item"
+          onClick={() => setShowPassModal(true)}
+          id="bottom-nav-pass"
+          aria-label="Digital Bus Pass"
+        >
+          <div className="android-nav-pill">
+            <QrCode size={20} />
+          </div>
+          <span className="android-nav-label">Bus Pass</span>
+        </button>
+
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'issues' ? 'active' : ''}`}
+          onClick={() => setActiveTab('issues')}
+          id="bottom-nav-issue"
+          aria-label="Report Issue"
+        >
+          <div className="android-nav-pill">
+            <AlertCircle size={20} />
+          </div>
+          <span className="android-nav-label">Issue</span>
+        </button>
+      </nav>
+
+      {/* ==========================================
+          6. MODALS & DIALOGS
+          ========================================== */}
       {showPassModal && (
         <DigitalPassModal
           student={student}
           route={assignedRoute}
-          stop={assignedStop}
+          stop={nearestBusStopData?.stop || assignedStop}
           bus={assignedBus}
           driver={assignedDriver}
           onClose={() => setShowPassModal(false)}
@@ -1388,6 +1684,18 @@ export default function StudentDashboard({
           onClose={() => setShowRouteChangeModal(false)}
         />
       )}
+
+      {/* SEE ALL STOPS MODAL (Only shows stops for assigned route) */}
+      <SeeAllStopsModal
+        isOpen={showSeeAllStopsModal}
+        onClose={() => setShowSeeAllStopsModal(false)}
+        bus={assignedBus}
+        route={assignedRoute}
+        stops={candidateStops}
+        nearestStopId={nearestBusStopData?.stop?.id}
+        gpsCoords={gpsCoords}
+        calcHaversineKm={calcHaversineKm}
+      />
     </div>
   );
 }
