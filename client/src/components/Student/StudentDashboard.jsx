@@ -453,8 +453,8 @@ export default function StudentDashboard({
       movementBadgeBorder = '#fde68a';
     }
 
-    const isLiveAvailable = hasValidCoords && isEnRoute;
-    let locationText = 'Live location unavailable';
+    const isLiveAvailable = Boolean(hasValidCoords && isEnRoute);
+    let locationText = 'Bus live location unavailable';
     let nearestStop = null;
     let nearestDistKm = null;
     let nextStop = null;
@@ -498,7 +498,7 @@ export default function StudentDashboard({
         etaMinutes = Math.max(1, Math.round((nextStopDistKm / speed) * 60));
       }
     } else {
-      locationText = 'Live location unavailable';
+      locationText = 'Bus live location unavailable';
     }
 
     return {
@@ -1148,13 +1148,12 @@ export default function StudentDashboard({
                 buses={assignedTracking.isLiveAvailable ? [assignedBus] : []}
                 highlightStopId={nearestBusStopData?.stop?.id || assignedStop?.id}
                 highlightBusId={assignedBus?.id}
+                showUserLocation={false}
+                mode="student"
+                busLiveLabel={isBus2 ? 'Bus 2 – Live Location' : 'Bus 1 – Live Location'}
+                busLocationUnavailable={!assignedTracking.isLiveAvailable}
                 height="320px"
                 autoCenterBus={assignedTracking.isLiveAvailable}
-                onUserLocationChange={(pos) => {
-                  setGpsCoords(pos);
-                  setUserLiveLocation(pos);
-                  setGpsStatus('granted');
-                }}
               />
             </div>
 
@@ -1247,17 +1246,19 @@ export default function StudentDashboard({
       )}
 
       {/* ==========================================
-          3. TAB 1: ROUTE LIVE MAP VIEW
+          3. TAB 1: BUS LIVE VIEW
           ========================================== */}
       {activeTab === 'live_track' && (
         <div className="android-card" style={{ padding: '0.85rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="pulse-dot online" /> Live Map: {assignedRoute?.name}
+                <span className={`pulse-dot ${assignedTracking.isLiveAvailable ? 'online' : 'amber'}`} /> Bus Live: {assignedRoute?.name}
               </h4>
               <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '2px 0 0 0' }}>
-                Tracks your device GPS & bus live telemetry
+                {assignedTracking.isLiveAvailable
+                  ? `Real-time GPS received from driver (${isBus2 ? 'Bus 2' : 'Bus 1'})`
+                  : 'Bus live location unavailable (driver offline or GPS standby)'}
               </p>
             </div>
             <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0284c7', padding: '3px 8px', borderRadius: '8px', fontWeight: 800 }}>
@@ -1268,16 +1269,15 @@ export default function StudentDashboard({
           <div style={{ borderRadius: '14px', overflow: 'hidden' }}>
             <LiveMap
               routes={[assignedRoute]}
-              buses={assignedBus ? [assignedBus] : []}
+              buses={assignedTracking.isLiveAvailable ? [assignedBus] : []}
               highlightStopId={nearestBusStopData?.stop?.id || assignedStop?.id}
               highlightBusId={assignedBus?.id}
+              showUserLocation={false}
+              mode="student"
+              busLiveLabel={isBus2 ? 'Bus 2 – Live Location' : 'Bus 1 – Live Location'}
+              busLocationUnavailable={!assignedTracking.isLiveAvailable}
               height="440px"
-              autoCenterBus={false}
-              onUserLocationChange={(pos) => {
-                setGpsCoords(pos);
-                setUserLiveLocation(pos);
-                setGpsStatus('granted');
-              }}
+              autoCenterBus={assignedTracking.isLiveAvailable}
             />
           </div>
         </div>
@@ -1600,12 +1600,12 @@ export default function StudentDashboard({
           className={`android-nav-item ${activeTab === 'live_track' ? 'active' : ''}`}
           onClick={() => setActiveTab('live_track')}
           id="bottom-nav-map"
-          aria-label="Route Live Map"
+          aria-label="Bus Live"
         >
           <div className="android-nav-pill">
             <Navigation size={20} />
           </div>
-          <span className="android-nav-label">Live Map</span>
+          <span className="android-nav-label">Bus Live</span>
         </button>
 
         <button

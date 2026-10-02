@@ -555,7 +555,7 @@ export default function LiveMap({
           whiteSpace: 'nowrap'
         }}>
           <AlertTriangle size={15} />
-          <span>Bus location unavailable</span>
+          <span>Bus live location unavailable</span>
         </div>
       )}
 
@@ -721,7 +721,7 @@ export default function LiveMap({
             <span>
               {hasActiveBusCoords
                 ? `Live Bus GPS (${activeBus.currentLat.toFixed(4)}, ${activeBus.currentLng.toFixed(4)})`
-                : 'Bus location unavailable'}
+                : 'Bus live location unavailable'}
             </span>
           </>
         )}
