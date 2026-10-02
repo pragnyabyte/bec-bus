@@ -186,6 +186,39 @@ export default function DriverConsole({
     }
   }, [bus]);
 
+  const lastFirestoreSyncRef = useRef(0);
+
+  const broadcastGpsLocation = useCallback((lat, lng, speed, heading, nextStopId = null) => {
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
+
+    // 1. Immediate Socket.IO broadcast for local Express backend
+    socket.emit('driver:location_update', {
+      busId: bus.id,
+      routeId: route.id,
+      lat,
+      lng,
+      speed: speed || 0,
+      heading: heading || 0,
+      status: 'on_trip',
+      nextStopId
+    });
+
+    // 2. Continuous Firestore synchronization for Firebase deployment (throttled to 2.5s)
+    const now = Date.now();
+    if (now - lastFirestoreSyncRef.current >= 2500) {
+      lastFirestoreSyncRef.current = now;
+      api.updateBus(bus.id, {
+        currentLat: lat,
+        currentLng: lng,
+        speed: speed || 0,
+        heading: heading || 0,
+        status: 'on_trip',
+        lastUpdated: new Date().toISOString(),
+        ...(nextStopId ? { nextStopId } : {})
+      }).catch(err => console.warn('[GPS Sync] Notice:', err.message));
+    }
+  }, [bus?.id, route?.id]);
+
   // GPS Simulation Loop (works in chosen direction)
   useEffect(() => {
     let intervalId = null;
@@ -201,17 +234,7 @@ export default function DriverConsole({
           const speed = Math.floor(32 + Math.random() * 12);
           const heading = Math.floor(Math.random() * 360);
 
-          // Emit to Socket.IO backend
-          socket.emit('driver:location_update', {
-            busId: bus.id,
-            routeId: route.id,
-            lat,
-            lng,
-            speed,
-            heading,
-            nextStopId: targetStop.id
-          });
-
+          broadcastGpsLocation(lat, lng, speed, heading, targetStop.id);
           return nextIndex;
         });
       }, Math.max(1000, 3000 / simSpeed));
@@ -220,33 +243,32 @@ export default function DriverConsole({
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isTripActive, isSimulatingGps, useDeviceGps, simSpeed, activeStops, route, bus]);
+  }, [isTripActive, isSimulatingGps, useDeviceGps, simSpeed, activeStops, broadcastGpsLocation]);
 
-  // Real Device GPS handler
+  // Real Device GPS handler (actual driver's phone GPS hardware)
   useEffect(() => {
     let watchId = null;
     if (isTripActive && useDeviceGps && navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const { latitude, longitude, speed, heading } = pos.coords;
-          socket.emit('driver:location_update', {
-            busId: bus.id,
-            routeId: route.id,
-            lat: latitude,
-            lng: longitude,
-            speed: speed ? Math.round(speed * 3.6) : 35,
-            heading: heading || 0
-          });
+          broadcastGpsLocation(
+            latitude,
+            longitude,
+            speed ? Math.round(speed * 3.6) : 32,
+            heading || 0,
+            nextStop?.id || null
+          );
         },
         (err) => console.error('GPS Geolocation Error:', err),
-        { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
+        { enableHighAccuracy: true, maximumAge: 2000, timeout: 5000 }
       );
     }
 
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isTripActive, useDeviceGps, bus, route]);
+  }, [isTripActive, useDeviceGps, broadcastGpsLocation, nextStop?.id]);
 
   // Start Trip
   const handleStartTrip = async () => {

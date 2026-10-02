@@ -5,6 +5,8 @@ import DriverConsole from './components/Driver/DriverConsole';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AuthModal from './components/Auth/AuthModal';
 import AuthPage from './components/Auth/AuthPage';
+import { onSnapshot, collection } from 'firebase/firestore';
+import { db } from './services/firebase';
 import { api, socket } from './services/api';
 
 export default function App() {
@@ -296,7 +298,40 @@ export default function App() {
       setNotifications(prev => [newNotif, ...prev]);
     });
 
+    // Live Firestore synchronization for Firebase deployment
+    let unsubscribeFbBuses = null;
+    try {
+      unsubscribeFbBuses = onSnapshot(collection(db, 'buses'), (snapshot) => {
+        if (!snapshot.empty) {
+          const liveBuses = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          setBuses(prevBuses => {
+            if (prevBuses.length === 0) return liveBuses;
+            return prevBuses.map(b => {
+              const live = liveBuses.find(lb => lb.id === b.id);
+              if (live) {
+                return {
+                  ...b,
+                  ...live,
+                  currentLat: live.currentLat !== undefined ? live.currentLat : b.currentLat,
+                  currentLng: live.currentLng !== undefined ? live.currentLng : b.currentLng,
+                  speed: live.speed !== undefined ? live.speed : b.speed,
+                  status: live.status || b.status,
+                  lastUpdated: live.lastUpdated || b.lastUpdated
+                };
+              }
+              return b;
+            });
+          });
+        }
+      }, (err) => {
+        console.warn('[Firestore Live] Buses subscription notice:', err.message);
+      });
+    } catch (e) {
+      console.warn('[Firestore Live] Notice:', e.message);
+    }
+
     return () => {
+      if (unsubscribeFbBuses) unsubscribeFbBuses();
       socket.off('initial:state');
       socket.off('bus:telemetry');
       socket.off('buses:updated');

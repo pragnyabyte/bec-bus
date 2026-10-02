@@ -204,8 +204,8 @@ export default function AdminDashboard({
       movementBadgeBorder = '#fde68a';
     }
 
-    const isLiveAvailable = hasValidCoords && isEnRoute;
-    let locationText = 'Live location unavailable';
+    const isLiveAvailable = Boolean(hasValidCoords && isEnRoute);
+    let locationText = 'Bus location unavailable';
     let nearestStop = null;
     let nearestDistKm = null;
     let nextStop = null;
@@ -874,9 +874,14 @@ export default function AdminDashboard({
             <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
               <LiveMap
                 routes={selectedRoute ? [selectedRoute] : []}
-                buses={selectedBus ? [selectedBus] : []}
+                buses={trackingInfo.isLiveAvailable ? [selectedBus] : []}
                 highlightBusId={selectedBus.id}
-                height="320px"
+                showUserLocation={false}
+                mode="admin"
+                busLiveLabel={selectedBusId === 'BUS-01' ? 'Bus 1 – Live Location' : 'Bus 2 – Live Location'}
+                busLocationUnavailable={!trackingInfo.isLiveAvailable}
+                autoCenterBus={trackingInfo.isLiveAvailable}
+                height="340px"
               />
             </div>
           </div>
