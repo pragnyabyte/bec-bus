@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Play, Square, AlertOctagon, CheckCircle, QrCode, 
   MapPin, Clock, Users, Fuel, AlertTriangle, Radio, 

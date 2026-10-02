@@ -30,6 +30,15 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase App safely (singleton)
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey &&
+  firebaseConfig.projectId &&
+  !firebaseConfig.projectId.includes('YOUR_NEW') &&
+  !firebaseConfig.projectId.includes('your_') &&
+  !firebaseConfig.apiKey.includes('YOUR_NEW') &&
+  !firebaseConfig.apiKey.includes('your_')
+);
+
 export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
@@ -387,6 +396,8 @@ export async function firebaseFindStudent(identifier) {
     if (found) return found;
   } catch (e) {}
 
+  if (!isFirebaseConfigured) return null;
+
   // 2. Direct Firestore doc lookup (id == rollNo or id == uid)
   try {
     const docRef = doc(db, 'students', lookup);
@@ -441,6 +452,8 @@ export async function firebaseFindDriver(driverId) {
     );
     if (found) return found;
   } catch (e) {}
+
+  if (!isFirebaseConfigured) return null;
 
   try {
     const docRef = doc(db, 'drivers', lookup);
@@ -555,6 +568,7 @@ export const DEFAULT_DRIVERS = [
 ];
 
 export async function firebaseGetRoutes() {
+  if (!isFirebaseConfigured) return DEFAULT_ROUTES;
   try {
     const snap = await withTimeout(getDocs(collection(db, 'routes')), 2500, null);
     if (snap && !snap.empty) {
@@ -566,6 +580,7 @@ export async function firebaseGetRoutes() {
 }
 
 export async function firebaseGetBuses() {
+  if (!isFirebaseConfigured) return DEFAULT_BUSES;
   try {
     const snap = await withTimeout(getDocs(collection(db, 'buses')), 2500, null);
     if (snap && !snap.empty) {
@@ -577,6 +592,7 @@ export async function firebaseGetBuses() {
 }
 
 export async function firebaseGetDrivers() {
+  if (!isFirebaseConfigured) return DEFAULT_DRIVERS;
   try {
     const snap = await withTimeout(getDocs(collection(db, 'drivers')), 2500, null);
     if (snap && !snap.empty) {
@@ -588,6 +604,13 @@ export async function firebaseGetDrivers() {
 }
 
 export async function firebaseGetStudents() {
+  if (!isFirebaseConfigured) {
+    try {
+      const cached = JSON.parse(localStorage.getItem('bectransit_firebase_students') || '[]');
+      if (cached.length) return cached;
+    } catch (e) {}
+    return [];
+  }
   try {
     const snap = await withTimeout(getDocs(collection(db, 'students')), 2500, null);
     if (snap && !snap.empty) {

@@ -10,6 +10,7 @@ import DigitalPassModal from './DigitalPassModal';
 import ComplaintModal from './ComplaintModal';
 import RouteChangeModal from './RouteChangeModal';
 import SeeAllStopsModal from './SeeAllStopsModal';
+import { api } from '../../services/api';
 
 export default function StudentDashboard({
   student,

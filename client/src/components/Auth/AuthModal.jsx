@@ -305,74 +305,12 @@ export default function AuthModal({
               className="btn btn-primary"
               style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
             >
-              <span>Continue to Student Dashboard</span>
-              <ArrowRight size={18} />
+              <span>Close</span>
             </button>
           </div>
-        ) : mode === 'login' ? (
-          /* LOGIN FORM */
-          <form onSubmit={handleLoginSubmit}>
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label">
-                College Roll Number or Registered Email <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. CS-2024-042 or 3456 or student@bec.edu.in"
-                  value={loginIdentifier}
-                  onChange={e => {
-                    setLoginIdentifier(e.target.value);
-                    if (errorMsg) setErrorMsg('');
-                  }}
-                  autoFocus
-                  required
-                />
-              </div>
-              <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.35rem' }}>
-                Enter the Roll Number you registered with to load your digital bus pass and personal transit route.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-              <button type="button" className="btn btn-outline" onClick={onClose} style={{ flex: 1 }}>
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
-                disabled={submitting} 
-                style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-              >
-                {submitting ? (
-                  <>
-                    <RefreshCw size={16} className="spin" />
-                    <span>Signing In...</span>
-                  </>
-                ) : (
-                  <>
-                    <LogIn size={16} />
-                    <span>Log In to Student Transit</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-              New to BEC Transit?{' '}
-              <button 
-                type="button" 
-                onClick={() => { setMode('register'); setErrorMsg(''); }} 
-                style={{ background: 'transparent', border: 'none', color: '#0284c7', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Register for a new Bus Pass
-              </button>
-            </div>
-          </form>
         ) : (
-          /* REGISTRATION / UPDATE USER FORM */
-          <form onSubmit={mode === 'update' ? handleUpdateSubmit : handleRegisterSubmit}>
+          /* UPDATE USER FORM */
+          <form onSubmit={handleUpdateSubmit}>
             {/* Full Name */}
             <div className="form-group">
               <label className="form-label">

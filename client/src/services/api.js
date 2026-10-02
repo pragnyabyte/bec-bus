@@ -32,15 +32,16 @@ const envApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_U
 const isLocalhost = typeof window !== 'undefined' && (
   window.location.hostname === 'localhost' || 
   window.location.hostname === '127.0.0.1' ||
-  window.location.hostname.endsWith('.local')
+  window.location.hostname.endsWith('.local') ||
+  /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)
 );
 
 export const BACKEND_URL = envApiUrl 
   ? envApiUrl.replace(/\/$/, '') 
-  : (isLocalhost ? 'http://localhost:5000' : '');
+  : (isLocalhost ? `http://${window.location.hostname}:5000` : '');
 
 const API_BASE = BACKEND_URL ? `${BACKEND_URL}/api` : '';
-const SOCKET_URL = BACKEND_URL || (isLocalhost ? 'http://localhost:5000' : '');
+const SOCKET_URL = BACKEND_URL || (isLocalhost ? `http://${window.location.hostname}:5000` : '');
 
 // Real-time Socket.IO is active for local development with Express;
 // in production Firebase Spark hosting, no websocket server is needed.

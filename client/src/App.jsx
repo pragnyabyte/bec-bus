@@ -6,7 +6,7 @@ import AdminDashboard from './components/Admin/AdminDashboard';
 import AuthModal from './components/Auth/AuthModal';
 import AuthPage from './components/Auth/AuthPage';
 import { onSnapshot, collection } from 'firebase/firestore';
-import { db } from './services/firebase';
+import { db, isFirebaseConfigured } from './services/firebase';
 import { api, socket } from './services/api';
 
 export default function App() {
@@ -128,13 +128,17 @@ export default function App() {
   const handleAuthenticated = useCallback((session) => {
     setAuthSession(session);
     localStorage.setItem('bectransit_auth_session', JSON.stringify(session));
-    if (session.role === 'student' && session.user?.id) {
-      setCurrentStudentId(session.user.id);
-      localStorage.setItem('apextransit_active_student_id', session.user.id);
+    const sId = session.user?.id || session.user?.rollNo || session.user?._id;
+    if (session.role === 'student' && sId) {
+      setCurrentStudentId(sId);
+      localStorage.setItem('apextransit_active_student_id', sId);
       localStorage.setItem('apextransit_active_student_data', JSON.stringify(session.user));
-    } else if (session.role === 'driver' && session.user?.id) {
-      setCurrentDriverId(session.user.id);
-      localStorage.setItem('apextransit_active_driver_id', session.user.id);
+    } else if (session.role === 'driver') {
+      const dId = session.user?.id || session.user?.driverId || session.user?._id;
+      if (dId) {
+        setCurrentDriverId(dId);
+        localStorage.setItem('apextransit_active_driver_id', dId);
+      }
     }
     if (typeof window !== 'undefined') {
       window.history.replaceState({ role: session.role }, '', `/#${session.role}`);
@@ -300,8 +304,9 @@ export default function App() {
 
     // Live Firestore synchronization for Firebase deployment
     let unsubscribeFbBuses = null;
-    try {
-      unsubscribeFbBuses = onSnapshot(collection(db, 'buses'), (snapshot) => {
+    if (isFirebaseConfigured) {
+      try {
+        unsubscribeFbBuses = onSnapshot(collection(db, 'buses'), (snapshot) => {
         if (!snapshot.empty) {
           const liveBuses = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
           setBuses(prevBuses => {
@@ -329,6 +334,7 @@ export default function App() {
     } catch (e) {
       console.warn('[Firestore Live] Notice:', e.message);
     }
+  }
 
     return () => {
       if (unsubscribeFbBuses) unsubscribeFbBuses();
