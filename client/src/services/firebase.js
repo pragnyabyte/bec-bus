@@ -20,13 +20,13 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDZAjfY5nQxrV_O6aEO79v8wsVGDpVSveg",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "bec-bus.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "bec-bus",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "bec-bus.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "341826123522",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:341826123522:web:9257e33eca185e2234f41b",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-H9FH14JLKV"
+  apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_API_KEY) || "AIzaSyDZAjfY5nQxrV_O6aEO79v8wsVGDpVSveg",
+  authDomain: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN) || "bec-bus.firebaseapp.com",
+  projectId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_PROJECT_ID) || "bec-bus",
+  storageBucket: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET) || "bec-bus.firebasestorage.app",
+  messagingSenderId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID) || "341826123522",
+  appId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_APP_ID) || "1:341826123522:web:9257e33eca185e2234f41b",
+  measurementId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID) || "G-H9FH14JLKV"
 };
 
 // Initialize Firebase App safely (singleton)
