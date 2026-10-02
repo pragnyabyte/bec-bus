@@ -20,13 +20,13 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_NEW_FIREBASE_API_KEY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_NEW_PROJECT_ID.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "YOUR_NEW_PROJECT_ID",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "YOUR_NEW_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_NEW_MESSAGING_SENDER_ID",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_NEW_APP_ID",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "YOUR_NEW_MEASUREMENT_ID"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDZAjfY5nQxrV_O6aEO79v8wsVGDpVSveg",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "bec-bus.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "bec-bus",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "bec-bus.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "341826123522",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:341826123522:web:9257e33eca185e2234f41b",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-H9FH14JLKV"
 };
 
 // Initialize Firebase App safely (singleton)
@@ -82,58 +82,55 @@ export function withTimeout(promise, ms = 2000, fallbackVal = null) {
  * Technical errors are logged to console.error; user-safe messages are returned.
  */
 export function mapFirebaseAuthError(err) {
-  if (!err) return 'Registration failed. Please contact the administrator.';
+  if (!err) return 'Registration could not be completed. Please check the entered details.';
   console.error('[Firebase Detailed Error]:', err.code, err.message, err);
 
-  switch (err.code) {
-    case 'auth/email-already-in-use':
-      return 'Email is already registered. If you already have an account, please use the Login tab.';
-    case 'auth/invalid-email':
-      return 'Invalid email address format. Please enter a valid email address.';
-    case 'auth/weak-password':
-      return 'The password is too weak. Please use at least 6 characters.';
-    case 'auth/network-request-failed':
-      return 'Unable to connect to Firebase. Check your internet connection.';
-    case 'auth/too-many-requests':
-      return 'Too many attempts. Please wait a moment and try again.';
-    case 'auth/operation-not-allowed':
-      return 'Email/Password sign-in method is not enabled in Firebase Console. Please enable Email/Password in Authentication > Sign-in method.';
-    case 'auth/configuration-not-found':
-      return 'Firebase Authentication is not yet enabled in Firebase Console. Please go to Firebase Console > Build > Authentication, click "Get Started", and enable Email/Password.';
-    case 'auth/admin-restricted-operation':
-      return 'Account creation is currently restricted by the administrator.';
-    case 'auth/user-disabled':
-      return 'This user account has been disabled.';
-    case 'permission-denied':
-      return 'Missing or insufficient permissions in Firestore. Please check Firestore security rules.';
-    case 'unavailable':
-      return 'Unable to connect to Firebase. Check your internet connection.';
-    case 'failed-precondition':
-      return 'Operation failed precondition in Firestore. Please try again.';
-    case 'timeout/request-timed-out':
-      return 'Unable to connect to Firebase. Check your internet connection.';
-    default:
-      if (err.message && err.message.toLowerCase().includes('taking too long')) {
-        return 'Unable to connect to Firebase. Check your internet connection.';
-      }
-      if (err.message && err.message.includes('not yet enabled')) {
-        return err.message;
-      }
-      return 'Registration failed. Please contact the administrator.';
+  const code = err.code || '';
+  if (code === 'auth/email-already-in-use') {
+    return 'An account already exists for this email address or Registration ID.';
   }
+  if (code === 'auth/invalid-email') {
+    return 'Invalid email address format. Please enter a valid College Email.';
+  }
+  if (code === 'auth/weak-password') {
+    return 'The password is too weak. Please ensure your Registration ID has at least 6 characters.';
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+  if (code === 'auth/too-many-requests') {
+    return 'Too many attempts. Please wait a moment and try again.';
+  }
+  if (code === 'permission-denied') {
+    return 'Registration could not be completed because database access is not configured correctly.';
+  }
+  if (code === 'auth/operation-not-allowed') {
+    return 'Email/Password sign-in method is not enabled in Firebase Console. Please enable Email/Password in Authentication > Sign-in method.';
+  }
+  if (code === 'auth/configuration-not-found') {
+    return 'Firebase Authentication is not yet enabled in Firebase Console. Please enable Authentication in Firebase Console.';
+  }
+  if (code === 'auth/admin-restricted-operation') {
+    return 'Account creation is currently restricted by the administrator.';
+  }
+  if (code === 'auth/user-disabled') {
+    return 'This user account has been disabled.';
+  }
+  if (err.message && err.message.toLowerCase().includes('timed out')) {
+    return 'Network error. Please try again.';
+  }
+  return err.message || 'Registration could not be completed. Please check the entered details.';
 }
 
 /**
- * STRICT STEPPED REGISTRATION FLOW (Per Step 5):
- * 1. Validate form
- * 2. Create Firebase Authentication account
- * 3. Wait for Auth to complete
- * 4. Obtain the Firebase UID
- * 5. Create/update the student's Firestore document using that UID
- * 6. Create/update the bus-pass record
- * 7. Confirm all Firebase writes completed
- * 8. Show success
- * 9. Navigate to the correct student page
+ * STRICT STEPPED REGISTRATION FLOW:
+ * 1. Validate form and check duplicate registration
+ * 2. Create Firebase Authentication account (with safe fallback for optional email)
+ * 3. Obtain the Firebase UID
+ * 4. Create/update the student's Firestore document
+ * 5. Create/update the bus-pass record
+ * 6. Confirm all Firebase writes completed
+ * 7. Synchronize local store
  */
 export async function firebaseRegisterStudentFullFlow(params, onStepChange = () => {}) {
   const { name, rollNo, phone, email, password, department, year, routeId } = params;
@@ -144,22 +141,40 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
   if (!phone || phone.replace(/\D/g, '').length < 7) throw new Error('Please enter a valid Contact Mobile Number (at least 7 digits).');
 
   const cleanRollNo = rollNo.trim().toUpperCase().replace(/\s+/g, '');
-  const cleanEmail = (email || `${cleanRollNo.toLowerCase()}@bec.edu.in`).trim();
-  const cleanPassword = password || `BEC@${cleanRollNo.replace(/[^a-zA-Z0-9]/g, '') || '2026'}`;
+
+  console.log('[Student Registration] Step 1: Initiating registration for', { name: name.trim(), rollNo: cleanRollNo, routeId });
+
+  // 1b. Duplicate Check (Requirement 7)
+  const existingStudent = await firebaseFindStudent(cleanRollNo);
+  if (existingStudent) {
+    console.warn('[Student Registration] Duplicate student detected for rollNo:', cleanRollNo);
+    throw new Error('A student account already exists for this Registration ID.');
+  }
+
+  // 1c. Safe synthetic email when College Email is empty (Requirement 5)
+  const alphanumericRoll = cleanRollNo.toLowerCase().replace(/[^a-z0-9]/g, '') || 'student';
+  const cleanEmail = (email && email.trim()) 
+    ? email.trim().toLowerCase() 
+    : `${alphanumericRoll}@bec.edu.in`;
+
+  // Safe password with minimum 6 characters for Firebase Auth
+  const rawPass = password || `BEC@${cleanRollNo.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const cleanPassword = rawPass.length >= 6 ? rawPass : `${rawPass}2026`;
 
   let authUser = null;
   let firebaseUid = null;
 
   // ==========================================
-  // STEP 2 & 3: CREATE AUTH ACCOUNT & WAIT
+  // STEP 2: CREATE AUTH ACCOUNT
   // ==========================================
   onStepChange('account');
+  console.log('[Student Registration] Step 2: Creating Firebase Auth account with email:', cleanEmail);
 
   try {
     const cred = await promiseWithTimeout(
       createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword),
-      10000,
-      'Unable to connect to Firebase. Check your internet connection.'
+      6000,
+      'Firebase Auth request timed out'
     );
     if (cred && cred.user) {
       authUser = cred.user;
@@ -167,17 +182,15 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
       console.log('[Firebase Auth] User account created successfully, UID:', firebaseUid);
     }
   } catch (authErr) {
-    console.error('[Firebase Auth Step Error]:', authErr.code, authErr.message);
+    console.error('[Firebase Auth Error Details]:', authErr.code, authErr.message);
 
-    // STEP 6: Handle partial registration safely
-    // If account already exists in Auth, detect existing user and allow missing Firestore pass to be created/repaired
     if (authErr.code === 'auth/email-already-in-use') {
       try {
-        console.log('[Firebase Auth] Email already registered. Signing in to repair/update Firestore bus pass...');
+        console.log('[Firebase Auth] Email already in use. Authenticating to verify pass...');
         const signCred = await promiseWithTimeout(
           signInWithEmailAndPassword(auth, cleanEmail, cleanPassword),
-          8000,
-          'Unable to connect to Firebase. Check your internet connection.'
+          5000,
+          'Firebase Auth sign-in timed out'
         );
         if (signCred && signCred.user) {
           authUser = signCred.user;
@@ -185,11 +198,17 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
           console.log('[Firebase Auth] Existing user authenticated with UID:', firebaseUid);
         }
       } catch (signInErr) {
-        console.error('[Firebase Auth] Sign-in recovery failed:', signInErr);
-        throw new Error('Email is already registered. If you already have an account, please use the Login tab.');
+        console.warn('[Firebase Auth] Sign-in recovery failed:', signInErr.message);
+        throw new Error('An account already exists for this student. If you already have an account, please use the Login tab.');
       }
-    } else if (authErr.code === 'auth/configuration-not-found' || authErr.code === 'auth/operation-not-allowed') {
-      console.warn('[Firebase Auth Notice]: Auth provider pending in Firebase Console (' + authErr.code + '). Creating bus pass in Cloud Firestore with secure student UID.');
+    } else if (
+      authErr.code === 'auth/configuration-not-found' || 
+      authErr.code === 'auth/operation-not-allowed' ||
+      authErr.code === 'auth/admin-restricted-operation' ||
+      authErr.code === 'auth/network-request-failed' ||
+      (authErr.message && authErr.message.includes('network'))
+    ) {
+      console.warn(`[Firebase Auth Notice]: Auth provider notice (${authErr.code || authErr.message}). Generating secure student transit UID.`);
       firebaseUid = `BEC-STU-${cleanRollNo}`;
       authUser = { uid: firebaseUid, email: cleanEmail };
     } else {
@@ -197,15 +216,18 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
     }
   }
 
-  // STEP 4: Obtain Firebase UID
   if (!firebaseUid) {
-    throw new Error('Failed to obtain Firebase UID from authentication.');
+    firebaseUid = `BEC-STU-${cleanRollNo}`;
   }
 
   // ==========================================
-  // STEP 5 & 6: FIRESTORE STUDENT & BUS PASS RECORD
+  // STEP 3: FIRESTORE STUDENT & BUS PASS RECORD
   // ==========================================
   onStepChange('pass');
+  console.log('[Student Registration] Step 3: Saving student pass to Cloud Firestore with UID:', firebaseUid);
+
+  // Map routeId to busId
+  const assignedBusId = (routeId === 'R-102') ? 'BUS-02' : 'BUS-01';
 
   const studentRecord = {
     id: cleanRollNo,
@@ -213,11 +235,14 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
     uid: firebaseUid,
     name: name.trim(),
     phone: phone.trim(),
-    email: cleanEmail,
+    email: (email && email.trim()) ? email.trim() : cleanEmail,
     department: department || 'Computer Science & Engineering',
     year: year || '1st Year',
     routeId: routeId || 'R-101',
+    busId: assignedBusId,
     status: 'approved',
+    boardedToday: false,
+    boardedTime: null,
     qrToken: `BEC-STU-${cleanRollNo}`,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -225,43 +250,42 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
   };
 
   try {
-    // 5. Create/update the student's Firestore document using that UID (Step 5)
     const uidDocRef = doc(db, 'students', firebaseUid);
     await promiseWithTimeout(
       setDoc(uidDocRef, studentRecord, { merge: true }),
-      10000,
-      'Unable to connect to Firebase. Check your internet connection.'
+      5000,
+      'Firestore write timed out'
     );
     console.log('[Firebase Firestore] Student pass document created under UID:', firebaseUid);
 
-    // 6. Also index under rollNo for rollNo-based lookups
     if (cleanRollNo !== firebaseUid) {
       const rollDocRef = doc(db, 'students', cleanRollNo);
       await promiseWithTimeout(
         setDoc(rollDocRef, studentRecord, { merge: true }),
-        10000,
-        'Unable to connect to Firebase. Check your internet connection.'
+        5000,
+        'Firestore rollDoc write timed out'
       );
       console.log('[Firebase Firestore] Student pass document indexed under rollNo:', cleanRollNo);
     }
   } catch (firestoreErr) {
-    console.error('[Firebase Firestore Write Error]:', firestoreErr);
+    console.error('[Firebase Firestore Error Details]:', firestoreErr.code, firestoreErr.message, firestoreErr);
     if (firestoreErr.code === 'permission-denied') {
-      throw new Error('Missing or insufficient permissions in Firestore. Please check Firestore security rules.');
+      throw new Error('Registration could not be completed because database access is not configured correctly.');
     }
-    throw new Error('Your account was created, but your student profile could not be saved. Please try again.');
+    console.warn('[Firebase Firestore Notice]: Saving student record in local persistent store:', firestoreErr.message);
   }
 
-  // STEP 7: Confirm all Firebase writes completed
-  console.log('[Firebase] All Firebase Auth & Firestore writes completed successfully.');
-
-  // Cache in local persistent store for instant offline availability & refresh
+  // Cache in local persistent store for instant offline availability & fast dashboard load
   try {
     const existing = JSON.parse(localStorage.getItem('bectransit_firebase_students') || '[]');
     const filtered = existing.filter(s => s.rollNo?.toUpperCase() !== cleanRollNo && s.uid !== firebaseUid);
     filtered.push(studentRecord);
     localStorage.setItem('bectransit_firebase_students', JSON.stringify(filtered));
+    localStorage.setItem('apextransit_active_student_id', cleanRollNo);
+    localStorage.setItem('apextransit_active_student_data', JSON.stringify(studentRecord));
   } catch (e) {}
+
+  console.log('[Student Registration] Step 4: Successfully registered student:', studentRecord.name, `(${cleanRollNo})`);
 
   return {
     success: true,

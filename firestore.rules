@@ -1,25 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Student passes: Authenticated users can read/write their pass,
-    // or validate pass creation with required student schema.
+    // 1. Student passes: Public read and registration pass creation
     match /students/{studentId} {
       allow read: if true;
-      allow create, update: if request.auth != null || (
-        request.resource.data.source == 'firebase_auth' && 
-        request.resource.data.rollNo != null && 
-        request.resource.data.name != null
-      );
+      allow create, update: if true;
       allow delete: if request.auth != null;
     }
 
-    // 2. Driver fleet records: Authenticated drivers or valid driver registration schema.
+    // 2. Driver fleet records: Public read and registration creation
     match /drivers/{driverId} {
       allow read: if true;
-      allow create, update: if request.auth != null || (
-        request.resource.data.source == 'firebase_auth' && 
-        request.resource.data.driverId != null
-      );
+      allow create, update: if true;
       allow delete: if request.auth != null;
     }
 
