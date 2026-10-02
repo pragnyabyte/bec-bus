@@ -20,13 +20,13 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyChe9hj2w4il6_dyC6kMNr4-kqYiweCLcE",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "bus-system-cd5de.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "bus-system-cd5de",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "bus-system-cd5de.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "669810823515",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:669810823515:web:0d24f125b8c5b3b2bd8a7e",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-5KVGKWHRX2"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_NEW_FIREBASE_API_KEY",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_NEW_PROJECT_ID.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "YOUR_NEW_PROJECT_ID",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "YOUR_NEW_PROJECT_ID.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_NEW_MESSAGING_SENDER_ID",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_NEW_APP_ID",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "YOUR_NEW_MEASUREMENT_ID"
 };
 
 // Initialize Firebase App safely (singleton)
