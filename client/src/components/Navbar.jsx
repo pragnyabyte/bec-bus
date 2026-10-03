@@ -239,6 +239,7 @@ export default function Navbar({
         student={currentStudent}
         driver={currentDriver}
         drivers={drivers}
+        students={students}
         authSession={authSession}
         buses={buses}
         routes={routes}

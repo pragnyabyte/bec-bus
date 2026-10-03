@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { 
   X, LogOut, User, Bus, MapPin, ShieldCheck, 
   Award, Key, Phone, CheckCircle2, AlertCircle,
-  GraduationCap, ArrowRightLeft, Shield, AlertTriangle, Send
+  GraduationCap, ArrowRightLeft, Shield, AlertTriangle, Send, Activity, Users
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -13,6 +13,7 @@ export default function ProfileModal({
   student,
   driver,
   drivers = [],
+  students = [],
   authSession,
   buses = [],
   routes = [],
@@ -164,6 +165,17 @@ export default function ProfileModal({
       ? { id: 'JITENDRA01', name: 'Jitendra Sahu', phone: '+91 63709 98587' }
       : { id: 'PRAGNYA01', name: 'Pragnya Paramita', phone: '+91 90408 33547' };
   }, [currentRole, drivers, driver]);
+
+  // Passenger students assigned to the driver's fleet bus
+  const driverRouteStudents = useMemo(() => {
+    if (!students || !students.length) return [];
+    const targetBusId = driverBusInfo?.bus?.id || (driver?.id === 'PRAGNYA01' ? 'BUS-01' : 'BUS-02');
+    return students.filter(s => s.busId === targetBusId || (!s.busId && targetBusId === 'BUS-01'));
+  }, [students, driverBusInfo, driver]);
+
+  const driverBoardedCount = useMemo(() => {
+    return driverRouteStudents.filter(s => s.boardedToday).length;
+  }, [driverRouteStudents]);
 
   // Delay reporting state inside Driver Profile
   const [showDelayModal, setShowDelayModal] = useState(false);
@@ -494,46 +506,144 @@ export default function ProfileModal({
            ========================================================= */}
         {currentRole === 'driver' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {/* Driver Avatar & Basic Info */}
+            {/* Driver Avatar, Basic Info & Call Option */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '1rem',
+              justifyContent: 'space-between',
+              gap: '0.85rem',
               background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
               border: '1.5px solid #bae6fd',
               borderRadius: '16px',
-              padding: '1rem'
+              padding: '1rem',
+              flexWrap: 'wrap'
             }}>
-              <div style={{
-                width: '54px',
-                height: '54px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '1.45rem',
-                flexShrink: 0,
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
-              }}>
-                {driver?.name?.charAt(0) || 'D'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
+                <div style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '1.4rem',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+                }}>
+                  {driver?.name?.charAt(0) || 'D'}
+                </div>
+
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.25 }}>
+                      {driver?.name || 'Fleet Driver'}
+                    </h3>
+                    <span style={{ fontSize: '0.68rem', padding: '1px 6px', background: '#0284c7', color: '#ffffff', borderRadius: '4px', fontWeight: 800 }}>
+                      ID: {driver?.id || driver?.driverId || 'PRAGNYA01'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#0369a1', fontWeight: 700, marginTop: '2px' }}>
+                    {driver?.experienceYears || (driver?.id === 'PRAGNYA01' ? 4 : 5)} Yrs Exp • Lic: {driver?.licenseNo || driver?.licenseNumber || 'OD-02-2016-DL8812'}
+                  </div>
+                </div>
               </div>
 
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.25 }}>
-                  {driver?.name || 'Fleet Driver'}
-                </h3>
-                <div style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 700, marginTop: '2px' }}>
-                  Driver ID: <b style={{ color: '#0284c7' }}>{driver?.id || driver?.driverId || 'PRAGNYA01'}</b>
+              {/* Call Driver / Hotline Action */}
+              {driver?.phone && (
+                <a
+                  href={`tel:${driver.phone.replace(/\s+/g, '')}`}
+                  className="android-touch-btn"
+                  style={{
+                    background: '#16a34a',
+                    color: '#ffffff',
+                    width: 'auto',
+                    padding: '0.35rem 0.85rem',
+                    minHeight: '34px',
+                    fontSize: '0.78rem',
+                    borderRadius: '10px',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontWeight: 700
+                  }}
+                  title={`Call ${driver.name}`}
+                  id="profile-driver-call-btn"
+                >
+                  <Phone size={13} /> Call Driver
+                </a>
+              )}
+            </div>
+
+            {/* =========================================================
+                FLEET TELEMETRY & STATUS CARD (ACCESSIBLE IN PROFILE)
+               ========================================================= */}
+            <div style={{
+              background: '#ffffff',
+              border: '1.5px solid #bae6fd',
+              borderRadius: '16px',
+              padding: '0.85rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.65rem',
+              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.06)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Activity size={16} style={{ color: '#0284c7' }} />
+                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
+                    Fleet Telemetry & Status
+                  </span>
+                </div>
+                <span className={`badge ${driverBusInfo?.bus?.status === 'on_trip' ? 'badge-green' : driverBusInfo?.bus?.status === 'emergency' ? 'badge-red' : 'badge-blue'}`} style={{ fontSize: '0.68rem', fontWeight: 800 }}>
+                  {(driverBusInfo?.bus?.status === 'on_trip' ? 'ON TRIP' : (driverBusInfo?.bus?.status || 'STANDBY')).toUpperCase()}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.55rem' }}>
+                <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>CURRENT SPEED</div>
+                  <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0f172a', marginTop: '2px' }}>
+                    {driverBusInfo?.bus?.speed || 0} km/h
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 600 }}>
+                    {driverBusInfo?.bus?.status === 'on_trip' ? 'Broadcasting' : 'Standby'}
+                  </div>
+                </div>
+
+                <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>OCCUPANCY</div>
+                  <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0284c7', marginTop: '2px' }}>
+                    {driverBusInfo?.bus?.occupied || driverRouteStudents.length} / {driverBusInfo?.bus?.capacity || 50}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                    Seats ({Math.min(100, Math.round(((driverBusInfo?.bus?.occupied || driverRouteStudents.length) / (driverBusInfo?.bus?.capacity || 50)) * 100))}%)
+                  </div>
+                </div>
+
+                <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>LICENSE PLATE</div>
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a', marginTop: '2px' }}>
+                    {driverBusInfo?.bus?.busNo || (driver?.id === 'PRAGNYA01' ? 'OD-02-AX-1001' : 'OD-02-AX-2002')}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Authorized BEC Transit</div>
+                </div>
+
+                <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>TODAY'S BOARDING</div>
+                  <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#16a34a', marginTop: '2px' }}>
+                    {driverBoardedCount} <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>/ {driverRouteStudents.length}</span>
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 600 }}>Boarded Today</div>
                 </div>
               </div>
             </div>
 
             {/* =========================================================
                 ROUTE + MORNING/EVENING ROUTE INFORMATION SECTION
-                (Preserves exact styling and functionality in Driver Profile)
                ========================================================= */}
             <div style={{
               background: '#ffffff',
@@ -649,6 +759,26 @@ export default function ProfileModal({
                 </span>
               </div>
 
+              {/* Experience */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Award size={15} style={{ color: '#0284c7' }} /> Experience
+                </span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>
+                  {driver?.experienceYears || (driver?.id === 'PRAGNYA01' ? 4 : 5)} Years Professional
+                </span>
+              </div>
+
+              {/* Driving License */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={15} style={{ color: '#059669' }} /> License Auth
+                </span>
+                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#15803d', background: '#f0fdf4', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                  {driver?.licenseNo || driver?.licenseNumber || 'OD-02-2016-DL8812'}
+                </span>
+              </div>
+
               {/* Driver Rating */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid #f1f5f9' }}>
                 <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -689,9 +819,9 @@ export default function ProfileModal({
                 </span>
               </div>
 
-              {/* Driver Phone & License */}
+              {/* Driver Phone */}
               {driver?.phone && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0' }}>
                   <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Phone size={15} style={{ color: '#0284c7' }} /> Contact Phone
                   </span>
@@ -700,16 +830,6 @@ export default function ProfileModal({
                   </span>
                 </div>
               )}
-
-              {/* Driving License */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0' }}>
-                <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={15} style={{ color: '#059669' }} /> License Auth
-                </span>
-                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#15803d', background: '#f0fdf4', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
-                  {driver?.licenseNo || driver?.licenseNumber || 'OD-02-2016-DL8812'}
-                </span>
-              </div>
             </div>
           </div>
         )}
@@ -754,6 +874,131 @@ export default function ProfileModal({
                   System Administrator (Central Command)
                 </div>
               </div>
+            </div>
+
+            {/* Fleet Drivers & Telemetry Overview for Admin */}
+            <div style={{
+              background: '#ffffff',
+              border: '1.5px solid #bae6fd',
+              borderRadius: '16px',
+              padding: '0.85rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.65rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Bus size={16} style={{ color: '#0284c7' }} />
+                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
+                    Fleet Drivers & Telemetry
+                  </span>
+                </div>
+                <span className="badge badge-green" style={{ fontSize: '0.68rem', fontWeight: 800 }}>2 FLEET BUSES</span>
+              </div>
+
+              {/* Driver 1 & Driver 2 Cards */}
+              {(drivers.length > 0 ? drivers : [
+                { id: 'PRAGNYA01', name: 'Pragnya Paramita', phone: '+91 90408 33547', busId: 'BUS-01', licenseNo: 'OD-02-2016-DL8812', experienceYears: 4 },
+                { id: 'JITENDRA01', name: 'Jitendra Sahu', phone: '+91 63709 98587', busId: 'BUS-02', licenseNo: 'OD-02-2017-DL9923', experienceYears: 5 }
+              ]).map(d => {
+                const isB2 = d.id === 'JITENDRA01' || d.busId === 'BUS-02';
+                const dBus = buses.find(b => isB2 ? (b.id === 'BUS-02' || b.fleetNumber === 'Bus 2') : (b.id === 'BUS-01' || b.fleetNumber === 'Bus 1')) || (isB2 ? buses[1] : buses[0]);
+                const dStudents = students.filter(s => isB2 ? s.busId === 'BUS-02' : (s.busId === 'BUS-01' || !s.busId));
+                const dBoarded = dStudents.filter(s => s.boardedToday).length;
+
+                return (
+                  <div key={d.id} style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '0.75rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '8px',
+                          background: isB2 ? 'linear-gradient(135deg, #7c3aed, #a855f7)' : 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: '0.9rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {d.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a' }}>
+                            {d.name} <span style={{ fontSize: '0.7rem', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: '4px' }}>{d.id}</span>
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                            {d.experienceYears || (isB2 ? 5 : 4)} Yrs Exp • Lic: {d.licenseNo || 'OD-02-2016-DL8812'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {d.phone && (
+                        <a
+                          href={`tel:${d.phone.replace(/\s+/g, '')}`}
+                          className="android-touch-btn"
+                          style={{
+                            background: '#16a34a',
+                            color: '#ffffff',
+                            width: 'auto',
+                            padding: '0.3rem 0.65rem',
+                            minHeight: '28px',
+                            fontSize: '0.72rem',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontWeight: 700
+                          }}
+                        >
+                          <Phone size={11} /> Call
+                        </a>
+                      )}
+                    </div>
+
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '4px',
+                      textAlign: 'center',
+                      background: '#ffffff',
+                      padding: '6px 4px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '0.68rem'
+                    }}>
+                      <div>
+                        <div style={{ color: '#64748b', fontWeight: 700 }}>SPEED</div>
+                        <div style={{ fontWeight: 800, color: '#0f172a' }}>{dBus?.speed || 0} km/h</div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#64748b', fontWeight: 700 }}>SEATS</div>
+                        <div style={{ fontWeight: 800, color: '#0284c7' }}>{dBus?.occupied || dStudents.length}/{dBus?.capacity || 50}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#64748b', fontWeight: 700 }}>BOARDED</div>
+                        <div style={{ fontWeight: 800, color: '#16a34a' }}>{dBoarded}/{dStudents.length}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#64748b', fontWeight: 700 }}>STATUS</div>
+                        <div style={{ fontWeight: 800, color: dBus?.status === 'on_trip' ? '#16a34a' : '#64748b' }}>
+                          {dBus?.status === 'on_trip' ? 'ON TRIP' : 'STANDBY'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Detailed Properties Card */}
