@@ -922,19 +922,6 @@ export default function DriverConsole({
 
         <button
           type="button"
-          className={`android-nav-item ${activeTab === 'schedule' ? 'active' : ''}`}
-          onClick={() => setActiveTab('schedule')}
-          id="driver-bottom-nav-stops"
-          aria-label="Stops & Timetable"
-        >
-          <div className="android-nav-pill">
-            <MapPin size={20} />
-          </div>
-          <span className="android-nav-label">Stops</span>
-        </button>
-
-        <button
-          type="button"
           className="android-nav-item"
           onClick={() => setShowIncidentModal(true)}
           id="driver-bottom-nav-delay"
