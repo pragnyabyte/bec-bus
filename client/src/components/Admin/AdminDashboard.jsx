@@ -28,6 +28,9 @@ export default function AdminDashboard({
   const [activeTab, setActiveTab] = useState('overview');
   const [statusMsg, setStatusMsg] = useState('');
 
+  // Stops & Timetable direction state (identical to Student Side)
+  const [adminRouteDirection, setAdminRouteDirection] = useState('morning'); // 'morning' | 'evening'
+
   // Complaint / Issue Reply & Filter State
   const [replyComplaintId, setReplyComplaintId] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -131,6 +134,15 @@ export default function AdminDashboard({
     if (found) return found;
     return routes[selectedBusId === 'BUS-01' ? 0 : 1] || null;
   }, [routes, selectedBusId]);
+
+  // Stops list according to selected direction (morning pickup vs evening return)
+  const adminDisplayStops = useMemo(() => {
+    if (!selectedRoute?.stops) return [];
+    if (adminRouteDirection === 'evening') {
+      return [...selectedRoute.stops].reverse();
+    }
+    return selectedRoute.stops;
+  }, [selectedRoute, adminRouteDirection]);
 
   const targetRouteId = selectedBusId === 'BUS-01' ? 'R-101' : 'R-102';
   const targetRouteCode = selectedBusId === 'BUS-01' ? 'RT-01' : 'RT-02';
@@ -908,51 +920,111 @@ export default function AdminDashboard({
             </div>
           </div>
 
-          {/* ROUTE TIMETABLE SUMMARY CARD */}
+          {/* ROUTE TIMETABLE SUMMARY CARD (EXACT STUDENT SIDE UI IMPLEMENTATION) */}
           {selectedRoute && (
             <div className="android-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <div>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    Route Timetable ({selectedRoute.code})
-                  </h3>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                    {selectedRoute.distanceKm} km • ~{selectedRoute.totalDurationMin} mins • {selectedRoute.stops.length} stops
-                  </div>
-                </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
+                  Route Timetable ({selectedRoute.code})
+                </h4>
+                <p style={{ color: '#64748b', fontSize: '0.78rem', margin: 0 }}>
+                  Distance: <b>{selectedRoute.distanceKm || (selectedBusId === 'BUS-01' ? 14.5 : 18.2)} km</b> • Duration: <b>~{selectedRoute.totalDurationMin || (selectedBusId === 'BUS-01' ? 40 : 45)} mins</b> • Bus: <b>{selectedBus?.fleetNumber}</b>
+                </p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {selectedRoute.stops.map((stop, i) => (
-                  <div key={stop.id} className="android-list-card" style={{ padding: '0.65rem 0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          width: '22px',
-                          height: '22px',
+              {/* Direction Switcher */}
+              <div className="android-segmented-control" style={{ marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  className={`android-segment-btn ${adminRouteDirection === 'morning' ? 'active-morning' : ''}`}
+                  onClick={() => setAdminRouteDirection('morning')}
+                >
+                  ☀️ Morning Pickup
+                </button>
+                <button
+                  type="button"
+                  className={`android-segment-btn ${adminRouteDirection === 'evening' ? 'active-evening' : ''}`}
+                  onClick={() => setAdminRouteDirection('evening')}
+                >
+                  🌙 Evening Return
+                </button>
+              </div>
+
+              {/* Direction Banner */}
+              <div style={{
+                background: adminRouteDirection === 'morning' ? '#f0f9ff' : '#f5f3ff',
+                border: `1px solid ${adminRouteDirection === 'morning' ? '#bae6fd' : '#ddd6fe'}`,
+                borderRadius: '12px',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '0.85rem',
+                fontSize: '0.78rem',
+                color: adminRouteDirection === 'morning' ? '#0369a1' : '#6d28d9',
+                fontWeight: 700
+              }}>
+                {adminRouteDirection === 'morning'
+                  ? `Direction: ${selectedRoute.startPoint || selectedRoute.stops[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')} ➔ BEC Campus`
+                  : `Direction: BEC Campus ➔ ${selectedRoute.startPoint || selectedRoute.stops[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')}`}
+              </div>
+
+              {/* Stops List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {adminDisplayStops.map((stop, index) => {
+                  const isCurrentStop = selectedBusTracking?.nearestStop?.id === stop.id;
+                  return (
+                    <div
+                      key={stop.id || index}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.85rem',
+                        background: isCurrentStop ? '#f0f9ff' : '#f8fafc',
+                        border: `1.5px solid ${isCurrentStop ? '#0284c7' : '#e2e8f0'}`,
+                        borderRadius: '14px',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                        <div style={{
+                          width: '30px',
+                          height: '30px',
                           borderRadius: '50%',
-                          background: selectedBusId === 'BUS-01' ? '#0284c7' : '#7c3aed',
+                          background: isCurrentStop ? '#0284c7' : (adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed'),
                           color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '0.7rem',
                           fontWeight: 800,
+                          fontSize: '0.8rem',
                           flexShrink: 0
                         }}>
-                          {i + 1}
-                        </span>
-                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>
-                          {stop.name}
-                        </span>
+                          {index + 1}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {stop.name}
+                          </div>
+                          {isCurrentStop && (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
+                              <span className="badge badge-blue" style={{ fontSize: '0.65rem' }}>Bus At Stop</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
-                        <span style={{ color: '#166534', fontWeight: 700 }}>🌅 {stop.morningTime}</span>
-                        <span style={{ color: '#991b1b', fontWeight: 700 }}>🌆 {stop.eveningTime}</span>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                          {adminRouteDirection === 'morning' ? 'Pickup' : 'Drop'}
+                        </div>
+                        <div style={{ fontWeight: 800, color: adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed', fontSize: '0.88rem' }}>
+                          {adminRouteDirection === 'morning' 
+                            ? (stop.morningPickup || stop.morningTime || '07:15 AM') 
+                            : (stop.eveningDrop || stop.eveningTime || '05:30 PM')}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
