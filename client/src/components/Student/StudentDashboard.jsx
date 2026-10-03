@@ -529,16 +529,12 @@ export default function StudentDashboard({
     return assignedRoute.stops;
   }, [assignedRoute, trackerDirection]);
 
-  // Dynamic Route Destination
+  // Dynamic Route Destination from Route Data
   const actualDestination = useMemo(() => {
     if (assignedRoute?.destination) return assignedRoute.destination;
     const isPatia = isBus2 || assignedRoute?.id === 'R-102' || assignedRoute?.name?.includes('Patia');
-    const corridorEnd = isPatia ? 'Patia' : 'Baramunda';
-    if (trackerDirection === 'evening') {
-      return 'BEC College';
-    }
-    return corridorEnd;
-  }, [assignedRoute, isBus2, trackerDirection]);
+    return isPatia ? 'Patia' : 'Baramunda';
+  }, [assignedRoute, isBus2]);
 
   // Calculate stop indexes for live status
   const liveStopIndices = useMemo(() => {
@@ -1030,7 +1026,7 @@ export default function StudentDashboard({
                   <span>{assignedBus?.fleetNumber || (isBus2 ? 'Bus 2' : 'Bus 1')} → {actualDestination}</span>
                 </h4>
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '3px' }}>
-                  {trackerDisplayStops.length} Stops • {assignedRoute?.code || 'RT-01'} ({assignedRoute?.name || 'Assigned Corridor'})
+                  {trackerDisplayStops.length} Stops • Live Connected Route Timeline
                 </div>
               </div>
               <span style={{
@@ -1067,14 +1063,9 @@ export default function StudentDashboard({
                   <div
                     key={stop.id || idx}
                     style={{
-                      position: 'relative',
                       display: 'flex',
-                      alignItems: 'flex-start',
-                      paddingLeft: '38px',
-                      paddingRight: '0.5rem',
-                      paddingTop: '0.55rem',
-                      paddingBottom: '0.75rem',
-                      minHeight: '56px',
+                      alignItems: 'stretch',
+                      minHeight: '58px',
                       borderRadius: '10px',
                       background: isCurrentStop
                         ? '#f0f9ff'
@@ -1091,125 +1082,131 @@ export default function StudentDashboard({
                         ? '3px solid #38bdf8'
                         : '3px solid transparent',
                       transition: 'all 0.2s ease',
+                      padding: '4px 6px',
                       marginBottom: '2px'
                     }}
                   >
-                    {/* Vertical connecting line to next stop */}
-                    {!isLast && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '17px',
-                          top: '18px',
-                          bottom: '-18px',
-                          width: '2.5px',
-                          background: isPassed ? '#0284c7' : '#cbd5e1',
-                          zIndex: 1,
-                          borderRadius: '2px'
-                        }}
-                      />
-                    )}
+                    {/* Spine column with vertical connecting line and centered circular marker */}
+                    <div style={{
+                      width: '32px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      position: 'relative',
+                      flexShrink: 0
+                    }}>
+                      {/* Top connecting line segment */}
+                      <div style={{
+                        width: '2.5px',
+                        flex: 1,
+                        background: idx === 0 ? 'transparent' : (isPassed || isCurrentStop) ? '#0284c7' : '#cbd5e1',
+                        borderRadius: '2px'
+                      }} />
 
-                    {/* Circular marker */}
-                    {isCurrentStop ? (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '8px',
-                          top: '8px',
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          background: '#0284c7',
-                          border: '3px solid #ffffff',
-                          boxShadow: '0 0 0 3px #0284c7, 0 2px 8px rgba(2, 132, 199, 0.4)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 2,
-                          animation: 'pulse 1.8s infinite'
-                        }}
-                        title="Bus is currently at this stop"
-                      >
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff' }} />
-                      </div>
-                    ) : isNextStop ? (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '8px',
-                          top: '8px',
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          background: '#d97706',
-                          border: '3px solid #ffffff',
-                          boxShadow: '0 0 0 3px #fde68a, 0 2px 6px rgba(217, 119, 6, 0.35)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 2
-                        }}
-                        title="Next arriving stop"
-                      >
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff' }} />
-                      </div>
-                    ) : isMyAssignedStop ? (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '9px',
-                          top: '9px',
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '50%',
-                          background: '#0284c7',
-                          border: '3px solid #ffffff',
-                          boxShadow: '0 0 0 2.5px #0284c7, 0 2px 6px rgba(2, 132, 199, 0.25)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 2
-                        }}
-                        title="Your designated stop"
-                      >
-                        <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ffffff' }} />
-                      </div>
-                    ) : isPassed ? (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '11px',
-                          top: '11px',
-                          width: '14px',
-                          height: '14px',
-                          borderRadius: '50%',
-                          background: '#0284c7',
-                          border: '2px solid #ffffff',
-                          boxShadow: '0 0 0 1.5px #0284c7',
-                          zIndex: 2
-                        }}
-                        title="Departed"
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '11px',
-                          top: '11px',
-                          width: '14px',
-                          height: '14px',
-                          borderRadius: '50%',
-                          background: '#ffffff',
-                          border: '2.5px solid #94a3b8',
-                          zIndex: 2
-                        }}
-                        title="Remaining stop"
-                      />
-                    )}
+                      {/* Circular marker */}
+                      {isCurrentStop ? (
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            background: '#0284c7',
+                            border: '3px solid #ffffff',
+                            boxShadow: '0 0 0 3px #0284c7, 0 2px 8px rgba(2, 132, 199, 0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            margin: '2px 0',
+                            zIndex: 2,
+                            animation: 'pulse 1.8s infinite'
+                          }}
+                          title="Bus is currently at this stop"
+                        >
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff' }} />
+                        </div>
+                      ) : isNextStop ? (
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            background: '#d97706',
+                            border: '3px solid #ffffff',
+                            boxShadow: '0 0 0 3px #fde68a, 0 2px 6px rgba(217, 119, 6, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            margin: '2px 0',
+                            zIndex: 2
+                          }}
+                          title="Next arriving stop"
+                        >
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff' }} />
+                        </div>
+                      ) : isMyAssignedStop ? (
+                        <div
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            background: '#0284c7',
+                            border: '3px solid #ffffff',
+                            boxShadow: '0 0 0 2.5px #0284c7, 0 2px 6px rgba(2, 132, 199, 0.25)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            margin: '2px 0',
+                            zIndex: 2
+                          }}
+                          title="Your designated stop"
+                        >
+                          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ffffff' }} />
+                        </div>
+                      ) : isPassed ? (
+                        <div
+                          style={{
+                            width: '14px',
+                            height: '14px',
+                            borderRadius: '50%',
+                            background: '#0284c7',
+                            border: '2px solid #ffffff',
+                            boxShadow: '0 0 0 1.5px #0284c7',
+                            flexShrink: 0,
+                            margin: '4px 0',
+                            zIndex: 2
+                          }}
+                          title="Departed"
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '14px',
+                            height: '14px',
+                            borderRadius: '50%',
+                            background: '#ffffff',
+                            border: '2.5px solid #94a3b8',
+                            flexShrink: 0,
+                            margin: '4px 0',
+                            zIndex: 2
+                          }}
+                          title="Remaining stop"
+                        />
+                      )}
+
+                      {/* Bottom connecting line segment */}
+                      <div style={{
+                        width: '2.5px',
+                        flex: 1,
+                        background: isLast ? 'transparent' : isPassed ? '#0284c7' : '#cbd5e1',
+                        borderRadius: '2px'
+                      }} />
+                    </div>
 
                     {/* Stop Details Beside Marker */}
-                    <div style={{ flex: 1, minWidth: 0, paddingRight: '0.75rem' }}>
+                    <div style={{ flex: 1, minWidth: 0, paddingLeft: '8px', paddingRight: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <span style={{
                           fontWeight: (isCurrentStop || isNextStop || isMyAssignedStop) ? 800 : 700,
@@ -1285,14 +1282,14 @@ export default function StudentDashboard({
                         )}
                       </div>
 
-                      {/* Status / Sequence subtitle */}
+                      {/* Status subtitle */}
                       <div style={{ fontSize: '0.73rem', color: isPassed ? '#94a3b8' : '#64748b', marginTop: '2px' }}>
                         Stop #{idx + 1} {isCurrentStop ? '• Bus at stop' : isNextStop ? '• Arriving next' : isPassed ? '• Departed' : '• Remaining stop'}
                       </div>
                     </div>
 
                     {/* Pickup / Drop Time */}
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.3px' }}>
                         {trackerDirection === 'morning' ? 'Pickup' : 'Drop'}
                       </div>
