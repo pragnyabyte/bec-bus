@@ -770,6 +770,11 @@ html, body {
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.2px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
 }
 
 .android-nav-item.active .android-nav-label {

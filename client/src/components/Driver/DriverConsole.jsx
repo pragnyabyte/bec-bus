@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import LiveMap from '../Map/LiveMap';
+import SeeAllStopsModal from '../Student/SeeAllStopsModal';
 import { api, socket } from '../../services/api';
 
 export default function DriverConsole({
@@ -20,7 +21,8 @@ export default function DriverConsole({
   onDataRefresh,
   onLogout
 }) {
-  const [activeTab, setActiveTab] = useState('tracker'); // 'tracker' | 'passengers' | 'schedule'
+  const [activeTab, setActiveTab] = useState('tracker'); // 'tracker' | 'passengers' | 'stops'
+  const [showSeeAllStopsModal, setShowSeeAllStopsModal] = useState(false);
   const [isTripActive, setIsTripActive] = useState(false);
   const [isSimulatingGps, setIsSimulatingGps] = useState(true);
   const [useDeviceGps, setUseDeviceGps] = useState(false);
@@ -40,6 +42,21 @@ export default function DriverConsole({
   const tripDirection = propTripDirection !== undefined ? propTripDirection : localTripDirection;
   const setTripDirection = onTripDirectionChange || setLocalTripDirection;
   const [lastUpdatedTime, setLastUpdatedTime] = useState(() => new Date().toLocaleTimeString());
+
+  // Haversine formula for distance calculation matching Student side
+  const calcHaversineKm = useCallback((lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, []);
 
   // Find Driver's Assigned Bus & Route (Bus 1 permanently Pragnya, Bus 2 permanently Jitendra)
   const bus = buses.find(b => b.id === driver?.busId) || (driver?.id === 'PRAGNYA01' ? buses[0] : buses[1]) || buses[0];
@@ -139,11 +156,19 @@ export default function DriverConsole({
   const morningLabel = `BEC College → ${destination}`;
   const eveningLabel = `${destination} → BEC College`;
 
-  // Bidirectional active stops
+  // Bidirectional active stops matching Student & Admin sides:
+  // Morning Pickup: origin (index 0) -> BEC Campus (last index)
+  // Evening Return: BEC Campus -> origin (reversed)
   const activeStops = useMemo(() => {
     if (!route?.stops) return [];
-    return tripDirection === 'morning' ? [...route.stops].reverse() : route.stops;
+    if (tripDirection === 'evening') {
+      return [...route.stops].reverse();
+    }
+    return route.stops;
   }, [route, tripDirection]);
+
+  // Tab active helper for Stops
+  const isStopsActive = activeTab === 'stops' || activeTab === 'schedule' || activeTab === 'route_details';
 
   // Next stop calculation
   const nextStop = useMemo(() => {
@@ -825,24 +850,43 @@ export default function DriverConsole({
       {/* ==========================================
           4. TAB 3: ROUTE STOPS & TIMETABLE (STOPS VIEW)
           ========================================== */}
-      {activeTab === 'schedule' && (
+      {isStopsActive && (
         <div className="android-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
             <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
                 {route?.code}: {route?.name}
-              </h3>
-              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                {activeStops.length} Designated Waypoint Stops
-              </div>
+              </h4>
+              <p style={{ color: '#64748b', fontSize: '0.78rem', margin: 0 }}>
+                Distance: <b>{route?.distanceKm || (route?.code === 'RT-02' ? 18.5 : 14.2)} km</b> • Duration: <b>~{route?.totalDurationMin || 45} mins</b> • Bus: <b>{bus?.fleetNumber || 'Bus 1'}</b>
+              </p>
             </div>
-            <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '10px', fontWeight: 800 }}>
-              {tripDirection === 'morning' ? '☀️ Morning' : '🌙 Evening'}
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowSeeAllStopsModal(true)}
+              id="driver-btn-see-all-stops"
+              style={{
+                background: '#f0f9ff',
+                border: '1.5px solid #bae6fd',
+                color: '#0284c7',
+                borderRadius: '10px',
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Open full stops list and distance calculation"
+            >
+              <MapPin size={14} />
+              <span>All Stops Details</span>
+            </button>
           </div>
 
           {/* Direction Segmented Control matching Student/Admin side */}
-          <div className="android-segmented-control" style={{ marginBottom: '0.85rem' }}>
+          <div className="android-segmented-control" style={{ marginBottom: '1rem' }}>
             <button
               type="button"
               className={`android-segment-btn ${tripDirection === 'morning' ? 'active-morning' : ''}`}
@@ -852,7 +896,7 @@ export default function DriverConsole({
             </button>
             <button
               type="button"
-              className={`android-segment-btn ${tripDirection === 'evening' ? 'active-blue' : ''}`}
+              className={`android-segment-btn ${tripDirection === 'evening' ? 'active-evening' : ''}`}
               onClick={() => setTripDirection('evening')}
             >
               🌙 Evening Return
@@ -875,20 +919,24 @@ export default function DriverConsole({
               : `Direction: BEC Campus ➔ ${route?.startPoint || (route?.stops?.[0]?.name || 'Origin')}`}
           </div>
 
+          {/* Stops List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {activeStops.map((stop, i) => {
               const isNearest = nearestStop?.id === stop.id;
               return (
                 <div
                   key={stop.id || i}
+                  onClick={() => setShowSeeAllStopsModal(true)}
                   className="android-list-card"
                   style={{
                     padding: '0.85rem',
                     background: isNearest ? '#f0f9ff' : '#f8fafc',
                     border: `1.5px solid ${isNearest ? '#0284c7' : '#e2e8f0'}`,
                     borderRadius: '14px',
-                    gap: '0.75rem'
+                    gap: '0.75rem',
+                    cursor: 'pointer'
                   }}
+                  title="Click to view all stop details"
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
@@ -965,8 +1013,8 @@ export default function DriverConsole({
 
         <button
           type="button"
-          className={`android-nav-item ${activeTab === 'schedule' ? 'active' : ''}`}
-          onClick={() => setActiveTab('schedule')}
+          className={`android-nav-item ${isStopsActive ? 'active' : ''}`}
+          onClick={() => setActiveTab('stops')}
           id="driver-bottom-nav-stops"
           aria-label="Stops"
         >
@@ -1061,6 +1109,20 @@ export default function DriverConsole({
           </div>
         </div>
       )}
+
+      {/* ==========================================
+          7. SEE ALL STOPS MODAL (REUSED FROM STUDENT/ADMIN)
+          ========================================== */}
+      <SeeAllStopsModal
+        isOpen={showSeeAllStopsModal}
+        onClose={() => setShowSeeAllStopsModal(false)}
+        bus={bus}
+        route={route}
+        stops={route?.stops || []}
+        nearestStopId={nearestStop?.id}
+        gpsCoords={hasValidGps ? { lat: bus.currentLat, lng: bus.currentLng } : null}
+        calcHaversineKm={calcHaversineKm}
+      />
     </div>
   );
 }
