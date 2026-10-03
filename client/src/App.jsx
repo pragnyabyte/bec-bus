@@ -400,6 +400,7 @@ export default function App() {
         routes={routes}
         driverTripDirection={driverTripDirection}
         onDriverTripDirectionChange={setDriverTripDirection}
+        onDataRefresh={loadData}
         onOpenRegisterModal={() => handleOpenAuthModal('register')}
         onOpenAuthModal={handleOpenAuthModal}
         onLogout={handleLogout}

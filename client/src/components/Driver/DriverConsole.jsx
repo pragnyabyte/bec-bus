@@ -178,10 +178,6 @@ export default function DriverConsole({
 
   const busTitle = `${bus?.fleetNumber || (driver?.id === 'PRAGNYA01' ? 'Bus 1' : 'Bus 2')} - Live Location`;
 
-  // Identify Co-Driver
-  const coDriver = useMemo(() => {
-    return drivers.find(d => d.id !== driver?.id) || (driver?.id === 'PRAGNYA01' ? drivers.find(d => d.id === 'JITENDRA01') : drivers.find(d => d.id === 'PRAGNYA01'));
-  }, [drivers, driver]);
 
   // Sync trip active status
   useEffect(() => {
@@ -425,30 +421,6 @@ export default function DriverConsole({
 
   return (
     <div className="android-driver-app">
-      {/* Quick Action Chips: Call Co-Driver & Report Delay */}
-      <div className="android-card" style={{ padding: '0.75rem 1rem', background: '#ffffff', display: 'flex', gap: '8px', overflowX: 'auto', alignItems: 'center' }}>
-        {coDriver && (
-          <a
-            href={`tel:${(coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
-            className="android-chip"
-            style={{ textDecoration: 'none' }}
-            title={`Call Co-Driver ${coDriver.name}`}
-          >
-            <Phone size={13} />
-            <span>Call Co-Driver ({coDriver.name})</span>
-          </a>
-        )}
-        <button
-          type="button"
-          className="android-chip"
-          onClick={() => setShowIncidentModal(true)}
-          style={{ color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' }}
-        >
-          <AlertTriangle size={13} />
-          <span>Report Delay</span>
-        </button>
-      </div>
-
       {/* SOS Emergency Banner if Active */}
       {bus?.status === 'emergency' && (
         <div className="android-card" style={{

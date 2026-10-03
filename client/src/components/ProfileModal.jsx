@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   X, LogOut, User, Bus, MapPin, ShieldCheck, 
   Award, Key, Phone, CheckCircle2, AlertCircle,
-  GraduationCap, ArrowRightLeft, Shield
+  GraduationCap, ArrowRightLeft, Shield, AlertTriangle, Send
 } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function ProfileModal({
   isOpen,
@@ -17,6 +18,7 @@ export default function ProfileModal({
   routes = [],
   driverTripDirection = 'morning',
   onDriverTripDirectionChange,
+  onDataRefresh,
   onLogout
 }) {
   // Close on Escape key press
@@ -152,6 +154,46 @@ export default function ProfileModal({
 
     return { bus, route, isBus2, destination, morningLabel, eveningLabel };
   }, [currentRole, driver, buses, routes]);
+
+  // Identify Co-Driver
+  const coDriver = useMemo(() => {
+    if (currentRole !== 'driver') return null;
+    const found = drivers.find(d => d.id !== driver?.id);
+    if (found) return found;
+    return driver?.id === 'PRAGNYA01'
+      ? { id: 'JITENDRA01', name: 'Jitendra Sahu', phone: '+91 63709 98587' }
+      : { id: 'PRAGNYA01', name: 'Pragnya Paramita', phone: '+91 90408 33547' };
+  }, [currentRole, drivers, driver]);
+
+  // Delay reporting state inside Driver Profile
+  const [showDelayModal, setShowDelayModal] = useState(false);
+  const [incidentType, setIncidentType] = useState('traffic');
+  const [incidentDelay, setIncidentDelay] = useState(15);
+  const [incidentDesc, setIncidentDesc] = useState('');
+  const [delayStatus, setDelayStatus] = useState('');
+  const [isSubmittingDelay, setIsSubmittingDelay] = useState(false);
+
+  const handleReportDelay = async (e) => {
+    e.preventDefault();
+    setIsSubmittingDelay(true);
+    try {
+      await api.reportIncident({
+        busId: driverBusInfo?.bus?.id || (driver?.id === 'PRAGNYA01' ? 'BUS-01' : 'BUS-02'),
+        busName: driverBusInfo?.bus?.fleetNumber || 'Bus 1',
+        type: incidentType,
+        delayMinutes: Number(incidentDelay),
+        description: incidentDesc || `${incidentType.toUpperCase()} encountered on route.`
+      });
+      setShowDelayModal(false);
+      setDelayStatus('Incident reported and broadcast to waiting students.');
+      if (onDataRefresh) onDataRefresh();
+      setTimeout(() => setDelayStatus(''), 4000);
+    } catch (err) {
+      console.error('Error reporting delay from profile:', err);
+    } finally {
+      setIsSubmittingDelay(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -545,6 +587,46 @@ export default function ProfileModal({
                   🌙 Evening: {driverBusInfo?.eveningLabel}
                 </button>
               </div>
+
+              {/* Quick Action Chips: Call Co-Driver & Report Delay */}
+              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '2px', alignItems: 'center', marginTop: '0.2rem' }}>
+                {coDriver && (
+                  <a
+                    href={`tel:${(coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
+                    className="android-chip"
+                    style={{ textDecoration: 'none', background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' }}
+                    title={`Call Co-Driver ${coDriver.name}`}
+                    id="profile-call-codriver-btn"
+                  >
+                    <Phone size={13} />
+                    <span>Call Co-Driver ({coDriver.name})</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="android-chip"
+                  onClick={() => setShowDelayModal(true)}
+                  style={{ color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' }}
+                  id="profile-report-delay-btn"
+                >
+                  <AlertTriangle size={13} />
+                  <span>Report Delay</span>
+                </button>
+              </div>
+
+              {delayStatus && (
+                <div style={{
+                  fontSize: '0.78rem',
+                  color: '#15803d',
+                  background: '#f0fdf4',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid #bbf7d0',
+                  fontWeight: 600
+                }}>
+                  {delayStatus}
+                </div>
+              )}
             </div>
 
             {/* Detailed Properties Card */}
@@ -771,6 +853,77 @@ export default function ProfileModal({
           </div>
         )}
       </div>
+
+      {/* Report Route Delay Modal (Inside Driver Profile) */}
+      {showDelayModal && (
+        <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={() => setShowDelayModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', borderRadius: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.45rem' }}>
+              <AlertTriangle style={{ color: '#d97706' }} size={22} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                Report Route Delay
+              </h3>
+            </div>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '1rem' }}>
+              Broadcast an immediate notification to students waiting at upcoming stops along this route.
+            </p>
+
+            <form onSubmit={handleReportDelay}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>Incident Type</label>
+                <select className="form-select" value={incidentType} onChange={e => setIncidentType(e.target.value)}>
+                  <option value="traffic">Heavy Traffic Jam</option>
+                  <option value="breakdown">Bus Mechanical Breakdown</option>
+                  <option value="weather">Heavy Rain / Waterlogging</option>
+                  <option value="roadblock">Road Construction / Diversion</option>
+                </select>
+              </div>
+
+              {incidentType === 'traffic' && (
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 700 }}>Estimated Delay</label>
+                  <select className="form-select" value={incidentDelay} onChange={e => setIncidentDelay(e.target.value)}>
+                    <option value={10}>10 Minutes Delay</option>
+                    <option value={15}>15 Minutes Delay</option>
+                    <option value={25}>25 Minutes Delay</option>
+                    <option value={40}>40+ Minutes Delay</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>Remarks / Location Note</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="e.g. Stuck near flyover due to heavy bottleneck..."
+                  value={incidentDesc}
+                  onChange={e => setIncidentDesc(e.target.value)}
+                  style={{ minHeight: '80px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+                <button
+                  type="button"
+                  className="android-touch-btn"
+                  onClick={() => setShowDelayModal(false)}
+                  style={{ flex: 1, background: '#f1f5f9', color: '#475569' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDelay}
+                  className="android-touch-btn"
+                  style={{ flex: 2, background: '#0284c7', color: '#ffffff' }}
+                >
+                  <Send size={16} /> {isSubmittingDelay ? 'Broadcasting...' : 'Broadcast Alert'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

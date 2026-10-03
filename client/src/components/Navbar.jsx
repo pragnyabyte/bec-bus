@@ -20,6 +20,7 @@ export default function Navbar({
   authSession,
   driverTripDirection = 'morning',
   onDriverTripDirectionChange,
+  onDataRefresh,
   onOpenRegisterModal,
   onOpenAuthModal,
   onLogout
@@ -243,6 +244,7 @@ export default function Navbar({
         routes={routes}
         driverTripDirection={driverTripDirection}
         onDriverTripDirectionChange={onDriverTripDirectionChange}
+        onDataRefresh={onDataRefresh}
         onLogout={onLogout}
       />
     </>
