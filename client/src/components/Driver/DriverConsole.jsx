@@ -848,12 +848,15 @@ export default function DriverConsole({
       )}
 
       {/* ==========================================
-          4. TAB 3: ROUTE STOPS & TIMETABLE (STOPS VIEW)
+          4. TAB 3: ROUTE STOPS & TIMETABLE (BUS STOPS VIEW)
           ========================================== */}
       {isStopsActive && (
         <div className="android-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
             <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 8px', background: '#e0f2fe', borderRadius: '12px', color: '#0284c7', fontSize: '0.72rem', fontWeight: 800, marginBottom: '5px', border: '1px solid #bae6fd' }}>
+                <MapPin size={12} /> BUS STOPS & TIMETABLE
+              </div>
               <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
                 {route?.code}: {route?.name}
               </h4>
@@ -1016,12 +1019,12 @@ export default function DriverConsole({
           className={`android-nav-item ${isStopsActive ? 'active' : ''}`}
           onClick={() => setActiveTab('stops')}
           id="driver-bottom-nav-stops"
-          aria-label="Stops"
+          aria-label="Bus Stops"
         >
           <div className="android-nav-pill">
             <MapPin size={20} />
           </div>
-          <span className="android-nav-label">Stops</span>
+          <span className="android-nav-label">Bus Stops</span>
         </button>
 
         <button
