@@ -529,6 +529,39 @@ export default function StudentDashboard({
     return assignedRoute.stops;
   }, [assignedRoute, trackerDirection]);
 
+  // Dynamic Route Destination
+  const actualDestination = useMemo(() => {
+    if (assignedRoute?.destination) return assignedRoute.destination;
+    const isPatia = isBus2 || assignedRoute?.id === 'R-102' || assignedRoute?.name?.includes('Patia');
+    const corridorEnd = isPatia ? 'Patia' : 'Baramunda';
+    if (trackerDirection === 'evening') {
+      return 'BEC College';
+    }
+    return corridorEnd;
+  }, [assignedRoute, isBus2, trackerDirection]);
+
+  // Calculate stop indexes for live status
+  const liveStopIndices = useMemo(() => {
+    if (!assignedTracking?.isLiveAvailable || !trackerDisplayStops?.length) {
+      return { currentIdx: -1, nextIdx: -1 };
+    }
+
+    // 1. Next stop index
+    let nextIdx = trackerDisplayStops.findIndex(s => s.id === assignedTracking.nextStop?.id);
+    if (nextIdx === -1 && assignedTracking.nearestStop) {
+      const nearIdx = trackerDisplayStops.findIndex(s => s.id === assignedTracking.nearestStop?.id);
+      nextIdx = nearIdx >= 0 ? Math.min(nearIdx + 1, trackerDisplayStops.length - 1) : 0;
+    }
+
+    // 2. Current stop index (if bus is within 250m of nearestStop)
+    let currentIdx = -1;
+    if (assignedTracking.nearestDistKm !== null && assignedTracking.nearestDistKm <= 0.25) {
+      currentIdx = trackerDisplayStops.findIndex(s => s.id === assignedTracking.nearestStop?.id);
+    }
+
+    return { currentIdx, nextIdx };
+  }, [assignedTracking, trackerDisplayStops]);
+
   // Bidirectional stops calculation for timetable tab
   const displayStops = useMemo(() => {
     if (!assignedRoute?.stops) return [];
@@ -972,83 +1005,302 @@ export default function StudentDashboard({
               />
             </div>
 
-            {/* Stops Timeline Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h5 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                Route Stops & Timetable
-              </h5>
-              <span style={{ fontSize: '0.72rem', color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
-                {trackerDisplayStops.length} Stops
+            {/* =========================================================
+                ROUTE HEADER: "Bus 1 → Destination"
+                (Replaces the route title/number with dynamic actual destination)
+               ========================================================= */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              paddingBottom: '0.65rem',
+              borderBottom: '1.5px solid #f1f5f9'
+            }}>
+              <div>
+                <h4 style={{
+                  fontSize: '1.15rem',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>{assignedBus?.fleetNumber || (isBus2 ? 'Bus 2' : 'Bus 1')} → {actualDestination}</span>
+                </h4>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '3px' }}>
+                  {trackerDisplayStops.length} Stops • {assignedRoute?.code || 'RT-01'} ({assignedRoute?.name || 'Assigned Corridor'})
+                </div>
+              </div>
+              <span style={{
+                fontSize: '0.72rem',
+                color: '#0284c7',
+                background: '#e0f2fe',
+                padding: '3px 10px',
+                borderRadius: '12px',
+                fontWeight: 700
+              }}>
+                {trackerDirection === 'morning' ? 'Morning Route' : 'Evening Route'}
               </span>
             </div>
 
-            {/* Sequential Stops Timeline List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+            {/* =========================================================
+                VERTICAL CONNECTED ROUTE TIMELINE
+                (Continuous line connecting all stops with circular markers)
+               ========================================================= */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              padding: '0.25rem 0'
+            }}>
               {trackerDisplayStops.map((stop, idx) => {
-                const isNearest = nearestBusStopData?.stop?.id === stop.id;
-                const isNext = assignedTracking.isLiveAvailable && stop.id === assignedTracking.nextStop?.id;
+                const isCurrentStop = liveStopIndices.currentIdx === idx;
+                const isNextStop = liveStopIndices.nextIdx === idx && !isCurrentStop;
+                const isPassed = liveStopIndices.nextIdx > -1 && idx < liveStopIndices.nextIdx && !isCurrentStop;
                 const isMyAssignedStop = stop.id === assignedStop?.id;
+                const isNearest = nearestBusStopData?.stop?.id === stop.id;
+                const isLast = idx === trackerDisplayStops.length - 1;
 
                 return (
                   <div
                     key={stop.id || idx}
                     style={{
+                      position: 'relative',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.75rem 0.85rem',
-                      background: isNearest ? '#e0f2fe' : isNext ? '#fffbeb' : isMyAssignedStop ? '#eff6ff' : '#f8fafc',
-                      border: `1.5px solid ${isNearest ? '#0284c7' : isNext ? '#fde68a' : isMyAssignedStop ? '#bae6fd' : '#e2e8f0'}`,
-                      borderRadius: '12px',
-                      gap: '0.65rem',
-                      transition: 'all 0.15s ease'
+                      alignItems: 'flex-start',
+                      paddingLeft: '38px',
+                      paddingRight: '0.5rem',
+                      paddingTop: '0.55rem',
+                      paddingBottom: '0.75rem',
+                      minHeight: '56px',
+                      borderRadius: '10px',
+                      background: isCurrentStop
+                        ? '#f0f9ff'
+                        : isNextStop
+                        ? '#fffbeb'
+                        : isMyAssignedStop
+                        ? '#f8fafc'
+                        : 'transparent',
+                      borderLeft: isCurrentStop
+                        ? '3px solid #0284c7'
+                        : isNextStop
+                        ? '3px solid #f59e0b'
+                        : isMyAssignedStop
+                        ? '3px solid #38bdf8'
+                        : '3px solid transparent',
+                      transition: 'all 0.2s ease',
+                      marginBottom: '2px'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
-                      <div style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        background: isNearest ? '#0284c7' : isNext ? '#d97706' : isMyAssignedStop ? '#0284c7' : '#64748b',
-                        color: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 800,
-                        fontSize: '0.75rem',
-                        flexShrink: 0
-                      }}>
-                        {idx + 1}
+                    {/* Vertical connecting line to next stop */}
+                    {!isLast && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '17px',
+                          top: '18px',
+                          bottom: '-18px',
+                          width: '2.5px',
+                          background: isPassed ? '#0284c7' : '#cbd5e1',
+                          zIndex: 1,
+                          borderRadius: '2px'
+                        }}
+                      />
+                    )}
+
+                    {/* Circular marker */}
+                    {isCurrentStop ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '8px',
+                          top: '8px',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: '#0284c7',
+                          border: '3px solid #ffffff',
+                          boxShadow: '0 0 0 3px #0284c7, 0 2px 8px rgba(2, 132, 199, 0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 2,
+                          animation: 'pulse 1.8s infinite'
+                        }}
+                        title="Bus is currently at this stop"
+                      >
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff' }} />
                       </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    ) : isNextStop ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '8px',
+                          top: '8px',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: '#d97706',
+                          border: '3px solid #ffffff',
+                          boxShadow: '0 0 0 3px #fde68a, 0 2px 6px rgba(217, 119, 6, 0.35)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 2
+                        }}
+                        title="Next arriving stop"
+                      >
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff' }} />
+                      </div>
+                    ) : isMyAssignedStop ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '9px',
+                          top: '9px',
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          background: '#0284c7',
+                          border: '3px solid #ffffff',
+                          boxShadow: '0 0 0 2.5px #0284c7, 0 2px 6px rgba(2, 132, 199, 0.25)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 2
+                        }}
+                        title="Your designated stop"
+                      >
+                        <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ffffff' }} />
+                      </div>
+                    ) : isPassed ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '11px',
+                          top: '11px',
+                          width: '14px',
+                          height: '14px',
+                          borderRadius: '50%',
+                          background: '#0284c7',
+                          border: '2px solid #ffffff',
+                          boxShadow: '0 0 0 1.5px #0284c7',
+                          zIndex: 2
+                        }}
+                        title="Departed"
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '11px',
+                          top: '11px',
+                          width: '14px',
+                          height: '14px',
+                          borderRadius: '50%',
+                          background: '#ffffff',
+                          border: '2.5px solid #94a3b8',
+                          zIndex: 2
+                        }}
+                        title="Remaining stop"
+                      />
+                    )}
+
+                    {/* Stop Details Beside Marker */}
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontWeight: (isCurrentStop || isNextStop || isMyAssignedStop) ? 800 : 700,
+                          color: isPassed ? '#64748b' : '#0f172a',
+                          fontSize: '0.92rem',
+                          lineHeight: 1.3
+                        }}>
                           {stop.name}
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
-                          {isNearest && (
-                            <span className="badge badge-blue" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>
-                              📍 Nearest ({nearestBusStopData ? `${nearestBusStopData.distanceKm < 1 ? Math.round(nearestBusStopData.distanceKm * 1000) + 'm' : nearestBusStopData.distanceKm.toFixed(1) + 'km'}` : ''})
-                            </span>
-                          )}
-                          {isNext && (
-                            <span className="badge badge-amber" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>
-                              ⏭ Next (~{assignedTracking.etaMinutes}m)
-                            </span>
-                          )}
-                          {isMyAssignedStop && !isNearest && (
-                            <span className="badge badge-blue" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>
-                              ⭐ Your Stop
-                            </span>
-                          )}
-                        </div>
+                        </span>
+
+                        {isCurrentStop && (
+                          <span style={{
+                            fontSize: '0.66rem',
+                            background: '#0284c7',
+                            color: '#ffffff',
+                            fontWeight: 800,
+                            padding: '1px 7px',
+                            borderRadius: '10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}>
+                            🚌 Bus Here
+                          </span>
+                        )}
+
+                        {isNextStop && (
+                          <span style={{
+                            fontSize: '0.66rem',
+                            background: '#fef3c7',
+                            color: '#b45309',
+                            border: '1px solid #fde68a',
+                            fontWeight: 800,
+                            padding: '1px 7px',
+                            borderRadius: '10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}>
+                            ⏭ Next Stop {assignedTracking.etaMinutes ? `(~${assignedTracking.etaMinutes}m)` : ''}
+                          </span>
+                        )}
+
+                        {isMyAssignedStop && (
+                          <span style={{
+                            fontSize: '0.66rem',
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            border: '1px solid #bae6fd',
+                            fontWeight: 800,
+                            padding: '1px 7px',
+                            borderRadius: '10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}>
+                            ⭐ Your Stop
+                          </span>
+                        )}
+
+                        {isNearest && !isMyAssignedStop && !isCurrentStop && (
+                          <span style={{
+                            fontSize: '0.66rem',
+                            background: '#f0f9ff',
+                            color: '#0284c7',
+                            border: '1px solid #bae6fd',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '8px'
+                          }}>
+                            📍 Nearest ({nearestBusStopData ? `${nearestBusStopData.distanceKm < 1 ? Math.round(nearestBusStopData.distanceKm * 1000) + 'm' : nearestBusStopData.distanceKm.toFixed(1) + 'km'}` : ''})
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Status / Sequence subtitle */}
+                      <div style={{ fontSize: '0.73rem', color: isPassed ? '#94a3b8' : '#64748b', marginTop: '2px' }}>
+                        Stop #{idx + 1} {isCurrentStop ? '• Bus at stop' : isNextStop ? '• Arriving next' : isPassed ? '• Departed' : '• Remaining stop'}
                       </div>
                     </div>
 
+                    {/* Pickup / Drop Time */}
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                      <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.3px' }}>
                         {trackerDirection === 'morning' ? 'Pickup' : 'Drop'}
                       </div>
-                      <div style={{ fontWeight: 800, color: trackerDirection === 'morning' ? '#0284c7' : '#7c3aed', fontSize: '0.85rem' }}>
+                      <div style={{
+                        fontWeight: 800,
+                        color: isPassed ? '#94a3b8' : trackerDirection === 'morning' ? '#0284c7' : '#7c3aed',
+                        fontSize: '0.88rem'
+                      }}>
                         {trackerDirection === 'morning' ? (stop.morningPickup || stop.morningTime) : (stop.eveningDrop || stop.eveningTime)}
                       </div>
                     </div>
