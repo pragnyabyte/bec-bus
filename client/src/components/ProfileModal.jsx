@@ -11,6 +11,7 @@ export default function ProfileModal({
   currentRole,
   student,
   driver,
+  drivers = [],
   authSession,
   buses = [],
   routes = [],
@@ -37,7 +38,7 @@ export default function ProfileModal({
     }
   }, [isOpen]);
 
-  // Resolve Student assigned Bus & Route
+  // Resolve Student assigned Bus, Route, Driver, and Telemetry (Identical to Student Tracker page)
   const studentBusInfo = useMemo(() => {
     if (currentRole !== 'student') return null;
     const isBus2 = 
@@ -51,21 +52,79 @@ export default function ProfileModal({
     const assignedBus = buses.find(b => 
       isBus2 ? (b.id === 'BUS-02' || b.fleetNumber === 'Bus 2') : (b.id === 'BUS-01' || b.fleetNumber === 'Bus 1')
     ) || (isBus2 ? buses[1] : buses[0]) || {
+      id: isBus2 ? 'BUS-02' : 'BUS-01',
       fleetNumber: isBus2 ? 'Bus 2' : 'Bus 1',
-      busNo: isBus2 ? 'OD-02-AX-2002' : 'OD-02-AX-1001'
+      busNo: isBus2 ? 'OD-02-AX-2002' : 'OD-02-AX-1001',
+      capacity: 50,
+      occupied: 0,
+      speed: 0,
+      status: 'idle'
     };
 
     const assignedRoute = routes.find(r => 
       isBus2 ? (r.id === 'R-102' || r.code === 'RT-02') : (r.id === 'R-101' || r.code === 'RT-01')
     ) || (isBus2 ? routes[1] : routes[0]) || {
+      id: isBus2 ? 'R-102' : 'R-101',
       code: isBus2 ? 'RT-02' : 'RT-01',
       name: isBus2 ? 'BEC College ↔ Patia' : 'BEC College ↔ Baramunda'
     };
 
+    const assignedDriver = isBus2
+      ? (drivers.find(d => d.id === 'JITENDRA01' || d.name === 'Jitendra' || d.busId === 'BUS-02') || {
+          id: 'JITENDRA01',
+          name: 'Jitendra',
+          phone: '+916370998587',
+          rating: 4.8
+        })
+      : (drivers.find(d => d.id === 'PRAGNYA01' || d.name === 'Pragnya' || d.busId === 'BUS-01') || {
+          id: 'PRAGNYA01',
+          name: 'Pragnya',
+          phone: '+919040833547',
+          rating: 4.9
+        });
+
+    const isEnRoute = assignedBus && (assignedBus.status === 'on_trip' || assignedBus.status === 'emergency');
+    let movementState = 'not_started';
+    let movementLabel = 'Has not started route';
+    let movementBadgeBg = '#f1f5f9';
+    let movementBadgeColor = '#64748b';
+    let movementBadgeBorder = '#cbd5e1';
+
+    if (!isEnRoute) {
+      movementState = 'not_started';
+      movementLabel = 'Has not started route';
+      movementBadgeBg = '#f1f5f9';
+      movementBadgeColor = '#64748b';
+      movementBadgeBorder = '#cbd5e1';
+    } else if (assignedBus.speed && assignedBus.speed > 3) {
+      movementState = 'moving';
+      movementLabel = `Moving (${assignedBus.speed} km/h)`;
+      movementBadgeBg = '#e0f2fe';
+      movementBadgeColor = '#0284c7';
+      movementBadgeBorder = '#bae6fd';
+    } else {
+      movementState = 'stopped';
+      movementLabel = 'Stopped (0 km/h)';
+      movementBadgeBg = '#fef3c7';
+      movementBadgeColor = '#b45309';
+      movementBadgeBorder = '#fde68a';
+    }
+
     const assignedStop = assignedRoute?.stops?.find(s => s.id === student?.stopId) || assignedRoute?.stops?.[0];
 
-    return { isBus2, assignedBus, assignedRoute, assignedStop };
-  }, [currentRole, student, buses, routes]);
+    return { 
+      isBus2, 
+      assignedBus, 
+      assignedRoute, 
+      assignedDriver, 
+      assignedStop,
+      movementState,
+      movementLabel,
+      movementBadgeBg,
+      movementBadgeColor,
+      movementBadgeBorder
+    };
+  }, [currentRole, student, buses, routes, drivers]);
 
   // Resolve Driver assigned Bus & Route
   const driverBusInfo = useMemo(() => {
@@ -119,7 +178,7 @@ export default function ProfileModal({
           position: 'fixed',
           top: '56px',
           right: '12px',
-          width: '370px',
+          width: '390px',
           maxWidth: 'calc(100vw - 24px)',
           maxHeight: 'calc(100vh - 136px)',
           overflowY: 'auto',
@@ -182,7 +241,7 @@ export default function ProfileModal({
             STUDENT PROFILE VIEW
            ========================================================= */}
         {currentRole === 'student' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             {/* Student Avatar & Basic Info */}
             <div style={{
               display: 'flex',
@@ -222,7 +281,7 @@ export default function ProfileModal({
               </div>
             </div>
 
-            {/* Detailed Properties Card */}
+            {/* Personal Details Card */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -252,37 +311,132 @@ export default function ProfileModal({
                 </span>
               </div>
 
-              {/* Assigned Route */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid #f1f5f9' }}>
-                <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ArrowRightLeft size={15} style={{ color: '#0284c7', flexShrink: 0 }} /> Assigned Route
-                </span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1', textAlign: 'right', maxWidth: '200px' }}>
-                  {studentBusInfo?.assignedRoute?.code} ({studentBusInfo?.assignedRoute?.name})
-                </span>
-              </div>
-
-              {/* Assigned Bus */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid #f1f5f9' }}>
-                <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Bus size={15} style={{ color: '#0284c7' }} /> Assigned Bus
-                </span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', background: '#f0f9ff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bae6fd' }}>
-                  {studentBusInfo?.assignedBus?.fleetNumber} • {studentBusInfo?.assignedBus?.busNo}
-                </span>
-              </div>
-
               {/* Designated Stop */}
               {studentBusInfo?.assignedStop && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0' }}>
                   <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MapPin size={15} style={{ color: '#0284c7' }} /> Boarding Stop
+                    <MapPin size={15} style={{ color: '#0284c7' }} /> Designated Stop
                   </span>
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>
                     {studentBusInfo.assignedStop.name}
                   </span>
                 </div>
               )}
+            </div>
+
+            {/* =========================================================
+                ASSIGNED FLEET BUS INFORMATION CARD
+                (Identical to the Student Tracker page card design & style)
+               ========================================================= */}
+            <div className="android-card" style={{
+              borderLeft: '4px solid #0284c7',
+              background: '#ffffff',
+              padding: '1rem',
+              borderRadius: '16px',
+              border: '1px solid #e0f2fe',
+              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.06)'
+            }}>
+              {/* Bus Header & Live Movement Status Badge */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Assigned Fleet Bus
+                  </span>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: '2px 0 0 0' }}>
+                    {studentBusInfo?.assignedBus?.fleetNumber} • {studentBusInfo?.assignedRoute?.code}
+                  </h4>
+                </div>
+                <span style={{
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  background: studentBusInfo?.movementBadgeBg,
+                  color: studentBusInfo?.movementBadgeColor,
+                  border: `1px solid ${studentBusInfo?.movementBadgeBorder}`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}>
+                  {studentBusInfo?.movementState === 'moving' && <span className="pulse-dot online" />}
+                  {studentBusInfo?.movementLabel}
+                </span>
+              </div>
+
+              {/* Driver Box & Touch Call Button */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '0.85rem',
+                marginBottom: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.65rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      background: '#0284c7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontWeight: 800,
+                      fontSize: '1.15rem',
+                      flexShrink: 0
+                    }}>
+                      {studentBusInfo?.assignedDriver?.name?.charAt(0) || 'D'}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                        {studentBusInfo?.assignedDriver?.name}
+                      </div>
+                      <div style={{ color: '#0284c7', fontSize: '0.75rem', fontWeight: 700 }}>
+                        ★ {studentBusInfo?.assignedDriver?.rating || 4.9} • ID: {studentBusInfo?.assignedDriver?.id}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 700 }}>BUS PLATE</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>
+                      {studentBusInfo?.assignedBus?.busNo}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Touch Call Driver Button (min 44px height) */}
+                <a
+                  href={`tel:${(studentBusInfo?.assignedDriver?.phone || (studentBusInfo?.isBus2 ? '+916370998587' : '+919040833547')).replace(/\s+/g, '')}`}
+                  className="android-touch-btn"
+                  style={{
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    textDecoration: 'none',
+                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)',
+                    minHeight: '42px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.85rem'
+                  }}
+                  id="btn-profile-call-driver"
+                  title={`Call ${studentBusInfo?.assignedDriver?.name}`}
+                >
+                  <Phone size={15} /> Call Driver ({studentBusInfo?.assignedDriver?.name})
+                </a>
+              </div>
+
+              {/* Status chips: Speed, Capacity, Route */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', flexWrap: 'wrap', gap: '4px' }}>
+                <span>Speed: <b style={{ color: '#0284c7' }}>{studentBusInfo?.assignedBus?.speed || 0} km/h</b></span>
+                <span>Capacity: <b style={{ color: '#0f172a' }}>{studentBusInfo?.assignedBus?.occupied || 0}/{studentBusInfo?.assignedBus?.capacity || 50}</b></span>
+                <span>Route: <b style={{ color: '#0f172a' }}>{studentBusInfo?.assignedRoute?.name}</b></span>
+              </div>
             </div>
           </div>
         )}
