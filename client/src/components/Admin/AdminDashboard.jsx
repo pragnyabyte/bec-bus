@@ -962,14 +962,14 @@ export default function AdminDashboard({
                 fontWeight: 700
               }}>
                 {adminRouteDirection === 'morning'
-                  ? `Direction: ${selectedRoute.startPoint || selectedRoute.stops[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')} ➔ BEC Campus`
-                  : `Direction: BEC Campus ➔ ${selectedRoute.startPoint || selectedRoute.stops[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')}`}
+                  ? `Direction: ${selectedRoute.startPoint || selectedRoute.stops?.[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')} ➔ BEC Campus`
+                  : `Direction: BEC Campus ➔ ${selectedRoute.startPoint || selectedRoute.stops?.[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')}`}
               </div>
 
               {/* Stops List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                 {adminDisplayStops.map((stop, index) => {
-                  const isCurrentStop = selectedBusTracking?.nearestStop?.id === stop.id;
+                  const isCurrentStop = trackingInfo?.nearestStop?.id === stop.id;
                   return (
                     <div
                       key={stop.id || index}
