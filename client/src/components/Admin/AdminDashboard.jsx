@@ -3,7 +3,7 @@ import {
   Bus, Users, MapPin, AlertCircle, ShieldAlert, CheckCircle2, 
   XCircle, Plus, BarChart3, Settings, 
   FileText, Activity, Compass, ArrowRightLeft, MessageSquare,
-  Phone, ShieldCheck, Edit3, Trash2, LogOut, Clock, Navigation, X, RefreshCw
+  Phone, ShieldCheck, Edit3, Trash2, LogOut, Clock, Navigation, X, RefreshCw, MoreVertical
 } from 'lucide-react';
 import LiveMap from '../Map/LiveMap';
 import { api } from '../../services/api';
@@ -30,6 +30,9 @@ export default function AdminDashboard({
 
   // Stops & Timetable direction state (identical to Student Side)
   const [adminRouteDirection, setAdminRouteDirection] = useState('morning'); // 'morning' | 'evening'
+  const [showTimetable, setShowTimetable] = useState(false);
+  const [showRouteMenu, setShowRouteMenu] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
 
   // Complaint / Issue Reply & Filter State
   const [replyComplaintId, setReplyComplaintId] = useState(null);
@@ -143,6 +146,17 @@ export default function AdminDashboard({
     }
     return selectedRoute.stops;
   }, [selectedRoute, adminRouteDirection]);
+
+  // Dynamic destination based on active bus and selected route direction
+  const actualDestination = useMemo(() => {
+    if (!selectedRoute?.stops || selectedRoute.stops.length === 0) {
+      return selectedBusId === 'BUS-01' ? 'BEC Campus Terminal' : 'BEC Campus Terminal';
+    }
+    if (adminRouteDirection === 'evening') {
+      return selectedRoute.startPoint || selectedRoute.stops[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar');
+    }
+    return selectedRoute.stops[selectedRoute.stops.length - 1]?.name || 'BEC Campus Terminal';
+  }, [selectedRoute, adminRouteDirection, selectedBusId]);
 
   const targetRouteId = selectedBusId === 'BUS-01' ? 'R-101' : 'R-102';
   const targetRouteCode = selectedBusId === 'BUS-01' ? 'RT-01' : 'RT-02';
@@ -731,100 +745,82 @@ export default function AdminDashboard({
       )}
 
       {/* ==========================================
-          2. TAB 1: OVERVIEW & LIVE MAP
+          2. TAB 1: OVERVIEW & LIVE ROUTE TRACKING
           ========================================== */}
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* LIVE TELEMETRY CARD */}
-          <div className="android-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className={`pulse-dot ${trackingInfo.movementState === 'moving' ? 'online' : trackingInfo.movementState === 'stopped' ? 'amber' : ''}`} />
-                <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
-                  {selectedBus.fleetNumber} Telemetry
+          {/* 1. ROUTE MAP SECTION (MAIN PROMINENT POSITION) */}
+          <div className="android-card" style={{ padding: '0.85rem' }}>
+            {/* Direction Switcher Controls */}
+            <div className="android-segmented-control" style={{ marginBottom: '0.85rem' }}>
+              <button
+                type="button"
+                className={`android-segment-btn ${adminRouteDirection === 'morning' ? 'active-morning' : ''}`}
+                onClick={() => setAdminRouteDirection('morning')}
+              >
+                ☀️ Morning Pickup
+              </button>
+              <button
+                type="button"
+                className={`android-segment-btn ${adminRouteDirection === 'evening' ? 'active-evening' : ''}`}
+                onClick={() => setAdminRouteDirection('evening')}
+              >
+                🌙 Evening Return
+              </button>
+            </div>
+
+            {/* Live GPS Telemetry Status Notice */}
+            {trackingInfo.isLiveAvailable ? (
+              <div style={{
+                background: '#f0f9ff',
+                border: '1px solid #bae6fd',
+                borderRadius: '12px',
+                padding: '0.55rem 0.85rem',
+                marginBottom: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+                color: '#0369a1',
+                fontSize: '0.8rem',
+                fontWeight: 600
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="pulse-dot blue" />
+                  <span>
+                    {trackingInfo.nextStop ? (
+                      <>Next: <b>{trackingInfo.nextStop.name}</b> {trackingInfo.etaMinutes ? `in ~${trackingInfo.etaMinutes} mins` : ''}</>
+                    ) : (
+                      <><b>{selectedBus.fleetNumber}</b> Live GPS broadcasting</>
+                    )}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', background: '#e0f2fe', padding: '2px 8px', borderRadius: '6px', color: '#0284c7', fontWeight: 800 }}>
+                  {selectedBus.speed || 0} km/h • {selectedBus.status.replace('_', ' ').toUpperCase()}
                 </span>
               </div>
-              <span className={`badge ${selectedBus.status === 'on_trip' ? 'badge-green' : selectedBus.status === 'emergency' ? 'badge-red' : 'badge-blue'}`} style={{ fontSize: '0.7rem' }}>
-                {selectedBus.status.replace('_', ' ')}
-              </span>
-            </div>
-
-            <div style={{
-              background: trackingInfo.movementBadgeBg,
-              border: `1px solid ${trackingInfo.movementBadgeBorder}`,
-              color: trackingInfo.movementBadgeColor,
-              borderRadius: '10px',
-              padding: '0.45rem 0.75rem',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              marginBottom: '0.65rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <MapPin size={14} />
-              <span>{trackingInfo.locationText}</span>
-            </div>
-
-            {trackingInfo.nextStop && (
-              <div style={{ fontSize: '0.78rem', color: '#059669', fontWeight: 700, marginBottom: '0.75rem' }}>
-                ➔ Next Stop: <b>{trackingInfo.nextStop.name}</b> {trackingInfo.etaMinutes ? `(~${trackingInfo.etaMinutes} mins)` : ''}
+            ) : (
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '12px',
+                padding: '0.55rem 0.85rem',
+                marginBottom: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: '#92400e',
+                fontSize: '0.8rem',
+                fontWeight: 600
+              }}>
+                <AlertCircle size={16} style={{ color: '#d97706', flexShrink: 0 }} />
+                <span>GPS Standby: Bus live location is unavailable (Driver offline or GPS standby)</span>
               </div>
             )}
 
-            {/* Stat Chips Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
-              <div className="android-stat-card">
-                <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b' }}>CURRENT SPEED</div>
-                <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0f172a', marginTop: '2px' }}>
-                  {selectedBus.speed || 0} km/h
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 600 }}>
-                  {selectedBus.status === 'on_trip' ? 'Broadcasting' : 'Standby'}
-                </div>
-              </div>
-
-              <div className="android-stat-card">
-                <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b' }}>OCCUPANCY</div>
-                <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0284c7', marginTop: '2px' }}>
-                  {selectedBus.occupied || selectedStudents.length} / {selectedBus.capacity || 45}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                  Seats ({Math.min(100, Math.round(((selectedBus.occupied || selectedStudents.length) / (selectedBus.capacity || 45)) * 100))}%)
-                </div>
-              </div>
-
-              <div className="android-stat-card">
-                <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b' }}>LICENSE PLATE</div>
-                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', marginTop: '2px' }}>
-                  {selectedBus.busNo}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Authorized BEC Transit</div>
-              </div>
-
-              <div className="android-stat-card">
-                <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b' }}>TODAY'S BOARDING</div>
-                <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#16a34a', marginTop: '2px' }}>
-                  {selectedStudents.filter(s => s.boardedToday).length} <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>/ {selectedStudents.length}</span>
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 600 }}>Boarded Today</div>
-              </div>
-            </div>
-          </div>
-
-          {/* LIVE MAP CARD */}
-          <div className="android-card" style={{ padding: '0.85rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Navigation size={16} style={{ color: selectedBusId === 'BUS-01' ? '#0284c7' : '#7c3aed' }} />
-                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>Live Fleet Map</span>
-              </div>
-              <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
-                {selectedBus.fleetNumber}
-              </span>
-            </div>
-
-            <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            {/* Large Responsive Map Container */}
+            <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1.5px solid #e2e8f0', boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)' }}>
               <LiveMap
                 routes={selectedRoute ? [selectedRoute] : []}
                 buses={trackingInfo.isLiveAvailable ? [selectedBus] : []}
@@ -834,59 +830,466 @@ export default function AdminDashboard({
                 busLiveLabel={selectedBusId === 'BUS-01' ? 'Bus 1 – Live Location' : 'Bus 2 – Live Location'}
                 busLocationUnavailable={!trackingInfo.isLiveAvailable}
                 autoCenterBus={trackingInfo.isLiveAvailable}
-                height="340px"
+                height="360px"
               />
             </div>
           </div>
 
-          {/* DRIVER & VEHICLE DETAILS CARD */}
-          <div className="android-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                Assigned Driver & Vehicle
-              </h3>
-              <button
-                className="android-touch-btn"
-                onClick={async () => {
-                  const nextStatus = selectedBus.status === 'maintenance' ? 'available' : 'maintenance';
-                  await api.updateBus(selectedBus.id, { status: nextStatus });
-                  if (onDataRefresh) onDataRefresh();
-                }}
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
+          {/* 2. ROUTE INFORMATION CARD (DIRECTLY BELOW MAP) */}
+          <div className="android-card" style={{ padding: '1rem 1.15rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+              {/* Left Column: Bus Name, [Non AC], Destination */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 800,
+                    color: '#0f172a',
+                    margin: 0,
+                    letterSpacing: '-0.3px',
+                    textTransform: 'uppercase'
+                  }}>
+                    {selectedBus?.fleetNumber || (selectedBusId === 'BUS-01' ? 'BUS 1' : 'BUS 2')}
+                  </h3>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    background: '#f1f5f9',
+                    color: '#475569',
+                    border: '1px solid #cbd5e1',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    letterSpacing: '0.2px'
+                  }}>
+                    Non AC
+                  </span>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    background: '#e0f2fe',
+                    color: '#0284c7',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontWeight: 800
+                  }}>
+                    {selectedRoute?.code || 'RT-01'}
+                  </span>
+                </div>
+
+                <div style={{
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
                   color: '#475569',
-                  width: 'auto',
-                  padding: '0.25rem 0.65rem',
-                  minHeight: '32px',
-                  fontSize: '0.72rem'
-                }}
-              >
-                {selectedBus.status === 'maintenance' ? 'Exit Maint.' : 'Set Maintenance'}
-              </button>
+                  marginTop: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>To {actualDestination}</span>
+                </div>
+
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
+                  {selectedRoute?.distanceKm || (selectedBusId === 'BUS-01' ? 14.5 : 18.2)} km • ~{selectedRoute?.totalDurationMin || (selectedBusId === 'BUS-01' ? 40 : 45)} mins • {selectedRoute?.stops?.length || 5} stops
+                </div>
+              </div>
+
+              {/* Right Column: Blue Primary Action Button & Three-dot Menu */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowManageModal(true)}
+                  className="android-touch-btn"
+                  style={{
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    padding: '0.45rem 1rem',
+                    borderRadius: '12px',
+                    fontSize: '0.82rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
+                    width: 'auto'
+                  }}
+                  id="admin-btn-manage-route"
+                >
+                  Manage Route
+                </button>
+
+                <div style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowRouteMenu(prev => !prev)}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1.5px solid #e2e8f0',
+                      color: '#475569',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                    id="admin-btn-route-more"
+                    title="More route options"
+                    aria-label="Route Options"
+                  >
+                    <MoreVertical size={17} />
+                  </button>
+
+                  {/* Dropdown Menu for Three-dot Action */}
+                  {showRouteMenu && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: '6px',
+                      background: '#ffffff',
+                      border: '1.5px solid #e2e8f0',
+                      borderRadius: '14px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
+                      padding: '0.4rem',
+                      minWidth: '180px',
+                      zIndex: 100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowTimetable(prev => !prev);
+                          setShowRouteMenu(false);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          textAlign: 'left',
+                          padding: '0.5rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <Clock size={14} style={{ color: '#0284c7' }} />
+                        {showTimetable ? 'Hide Timetable' : 'View Timetable'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowManageModal(true);
+                          setShowRouteMenu(false);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          textAlign: 'left',
+                          padding: '0.5rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <Settings size={14} style={{ color: '#0284c7' }} />
+                        Bus Settings
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. ROUTE STOPS / TIMETABLE (VERTICAL TIMELINE DIRECTLY BELOW ROUTE CARD) */}
+          <div className="android-card" style={{ padding: '1rem 1.15rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+              <div>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Route Stops & Stations
+                </h4>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                  {adminRouteDirection === 'morning' ? `Morning Pickup (To ${actualDestination})` : `Evening Return (To ${actualDestination})`}
+                </div>
+              </div>
+              <span style={{
+                fontSize: '0.72rem',
+                background: adminRouteDirection === 'morning' ? '#e0f2fe' : '#f5f3ff',
+                color: adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed',
+                border: `1px solid ${adminRouteDirection === 'morning' ? '#bae6fd' : '#ddd6fe'}`,
+                padding: '3px 10px',
+                borderRadius: '12px',
+                fontWeight: 700
+              }}>
+                {adminRouteDirection === 'morning' ? 'Morning Route' : 'Evening Route'}
+              </span>
             </div>
 
-            <div className="android-list-card" style={{ background: '#f8fafc' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Vertical Connected Route Timeline */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              padding: '0.4rem 0'
+            }}>
+              {adminDisplayStops.map((stop, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === adminDisplayStops.length - 1;
+                const isCurrent = trackingInfo?.nearestStop?.id === stop.id || isFirst;
+
+                return (
+                  <div
+                    key={stop.id || idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'stretch',
+                      minHeight: '52px',
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Spine column with connecting vertical line and circular marker */}
+                    <div style={{
+                      width: '28px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      position: 'relative',
+                      flexShrink: 0
+                    }}>
+                      {/* Top connecting line segment */}
+                      <div style={{
+                        width: '2px',
+                        flex: 1,
+                        background: isFirst ? 'transparent' : '#cbd5e1'
+                      }} />
+
+                      {/* Circular marker: filled marker for first/current stop, outlined circular marker for other stops */}
+                      {isCurrent ? (
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '50%',
+                            background: '#0284c7',
+                            border: '3px solid #ffffff',
+                            boxShadow: '0 0 0 2.5px #0284c7, 0 2px 6px rgba(2, 132, 199, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            margin: '2px 0',
+                            zIndex: 2
+                          }}
+                          title="Starting / Current Stop"
+                        >
+                          <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ffffff' }} />
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            width: '14px',
+                            height: '14px',
+                            borderRadius: '50%',
+                            background: '#ffffff',
+                            border: '2.5px solid #0284c7',
+                            boxShadow: '0 0 0 1px #e2e8f0',
+                            flexShrink: 0,
+                            margin: '3px 0',
+                            zIndex: 2
+                          }}
+                          title="Scheduled Stop"
+                        />
+                      )}
+
+                      {/* Bottom connecting line segment */}
+                      <div style={{
+                        width: '2px',
+                        flex: 1,
+                        background: isLast ? 'transparent' : '#cbd5e1'
+                      }} />
+                    </div>
+
+                    {/* Stop Details Beside Marker */}
+                    <div style={{
+                      flex: 1,
+                      minWidth: 0,
+                      paddingLeft: '12px',
+                      paddingRight: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{
+                          fontWeight: isCurrent ? 800 : 700,
+                          color: '#0f172a',
+                          fontSize: '0.95rem',
+                          lineHeight: 1.3
+                        }}>
+                          {stop.name}
+                        </div>
+                        {isCurrent && (
+                          <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                            <span style={{
+                              fontSize: '0.65rem',
+                              background: '#e0f2fe',
+                              color: '#0284c7',
+                              padding: '1px 6px',
+                              borderRadius: '6px',
+                              fontWeight: 700
+                            }}>
+                              {isFirst ? 'Starting Terminal' : 'Current Stop'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Scheduled Time on right */}
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                          {adminRouteDirection === 'morning' ? 'Pickup' : 'Drop'}
+                        </div>
+                        <div style={{
+                          fontSize: '0.88rem',
+                          fontWeight: 800,
+                          color: adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed'
+                        }}>
+                          {adminRouteDirection === 'morning'
+                            ? (stop.morningPickup || stop.morningTime || '07:15 AM')
+                            : (stop.eveningDrop || stop.eveningTime || '05:30 PM')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* View Timetable Button / Clean Card */}
+            <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
+              <button
+                type="button"
+                onClick={() => setShowTimetable(prev => !prev)}
+                className="android-touch-btn"
+                style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #e2e8f0',
+                  color: '#0f172a',
+                  width: '100%',
+                  padding: '0.65rem 1rem',
+                  borderRadius: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem'
+                }}
+                id="admin-btn-view-timetable"
+              >
+                <Clock size={16} style={{ color: '#0284c7' }} />
+                <span>{showTimetable ? 'Hide Timetable' : `View Timetable (${selectedRoute.code})`}</span>
+              </button>
+
+              {/* Expandable Full Timetable Details */}
+              {showTimetable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.85rem' }}>
+                  {adminDisplayStops.map((stop, index) => {
+                    const isCurrentStop = trackingInfo?.nearestStop?.id === stop.id;
+                    return (
+                      <div
+                        key={stop.id || index}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.85rem',
+                          background: isCurrentStop ? '#f0f9ff' : '#f8fafc',
+                          border: `1.5px solid ${isCurrentStop ? '#0284c7' : '#e2e8f0'}`,
+                          borderRadius: '14px',
+                          gap: '0.75rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                          <div style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            background: isCurrentStop ? '#0284c7' : (adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed'),
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            flexShrink: 0
+                          }}>
+                            {index + 1}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {stop.name}
+                            </div>
+                            {isCurrentStop && (
+                              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
+                                <span className="badge badge-blue" style={{ fontSize: '0.65rem' }}>Bus At Stop</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                            {adminRouteDirection === 'morning' ? 'Pickup' : 'Drop'}
+                          </div>
+                          <div style={{ fontWeight: 800, color: adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed', fontSize: '0.88rem' }}>
+                            {adminRouteDirection === 'morning' 
+                              ? (stop.morningPickup || stop.morningTime || '07:15 AM') 
+                              : (stop.eveningDrop || stop.eveningTime || '05:30 PM')}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 4. DRIVER INFORMATION (COMPACT MODERN CARD) */}
+          <div className="android-card" style={{ padding: '0.95rem 1.15rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                 <div style={{
                   width: '42px',
                   height: '42px',
-                  borderRadius: '50%',
+                  borderRadius: '12px',
                   background: selectedBusId === 'BUS-01' ? 'linear-gradient(135deg, #0284c7, #38bdf8)' : 'linear-gradient(135deg, #7c3aed, #a855f7)',
                   color: '#ffffff',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '1.1rem',
+                  fontSize: '1.05rem',
                   flexShrink: 0
                 }}>
                   {selectedDriver.name.charAt(0)}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>{selectedDriver.name}</span>
-                    <span style={{ fontSize: '0.68rem', padding: '1px 6px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontWeight: 800 }}>
+                    <span style={{ fontSize: '0.68rem', padding: '1px 6px', background: '#e0f2fe', color: '#0284c7', borderRadius: '4px', fontWeight: 800 }}>
                       ID: {selectedDriver.id}
                     </span>
                   </div>
@@ -896,8 +1299,8 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.35rem', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 700 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <span style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 700 }} className="desktop-only-text">
                   {selectedDriver.phone}
                 </span>
                 <a
@@ -907,10 +1310,14 @@ export default function AdminDashboard({
                     background: '#16a34a',
                     color: '#ffffff',
                     width: 'auto',
-                    padding: '0.3rem 0.75rem',
+                    padding: '0.35rem 0.85rem',
                     minHeight: '34px',
                     fontSize: '0.75rem',
-                    textDecoration: 'none'
+                    borderRadius: '10px',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
                   }}
                   title={`Call ${selectedDriver.name}`}
                 >
@@ -920,114 +1327,58 @@ export default function AdminDashboard({
             </div>
           </div>
 
-          {/* ROUTE TIMETABLE SUMMARY CARD (EXACT STUDENT SIDE UI IMPLEMENTATION) */}
-          {selectedRoute && (
-            <div className="android-card">
-              <div style={{ marginBottom: '1rem' }}>
-                <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
-                  Route Timetable ({selectedRoute.code})
-                </h4>
-                <p style={{ color: '#64748b', fontSize: '0.78rem', margin: 0 }}>
-                  Distance: <b>{selectedRoute.distanceKm || (selectedBusId === 'BUS-01' ? 14.5 : 18.2)} km</b> • Duration: <b>~{selectedRoute.totalDurationMin || (selectedBusId === 'BUS-01' ? 40 : 45)} mins</b> • Bus: <b>{selectedBus?.fleetNumber}</b>
-                </p>
+          {/* 5. COMPACT FLEET TELEMETRY & STATS CARD */}
+          <div className="android-card" style={{ padding: '0.95rem 1.15rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Activity size={15} style={{ color: '#0284c7' }} />
+                <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
+                  Fleet Telemetry & Status
+                </span>
+              </div>
+              <span className={`badge ${selectedBus.status === 'on_trip' ? 'badge-green' : selectedBus.status === 'emergency' ? 'badge-red' : 'badge-blue'}`} style={{ fontSize: '0.68rem' }}>
+                {selectedBus.status.replace('_', ' ').toUpperCase()}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem' }}>
+              <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>CURRENT SPEED</div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a', marginTop: '2px' }}>
+                  {selectedBus.speed || 0} km/h
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 600 }}>
+                  {selectedBus.status === 'on_trip' ? 'Broadcasting' : 'Standby'}
+                </div>
               </div>
 
-              {/* Direction Switcher */}
-              <div className="android-segmented-control" style={{ marginBottom: '1rem' }}>
-                <button
-                  type="button"
-                  className={`android-segment-btn ${adminRouteDirection === 'morning' ? 'active-morning' : ''}`}
-                  onClick={() => setAdminRouteDirection('morning')}
-                >
-                  ☀️ Morning Pickup
-                </button>
-                <button
-                  type="button"
-                  className={`android-segment-btn ${adminRouteDirection === 'evening' ? 'active-evening' : ''}`}
-                  onClick={() => setAdminRouteDirection('evening')}
-                >
-                  🌙 Evening Return
-                </button>
+              <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>OCCUPANCY</div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0284c7', marginTop: '2px' }}>
+                  {selectedBus.occupied || selectedStudents.length} / {selectedBus.capacity || 45}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                  Seats ({Math.min(100, Math.round(((selectedBus.occupied || selectedStudents.length) / (selectedBus.capacity || 45)) * 100))}%)
+                </div>
               </div>
 
-              {/* Direction Banner */}
-              <div style={{
-                background: adminRouteDirection === 'morning' ? '#f0f9ff' : '#f5f3ff',
-                border: `1px solid ${adminRouteDirection === 'morning' ? '#bae6fd' : '#ddd6fe'}`,
-                borderRadius: '12px',
-                padding: '0.65rem 0.85rem',
-                marginBottom: '0.85rem',
-                fontSize: '0.78rem',
-                color: adminRouteDirection === 'morning' ? '#0369a1' : '#6d28d9',
-                fontWeight: 700
-              }}>
-                {adminRouteDirection === 'morning'
-                  ? `Direction: ${selectedRoute.startPoint || selectedRoute.stops?.[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')} ➔ BEC Campus`
-                  : `Direction: BEC Campus ➔ ${selectedRoute.startPoint || selectedRoute.stops?.[0]?.name || (selectedBusId === 'BUS-01' ? 'Baramunda Bus Stand' : 'Patia Big Bazaar')}`}
+              <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>LICENSE PLATE</div>
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', marginTop: '2px' }}>
+                  {selectedBus.busNo}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Authorized BEC Transit</div>
               </div>
 
-              {/* Stops List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                {adminDisplayStops.map((stop, index) => {
-                  const isCurrentStop = trackingInfo?.nearestStop?.id === stop.id;
-                  return (
-                    <div
-                      key={stop.id || index}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.85rem',
-                        background: isCurrentStop ? '#f0f9ff' : '#f8fafc',
-                        border: `1.5px solid ${isCurrentStop ? '#0284c7' : '#e2e8f0'}`,
-                        borderRadius: '14px',
-                        gap: '0.75rem'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                        <div style={{
-                          width: '30px',
-                          height: '30px',
-                          borderRadius: '50%',
-                          background: isCurrentStop ? '#0284c7' : (adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed'),
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 800,
-                          fontSize: '0.8rem',
-                          flexShrink: 0
-                        }}>
-                          {index + 1}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {stop.name}
-                          </div>
-                          {isCurrentStop && (
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
-                              <span className="badge badge-blue" style={{ fontSize: '0.65rem' }}>Bus At Stop</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
-                          {adminRouteDirection === 'morning' ? 'Pickup' : 'Drop'}
-                        </div>
-                        <div style={{ fontWeight: 800, color: adminRouteDirection === 'morning' ? '#0284c7' : '#7c3aed', fontSize: '0.88rem' }}>
-                          {adminRouteDirection === 'morning' 
-                            ? (stop.morningPickup || stop.morningTime || '07:15 AM') 
-                            : (stop.eveningDrop || stop.eveningTime || '05:30 PM')}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="android-stat-card" style={{ padding: '0.65rem' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b' }}>TODAY'S BOARDING</div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#16a34a', marginTop: '2px' }}>
+                  {selectedStudents.filter(s => s.boardedToday).length} <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>/ {selectedStudents.length}</span>
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 600 }}>Boarded Today</div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -1570,6 +1921,120 @@ export default function AdminDashboard({
           <span className="android-nav-label">Register</span>
         </button>
       </nav>
+
+      {/* Manage Route Modal */}
+      {showManageModal && (
+        <div className="modal-overlay" onClick={() => setShowManageModal(false)} role="dialog" aria-modal="true">
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', borderRadius: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Settings size={18} style={{ color: '#0284c7' }} />
+                <h3 style={{ fontSize: '1.1rem', color: '#0f172a', fontWeight: 800, margin: 0 }}>
+                  Manage {selectedBus.fleetNumber} ({selectedRoute?.code || 'Route'})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManageModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px' }}
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>ASSIGNED CORRIDOR</div>
+                <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem', marginTop: '2px' }}>
+                  {selectedRoute?.name || 'Corridor'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                  Destination: <b>{actualDestination}</b> • Stops: <b>{selectedRoute?.stops?.length || 5}</b>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a' }}>Fleet Status</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Currently: <b>{(selectedBus?.status || 'available').toUpperCase()}</b>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="android-touch-btn"
+                  onClick={async () => {
+                    const nextStatus = selectedBus.status === 'maintenance' ? 'available' : 'maintenance';
+                    await api.updateBus(selectedBus.id, { status: nextStatus });
+                    if (onDataRefresh) onDataRefresh();
+                    setShowManageModal(false);
+                    setStatusMsg(`Bus status updated to ${nextStatus}`);
+                    setTimeout(() => setStatusMsg(''), 2500);
+                  }}
+                  style={{
+                    background: selectedBus.status === 'maintenance' ? '#16a34a' : '#f59e0b',
+                    color: '#ffffff',
+                    width: 'auto',
+                    padding: '0.35rem 0.85rem',
+                    fontSize: '0.78rem',
+                    borderRadius: '10px'
+                  }}
+                >
+                  {selectedBus.status === 'maintenance' ? 'Activate Bus' : 'Set Maintenance'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a' }}>Active Direction</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    {adminRouteDirection === 'morning' ? 'Morning Pickup' : 'Evening Return'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="android-touch-btn"
+                  onClick={() => {
+                    setAdminRouteDirection(prev => prev === 'morning' ? 'evening' : 'morning');
+                    setShowManageModal(false);
+                  }}
+                  style={{
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    width: 'auto',
+                    padding: '0.35rem 0.85rem',
+                    fontSize: '0.78rem',
+                    borderRadius: '10px'
+                  }}
+                >
+                  Switch to {adminRouteDirection === 'morning' ? 'Evening' : 'Morning'}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTimetable(true);
+                  setShowManageModal(false);
+                }}
+                className="android-touch-btn"
+                style={{
+                  background: '#f1f5f9',
+                  color: '#0f172a',
+                  border: '1px solid #cbd5e1',
+                  padding: '0.5rem',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  fontSize: '0.82rem'
+                }}
+              >
+                View Complete Stop Timetable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reusable Registration Modal Popup */}
       {showRegisterModal && (
