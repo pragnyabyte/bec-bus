@@ -823,7 +823,7 @@ export default function DriverConsole({
       )}
 
       {/* ==========================================
-          4. TAB 3: ROUTE STOPS & TIMETABLE
+          4. TAB 3: ROUTE STOPS & TIMETABLE (STOPS VIEW)
           ========================================== */}
       {activeTab === 'schedule' && (
         <div className="android-card">
@@ -841,51 +841,94 @@ export default function DriverConsole({
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            {activeStops.map((stop, i) => (
-              <div
-                key={stop.id}
-                className="android-list-card"
-                style={{ padding: '0.75rem 0.85rem' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
-                    <div style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: '#0284c7',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: '0.75rem',
-                      flexShrink: 0
-                    }}>
-                      {i + 1}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {stop.name}
-                      </div>
-                      <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
-                        {stop.lat.toFixed(3)}, {stop.lng.toFixed(3)}
-                      </div>
-                    </div>
-                  </div>
+          {/* Direction Segmented Control matching Student/Admin side */}
+          <div className="android-segmented-control" style={{ marginBottom: '0.85rem' }}>
+            <button
+              type="button"
+              className={`android-segment-btn ${tripDirection === 'morning' ? 'active-morning' : ''}`}
+              onClick={() => setTripDirection('morning')}
+            >
+              ☀️ Morning Pickup
+            </button>
+            <button
+              type="button"
+              className={`android-segment-btn ${tripDirection === 'evening' ? 'active-blue' : ''}`}
+              onClick={() => setTripDirection('evening')}
+            >
+              🌙 Evening Return
+            </button>
+          </div>
 
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
-                      {tripDirection === 'morning' ? 'Pickup' : 'Drop'}
+          {/* Direction Banner matching Student side */}
+          <div style={{
+            background: tripDirection === 'morning' ? '#f0f9ff' : '#f5f3ff',
+            border: `1px solid ${tripDirection === 'morning' ? '#bae6fd' : '#ddd6fe'}`,
+            borderRadius: '12px',
+            padding: '0.65rem 0.85rem',
+            marginBottom: '0.85rem',
+            fontSize: '0.78rem',
+            color: tripDirection === 'morning' ? '#0369a1' : '#6d28d9',
+            fontWeight: 700
+          }}>
+            {tripDirection === 'morning'
+              ? `Direction: ${route?.startPoint || (route?.stops?.[0]?.name || 'Origin')} ➔ BEC Campus`
+              : `Direction: BEC Campus ➔ ${route?.startPoint || (route?.stops?.[0]?.name || 'Origin')}`}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {activeStops.map((stop, i) => {
+              const isNearest = nearestStop?.id === stop.id;
+              return (
+                <div
+                  key={stop.id || i}
+                  className="android-list-card"
+                  style={{
+                    padding: '0.85rem',
+                    background: isNearest ? '#f0f9ff' : '#f8fafc',
+                    border: `1.5px solid ${isNearest ? '#0284c7' : '#e2e8f0'}`,
+                    borderRadius: '14px',
+                    gap: '0.75rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                      <div style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '50%',
+                        background: isNearest ? '#0284c7' : (tripDirection === 'morning' ? '#0284c7' : '#7c3aed'),
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        flexShrink: 0
+                      }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {stop.name}
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
+                          {isNearest && <span className="badge badge-blue" style={{ fontSize: '0.65rem' }}>Next / Current Stop</span>}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ fontWeight: 800, color: '#0284c7', fontSize: '0.85rem' }}>
-                      {tripDirection === 'morning' ? stop.morningTime : stop.eveningTime}
+
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                        {tripDirection === 'morning' ? 'Pickup' : 'Drop'}
+                      </div>
+                      <div style={{ fontWeight: 800, color: tripDirection === 'morning' ? '#0284c7' : '#7c3aed', fontSize: '0.88rem' }}>
+                        {tripDirection === 'morning' ? (stop.morningPickup || stop.morningTime || '07:15 AM') : (stop.eveningDrop || stop.eveningTime || '05:30 PM')}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -918,6 +961,19 @@ export default function DriverConsole({
             <Users size={20} />
           </div>
           <span className="android-nav-label">Passengers</span>
+        </button>
+
+        <button
+          type="button"
+          className={`android-nav-item ${activeTab === 'schedule' ? 'active' : ''}`}
+          onClick={() => setActiveTab('schedule')}
+          id="driver-bottom-nav-stops"
+          aria-label="Stops"
+        >
+          <div className="android-nav-pill">
+            <MapPin size={20} />
+          </div>
+          <span className="android-nav-label">Stops</span>
         </button>
 
         <button
