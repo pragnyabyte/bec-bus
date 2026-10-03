@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Bus, User, Shield, Compass, 
   ShieldAlert
 } from 'lucide-react';
+import ProfileModal from './ProfileModal';
 
 export default function Navbar({
   currentRole,
@@ -15,11 +16,34 @@ export default function Navbar({
   onDriverChange,
   notifications = [],
   buses = [],
+  routes = [],
+  authSession,
   onOpenRegisterModal,
   onOpenAuthModal,
   onLogout
 }) {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const emergencyBus = buses.find(b => b.status === 'emergency');
+
+  const userInitial = useMemo(() => {
+    if (currentRole === 'student') {
+      return currentStudent?.name?.trim()?.charAt(0)?.toUpperCase() || 'S';
+    }
+    if (currentRole === 'driver') {
+      return currentDriver?.name?.trim()?.charAt(0)?.toUpperCase() || 'D';
+    }
+    if (currentRole === 'admin') {
+      return (authSession?.user?.name || 'Admin').trim().charAt(0).toUpperCase() || 'A';
+    }
+    return 'U';
+  }, [currentRole, currentStudent, currentDriver, authSession]);
+
+  const userDisplayName = useMemo(() => {
+    if (currentRole === 'student') return currentStudent?.name || 'Student';
+    if (currentRole === 'driver') return currentDriver?.name || 'Driver';
+    if (currentRole === 'admin') return authSession?.user?.name || 'Admin';
+    return 'User';
+  }, [currentRole, currentStudent, currentDriver, authSession]);
 
   return (
     <>
@@ -91,8 +115,8 @@ export default function Navbar({
             </div>
           </div>
 
-          {/* Right Section: Active Driver switcher (Driver view) & Role Status Badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          {/* Right Section: Active Driver switcher (Driver view), Role Status Badge & ONE Profile Icon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'nowrap' }}>
             {/* Active Driver Switcher when on Driver */}
             {currentRole === 'driver' && drivers.length > 0 && (
               <div style={{
@@ -106,7 +130,7 @@ export default function Navbar({
                 fontSize: '0.8rem'
               }}>
                 <Compass size={14} style={{ color: '#0284c7', flexShrink: 0 }} />
-                <span style={{ color: '#0369a1', fontSize: '0.75rem', fontWeight: 700 }}>Active Driver:</span>
+                <span className="desktop-only-text" style={{ color: '#0369a1', fontSize: '0.75rem', fontWeight: 700 }}>Active Driver:</span>
                 <select
                   value={currentDriver?.id || ''}
                   onChange={e => onDriverChange && onDriverChange(e.target.value)}
@@ -118,7 +142,7 @@ export default function Navbar({
                     fontSize: '0.8rem',
                     cursor: 'pointer',
                     outline: 'none',
-                    maxWidth: '220px'
+                    maxWidth: '160px'
                   }}
                   title="Switch driver console"
                 >
@@ -131,12 +155,12 @@ export default function Navbar({
               </div>
             )}
 
-            {/* Authenticated Portal Badge (Read-only, non-clickable) */}
+            {/* Authenticated Portal Badge (Read-only, desktop only) */}
             <div className="desktop-only-text" style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '0.4rem 1rem',
+              padding: '0.4rem 0.9rem',
               background: currentRole === 'admin' ? '#f0fdf4' : currentRole === 'driver' ? '#f0f9ff' : '#eff6ff',
               border: `1.5px solid ${currentRole === 'admin' ? '#bbf7d0' : currentRole === 'driver' ? '#bae6fd' : '#bfdbfe'}`,
               borderRadius: '9999px',
@@ -155,9 +179,68 @@ export default function Navbar({
               {currentRole === 'driver' && <><Compass size={14} /> Driver Console</>}
               {currentRole === 'student' && <><User size={14} /> Student Portal</>}
             </div>
+
+            {/* ONE Profile Icon in the TOP-RIGHT corner of the application header */}
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen(prev => !prev)}
+              id="header-profile-btn"
+              aria-label="User Profile"
+              title={`View ${userDisplayName} Profile`}
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: currentRole === 'admin' 
+                  ? 'linear-gradient(135deg, #0284c7, #16a34a)' 
+                  : 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: '1rem',
+                border: isProfileOpen ? '2px solid #0284c7' : '2px solid #ffffff',
+                boxShadow: isProfileOpen 
+                  ? '0 0 0 3px rgba(2, 132, 199, 0.35), 0 2px 8px rgba(2, 132, 199, 0.3)' 
+                  : '0 2px 8px rgba(2, 132, 199, 0.25)',
+                cursor: 'pointer',
+                flexShrink: 0,
+                position: 'relative',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {userInitial}
+              {/* Online indicator dot */}
+              <span style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#10b981',
+                border: '2px solid #ffffff',
+                boxShadow: '0 0 4px rgba(16, 185, 129, 0.6)'
+              }} />
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Profile Dropdown / Modal */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        currentRole={currentRole}
+        student={currentStudent}
+        driver={currentDriver}
+        authSession={authSession}
+        buses={buses}
+        routes={routes}
+        onLogout={onLogout}
+      />
     </>
   );
 }
+

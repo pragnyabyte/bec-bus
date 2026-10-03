@@ -639,69 +639,10 @@ export default function AdminDashboard({
   return (
     <div className="android-admin-app">
       {/* ==========================================
-          1. ANDROID APP PROFILE & ADMIN HEADER CARD
+          1. FLEET SELECTION & ADMIN CONTROLS
           ========================================== */}
-      <div className="android-card" style={{ padding: '1rem', background: '#ffffff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-            {/* Admin Avatar */}
-            <div style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #0284c7, #7c3aed)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '1.25rem',
-              flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)'
-            }}>
-              <ShieldCheck size={22} />
-            </div>
+      <div className="android-card" style={{ padding: '0.85rem 1rem', background: '#ffffff' }}>
 
-            {/* Admin Info */}
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.25 }}>
-                  Transport Admin
-                </h2>
-                <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                  ADMIN-01
-                </span>
-              </div>
-              <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px' }}>
-                Campus Fleet & Transit Central Command
-              </div>
-            </div>
-          </div>
-
-          {/* Compact Logout Icon Button */}
-          {onLogout && (
-            <button
-              onClick={onLogout}
-              id="btn-admin-logout"
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0
-              }}
-              title="Logout"
-            >
-              <LogOut size={16} />
-            </button>
-          )}
-        </div>
 
         {/* Bus Selection Segmented Control (Bus 1 vs Bus 2) */}
         <div style={{ marginBottom: '0.5rem' }}>

@@ -422,71 +422,10 @@ export default function DriverConsole({
   return (
     <div className="android-driver-app">
       {/* ==========================================
-          1. ANDROID APP PROFILE & DRIVER HEADER CARD
+          1. OPERATIONAL ROUTE & TRIP CONTROLS
           ========================================== */}
-      <div className="android-card" style={{ padding: '1rem', background: '#ffffff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-            {/* Driver Avatar */}
-            <div style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '1.25rem',
-              flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)'
-            }}>
-              {driver?.name?.charAt(0) || 'D'}
-            </div>
+      <div className="android-card" style={{ padding: '0.85rem 1rem', background: '#ffffff' }}>
 
-            {/* Driver Info */}
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.25 }}>
-                  {driver?.name}
-                </h2>
-                <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                  {isTripActive ? 'On Trip' : 'On Duty'}
-                </span>
-              </div>
-              <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <span>ID: <b style={{ color: '#0284c7' }}>{driver?.id}</b></span>
-                <span>•</span>
-                <span>{driver?.licenseNo || 'Authorized'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Compact Logout Icon Button */}
-          {onLogout && (
-            <button
-              onClick={onLogout}
-              id="btn-driver-logout"
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0
-              }}
-              title="Logout"
-            >
-              <LogOut size={16} />
-            </button>
-          )}
-        </div>
 
         {/* Assigned Route & Bus Banner */}
         <div style={{

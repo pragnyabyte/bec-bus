@@ -384,9 +384,10 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#ffffff', color: '#0f172a' }}>
-      {/* Top Navbar with Authenticated Portal Indicator and Universal Logout */}
+      {/* Top Navbar with Authenticated Portal Indicator, Profile Icon and Universal Logout */}
       <Navbar
         currentRole={currentRole}
+        authSession={authSession}
         students={students}
         currentStudent={currentStudent}
         onStudentChange={handleStudentChange}
@@ -395,6 +396,7 @@ export default function App() {
         onDriverChange={handleDriverChange}
         notifications={notifications}
         buses={buses}
+        routes={routes}
         onOpenRegisterModal={() => handleOpenAuthModal('register')}
         onOpenAuthModal={handleOpenAuthModal}
         onLogout={handleLogout}
