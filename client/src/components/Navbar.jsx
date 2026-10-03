@@ -18,6 +18,8 @@ export default function Navbar({
   buses = [],
   routes = [],
   authSession,
+  driverTripDirection = 'morning',
+  onDriverTripDirectionChange,
   onOpenRegisterModal,
   onOpenAuthModal,
   onLogout
@@ -239,6 +241,8 @@ export default function Navbar({
         authSession={authSession}
         buses={buses}
         routes={routes}
+        driverTripDirection={driverTripDirection}
+        onDriverTripDirectionChange={onDriverTripDirectionChange}
         onLogout={onLogout}
       />
     </>

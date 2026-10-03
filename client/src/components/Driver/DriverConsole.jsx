@@ -15,6 +15,8 @@ export default function DriverConsole({
   buses = [],
   routes = [],
   students = [],
+  tripDirection: propTripDirection,
+  onTripDirectionChange,
   onDataRefresh,
   onLogout
 }) {
@@ -34,7 +36,9 @@ export default function DriverConsole({
   const [incidentDesc, setIncidentDesc] = useState('');
   const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
-  const [tripDirection, setTripDirection] = useState('morning'); // 'morning' | 'evening'
+  const [localTripDirection, setLocalTripDirection] = useState('morning');
+  const tripDirection = propTripDirection !== undefined ? propTripDirection : localTripDirection;
+  const setTripDirection = onTripDirectionChange || setLocalTripDirection;
   const [lastUpdatedTime, setLastUpdatedTime] = useState(() => new Date().toLocaleTimeString());
 
   // Find Driver's Assigned Bus & Route (Bus 1 permanently Pragnya, Bus 2 permanently Jitendra)
@@ -421,77 +425,28 @@ export default function DriverConsole({
 
   return (
     <div className="android-driver-app">
-      {/* ==========================================
-          1. OPERATIONAL ROUTE & TRIP CONTROLS
-          ========================================== */}
-      <div className="android-card" style={{ padding: '0.85rem 1rem', background: '#ffffff' }}>
-
-
-        {/* Assigned Route & Bus Banner */}
-        <div style={{
-          background: '#f0f9ff',
-          border: '1px solid #bae6fd',
-          borderRadius: '12px',
-          padding: '0.55rem 0.85rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '0.8rem',
-          flexWrap: 'wrap',
-          gap: '6px',
-          marginBottom: '0.75rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: '#0369a1', fontWeight: 700 }}>
-              Route: <b>{route?.code || 'RT-01'} ({route?.name || 'Assigned Corridor'})</b>
-            </span>
-          </div>
-          <span style={{ fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', fontWeight: 800 }}>
-            {bus?.fleetNumber} ({bus?.busNo})
-          </span>
-        </div>
-
-        {/* Trip Direction Segmented Control */}
-        <div className="android-segmented-control" style={{ marginBottom: '0.75rem' }}>
-          <button
-            type="button"
-            className={`android-segment-btn ${tripDirection === 'morning' ? 'active-morning' : ''}`}
-            onClick={() => setTripDirection('morning')}
-          >
-            ☀️ Morning: {morningLabel}
-          </button>
-          <button
-            type="button"
-            className={`android-segment-btn ${tripDirection === 'evening' ? 'active-blue' : ''}`}
-            onClick={() => setTripDirection('evening')}
-          >
-            🌙 Evening: {eveningLabel}
-          </button>
-        </div>
-
-        {/* Quick Action Chips: Call Co-Driver & Report Delay */}
-        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
-          {coDriver && (
-            <a
-              href={`tel:${(coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
-              className="android-chip"
-              style={{ textDecoration: 'none' }}
-              title={`Call Co-Driver ${coDriver.name}`}
-            >
-              <Phone size={13} />
-              <span>Call Co-Driver ({coDriver.name})</span>
-            </a>
-          )}
-          <button
-            type="button"
+      {/* Quick Action Chips: Call Co-Driver & Report Delay */}
+      <div className="android-card" style={{ padding: '0.75rem 1rem', background: '#ffffff', display: 'flex', gap: '8px', overflowX: 'auto', alignItems: 'center' }}>
+        {coDriver && (
+          <a
+            href={`tel:${(coDriver.phone || (coDriver.id === 'PRAGNYA01' ? '+919040833547' : '+916370998587')).replace(/\s+/g, '')}`}
             className="android-chip"
-            onClick={() => setShowIncidentModal(true)}
-            style={{ color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' }}
+            style={{ textDecoration: 'none' }}
+            title={`Call Co-Driver ${coDriver.name}`}
           >
-            <AlertTriangle size={13} />
-            <span>Report Delay</span>
-          </button>
-        </div>
+            <Phone size={13} />
+            <span>Call Co-Driver ({coDriver.name})</span>
+          </a>
+        )}
+        <button
+          type="button"
+          className="android-chip"
+          onClick={() => setShowIncidentModal(true)}
+          style={{ color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' }}
+        >
+          <AlertTriangle size={13} />
+          <span>Report Delay</span>
+        </button>
       </div>
 
       {/* SOS Emergency Banner if Active */}

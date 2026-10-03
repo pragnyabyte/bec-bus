@@ -15,6 +15,8 @@ export default function ProfileModal({
   authSession,
   buses = [],
   routes = [],
+  driverTripDirection = 'morning',
+  onDriverTripDirectionChange,
   onLogout
 }) {
   // Close on Escape key press
@@ -126,7 +128,7 @@ export default function ProfileModal({
     };
   }, [currentRole, student, buses, routes, drivers]);
 
-  // Resolve Driver assigned Bus & Route
+  // Resolve Driver assigned Bus & Route + Direction labels
   const driverBusInfo = useMemo(() => {
     if (currentRole !== 'driver') return null;
     const isBus2 = driver?.id === 'JITENDRA01' || driver?.busId === 'BUS-02';
@@ -144,7 +146,11 @@ export default function ProfileModal({
         name: isBus2 ? 'BEC College ↔ Patia' : 'BEC College ↔ Baramunda'
       };
 
-    return { bus, route };
+    const destination = (isBus2 || route?.id === 'R-102') ? 'Patia' : 'Baramunda';
+    const morningLabel = `BEC College → ${destination}`;
+    const eveningLabel = `${destination} → BEC College`;
+
+    return { bus, route, isBus2, destination, morningLabel, eveningLabel };
   }, [currentRole, driver, buses, routes]);
 
   if (!isOpen) return null;
@@ -480,6 +486,64 @@ export default function ProfileModal({
                 <div style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 700, marginTop: '2px' }}>
                   Driver ID: <b style={{ color: '#0284c7' }}>{driver?.id || driver?.driverId || 'PRAGNYA01'}</b>
                 </div>
+              </div>
+            </div>
+
+            {/* =========================================================
+                ROUTE + MORNING/EVENING ROUTE INFORMATION SECTION
+                (Preserves exact styling and functionality in Driver Profile)
+               ========================================================= */}
+            <div style={{
+              background: '#ffffff',
+              border: '1.5px solid #bae6fd',
+              borderRadius: '16px',
+              padding: '0.85rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.65rem',
+              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.06)'
+            }}>
+              {/* Assigned Route & Bus Banner */}
+              <div style={{
+                background: '#f0f9ff',
+                border: '1px solid #bae6fd',
+                borderRadius: '12px',
+                padding: '0.55rem 0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.8rem',
+                flexWrap: 'wrap',
+                gap: '6px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#0369a1', fontWeight: 700 }}>
+                    Route: <b>{driverBusInfo?.route?.code || 'RT-01'} ({driverBusInfo?.route?.name || 'BEC College ↔ Baramunda'})</b>
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', fontWeight: 800 }}>
+                  {driverBusInfo?.bus?.fleetNumber} ({driverBusInfo?.bus?.busNo})
+                </span>
+              </div>
+
+              {/* Trip Direction Segmented Control */}
+              <div className="android-segmented-control">
+                <button
+                  type="button"
+                  className={`android-segment-btn ${driverTripDirection === 'morning' ? 'active-morning' : ''}`}
+                  onClick={() => onDriverTripDirectionChange && onDriverTripDirectionChange('morning')}
+                  id="driver-profile-dir-morning"
+                >
+                  ☀️ Morning: {driverBusInfo?.morningLabel}
+                </button>
+                <button
+                  type="button"
+                  className={`android-segment-btn ${driverTripDirection === 'evening' ? 'active-blue' : ''}`}
+                  onClick={() => onDriverTripDirectionChange && onDriverTripDirectionChange('evening')}
+                  id="driver-profile-dir-evening"
+                >
+                  🌙 Evening: {driverBusInfo?.eveningLabel}
+                </button>
               </div>
             </div>
 

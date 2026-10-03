@@ -44,6 +44,7 @@ export default function App() {
   const [currentDriverId, setCurrentDriverId] = useState(() => {
     return localStorage.getItem('apextransit_active_driver_id') || 'PRAGNYA01';
   });
+  const [driverTripDirection, setDriverTripDirection] = useState('morning');
 
   const handleDriverChange = useCallback((id) => {
     setCurrentDriverId(id);
@@ -397,6 +398,8 @@ export default function App() {
         notifications={notifications}
         buses={buses}
         routes={routes}
+        driverTripDirection={driverTripDirection}
+        onDriverTripDirectionChange={setDriverTripDirection}
         onOpenRegisterModal={() => handleOpenAuthModal('register')}
         onOpenAuthModal={handleOpenAuthModal}
         onLogout={handleLogout}
@@ -432,6 +435,8 @@ export default function App() {
                 buses={buses}
                 routes={routes}
                 students={students}
+                tripDirection={driverTripDirection}
+                onTripDirectionChange={setDriverTripDirection}
                 onDataRefresh={loadData}
                 onLogout={handleLogout}
               />
