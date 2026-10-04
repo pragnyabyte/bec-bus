@@ -332,11 +332,98 @@ export default function StudentDashboard({
   };
 
   // ==========================================
-  // NEXT BUS CALCULATION FOR DETECTED NEAREST STOP
-  // Displays only the student's assigned bus and calculates next arrival
+  // STOPS FOR TRACKER DISPLAY (WITH DIRECTION SUPPORT)
+  // Aligns stops dynamically with active tracker direction
+  // ==========================================
+  const trackerDisplayStops = useMemo(() => {
+    if (!assignedRoute?.stops) return [];
+    if (trackerDirection === 'evening') {
+      return [...assignedRoute.stops].reverse();
+    }
+    return assignedRoute.stops;
+  }, [assignedRoute, trackerDirection]);
+
+  // ==========================================
+  // DYNAMIC NEXT STATION DETERMINATION
+  // Calculates the upcoming bus station based on live GPS telemetry and route segments
+  // ==========================================
+  const determineNextStation = (bus, stops) => {
+    if (!stops || stops.length === 0) return null;
+    if (stops.length === 1) return stops[0];
+
+    // 1. If explicit nextStopId is transmitted by driver/telemetry
+    if (bus?.nextStopId) {
+      const explicit = stops.find(s => s.id === bus.nextStopId);
+      if (explicit) return explicit;
+    }
+
+    const busLat = bus?.currentLat;
+    const busLng = bus?.currentLng;
+    const validCoords = isCoordValid(busLat, busLng);
+    const isEnRoute = bus && (bus.status === 'on_trip' || bus.status === 'emergency');
+
+    // 2. If bus is idle or invalid coordinates, default to initial stop for active direction
+    if (!validCoords || !isEnRoute) {
+      return stops[0];
+    }
+
+    // 3. Project bus onto each route segment (stops[i] -> stops[i+1])
+    const segData = [];
+    for (let i = 0; i < stops.length - 1; i++) {
+      const A = stops[i];
+      const B = stops[i + 1];
+
+      const cosLat = Math.cos(((A.lat + B.lat) / 2) * (Math.PI / 180));
+      const dx = (B.lng - A.lng) * cosLat;
+      const dy = B.lat - A.lat;
+      const segLenSq = dx * dx + dy * dy;
+
+      let t = 0;
+      if (segLenSq > 0) {
+        const px = (busLng - A.lng) * cosLat;
+        const py = busLat - A.lat;
+        t = (px * dx + py * dy) / segLenSq;
+      }
+
+      const clampedT = Math.max(0, Math.min(1, t));
+      const projLat = A.lat + clampedT * (B.lat - A.lat);
+      const projLng = A.lng + clampedT * (B.lng - A.lng);
+      const distToSeg = calcHaversineKm(busLat, busLng, projLat, projLng);
+
+      segData.push({ i, t, distToSeg, A, B });
+    }
+
+    segData.sort((a, b) => a.distToSeg - b.distToSeg);
+    const closest = segData[0];
+
+    let targetIdx = closest.i + 1;
+
+    // If bus is approaching or at stop B (>90% along segment), check if it has departed B onto subsequent segment
+    if (closest.t > 0.90 && closest.i < stops.length - 2) {
+      const nextSeg = segData.find(s => s.i === closest.i + 1);
+      if (nextSeg && nextSeg.t > 0.08) {
+        targetIdx = closest.i + 2;
+      }
+    }
+
+    // If bus is idle/stopped before the first stop
+    if (closest.i === 0 && closest.t <= 0.05 && bus?.status !== 'on_trip') {
+      targetIdx = 0;
+    }
+
+    return stops[Math.min(targetIdx, stops.length - 1)];
+  };
+
+  const nextStation = useMemo(() => {
+    return determineNextStation(assignedBus, trackerDisplayStops);
+  }, [assignedBus, trackerDisplayStops]);
+
+  // ==========================================
+  // NEXT BUS & NEXT STATION CALCULATION
+  // Displays dynamic upcoming station and ETA
   // ==========================================
   const nextBusInfo = useMemo(() => {
-    const targetStop = nearestBusStopData?.stop || candidateStops[0];
+    const targetStop = nearestBusStopData?.stop || nextStation || candidateStops[0];
     if (!targetStop) return null;
 
     const fleetName = assignedBus?.fleetNumber || (isBus2 ? 'Bus 2' : 'Bus 1');
@@ -345,7 +432,7 @@ export default function StudentDashboard({
 
     // 1. Bus is actively on trip with live GPS telemetry
     if (isEnRoute) {
-      const isEvening = assignedBus?.activeTrip?.direction === 'evening' || (new Date().getHours() >= 12);
+      const isEvening = trackerDirection === 'evening' || assignedBus?.activeTrip?.direction === 'evening' || (new Date().getHours() >= 12);
       const destination = isEvening 
         ? (isBus2 ? 'Patia' : 'Baramunda')
         : 'BEC College Main Campus';
@@ -361,6 +448,7 @@ export default function StudentDashboard({
         operating: true,
         isLive: true,
         busName: fleetName,
+        stationName: nextStation?.name || targetStop?.name,
         scheduledOrLiveTime: arrivalTimeFormatted,
         destination,
         statusLabel: `Live ETA (~${etaMin} min)`,
@@ -380,11 +468,12 @@ export default function StudentDashboard({
     const eveningMinutes = parseTimeToMinutes(eveningTimeStr) ?? (17 * 60 + 20);
 
     // Morning trip is upcoming or current
-    if (currentMinutes <= morningMinutes + 35) {
+    if (trackerDirection === 'morning' || (trackerDirection !== 'evening' && currentMinutes <= morningMinutes + 35)) {
       return {
         operating: true,
         isLive: false,
         busName: fleetName,
+        stationName: nextStation?.name || targetStop?.name,
         scheduledOrLiveTime: morningTimeStr,
         destination: 'BEC College Main Campus',
         statusLabel: 'Scheduled Inbound',
@@ -395,11 +484,12 @@ export default function StudentDashboard({
     }
 
     // Evening drop trip is upcoming
-    if (currentMinutes <= eveningMinutes + 45) {
+    if (trackerDirection === 'evening' || currentMinutes <= eveningMinutes + 45) {
       return {
         operating: true,
         isLive: false,
         busName: fleetName,
+        stationName: nextStation?.name || targetStop?.name,
         scheduledOrLiveTime: eveningTimeStr,
         destination: isBus2 ? 'Patia' : 'Baramunda',
         statusLabel: 'Scheduled Outbound',
@@ -414,6 +504,7 @@ export default function StudentDashboard({
       operating: false,
       isLive: false,
       busName: fleetName,
+      stationName: nextStation?.name || targetStop?.name,
       scheduledOrLiveTime: 'No upcoming bus',
       destination: 'Service completed for today',
       statusLabel: 'Idle at Terminal',
@@ -421,10 +512,10 @@ export default function StudentDashboard({
       badgeColor: '#64748b',
       badgeBorder: '#cbd5e1'
     };
-  }, [nearestBusStopData, candidateStops, assignedBus, isBus2]);
+  }, [nearestBusStopData, candidateStops, assignedBus, isBus2, nextStation, trackerDirection]);
 
   // Determine Tracking, Movement, Nearest & Next Stop for assigned bus
-  const getBusTrackingDetails = (bus, route) => {
+  const getBusTrackingDetails = (bus, stops) => {
     const hasValidCoords = bus && isCoordValid(bus.currentLat, bus.currentLng);
     const isEnRoute = bus && (bus.status === 'on_trip' || bus.status === 'emergency');
 
@@ -462,11 +553,11 @@ export default function StudentDashboard({
     let nextStopDistKm = null;
     let etaMinutes = null;
 
-    if (isLiveAvailable && route?.stops?.length > 0) {
+    if (isLiveAvailable && stops?.length > 0) {
       let minDist = Infinity;
       let nearestIdx = 0;
 
-      route.stops.forEach((stop, idx) => {
+      stops.forEach((stop, idx) => {
         const d = calcHaversineKm(bus.currentLat, bus.currentLng, stop.lat, stop.lng);
         if (d < minDist) {
           minDist = d;
@@ -482,16 +573,7 @@ export default function StudentDashboard({
         locationText = `Near ${nearestStop.name} (${nearestDistKm.toFixed(1)} km away)`;
       }
 
-      if (bus.nextStopId) {
-        nextStop = route.stops.find(s => s.id === bus.nextStopId);
-      }
-      if (!nextStop) {
-        if (nearestIdx < route.stops.length - 1) {
-          nextStop = route.stops[nearestIdx + 1];
-        } else {
-          nextStop = route.stops[route.stops.length - 1];
-        }
-      }
+      nextStop = determineNextStation(bus, stops);
 
       if (nextStop) {
         nextStopDistKm = calcHaversineKm(bus.currentLat, bus.currentLng, nextStop.lat, nextStop.lng);
@@ -500,6 +582,7 @@ export default function StudentDashboard({
       }
     } else {
       locationText = 'Bus live location unavailable';
+      nextStop = stops?.[0] || null;
     }
 
     return {
@@ -518,16 +601,7 @@ export default function StudentDashboard({
     };
   };
 
-  const assignedTracking = useMemo(() => getBusTrackingDetails(assignedBus, assignedRoute), [assignedBus, assignedRoute]);
-
-  // Stops for tracker display with direction reversing
-  const trackerDisplayStops = useMemo(() => {
-    if (!assignedRoute?.stops) return [];
-    if (trackerDirection === 'evening') {
-      return [...assignedRoute.stops].reverse();
-    }
-    return assignedRoute.stops;
-  }, [assignedRoute, trackerDirection]);
+  const assignedTracking = useMemo(() => getBusTrackingDetails(assignedBus, trackerDisplayStops), [assignedBus, trackerDisplayStops]);
 
   // Dynamic Route Destination from Route Data
   const actualDestination = useMemo(() => {
@@ -753,13 +827,13 @@ export default function StudentDashboard({
                       textTransform: 'uppercase',
                       letterSpacing: '0.6px'
                     }}>
-                      Next Bus
+                      NEXT STATION
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>
-                      {nextBusInfo?.busName || assignedBus?.fleetNumber}
+                      {nextStation?.name || nextBusInfo?.stationName || assignedRoute?.stops?.[0]?.name || 'Next Station'}
                     </div>
                     <div style={{
                       fontSize: '1.2rem',
