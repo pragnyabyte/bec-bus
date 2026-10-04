@@ -489,73 +489,31 @@ app.post('/api/students/register', async (req, res) => {
 
   try {
     let savedStudent;
+    const cleanRollNo = rollNo.trim().toUpperCase().replace(/\s+/g, '');
 
+    // Prevent duplicate registration using the same Registration ID / Roll No
     if (isMongoConnected()) {
-      let existing = await Student.findOne({ rollNo: rollNo.trim() });
+      const existing = await Student.findOne({
+        rollNo: { $regex: new RegExp(`^${cleanRollNo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+      });
       if (existing) {
-        existing.name = name.trim();
-        if (email) existing.email = email.trim();
-        if (department) existing.department = department;
-        if (year) existing.year = year;
-        if (phone) existing.phone = phone.trim();
-        existing.routeId = routeId;
-        existing.busId = busId;
-        existing.stopId = stopId || (route && route.stops.length > 0 ? route.stops[0].id : null);
-        existing.status = 'approved';
-        await existing.save();
-        savedStudent = existing.toObject();
-      } else {
-        const count = await Student.countDocuments();
-        const nextId = `STU-${String(count + 1).padStart(2, '0')}`;
-        const newStu = new Student({
-          id: nextId,
-          name: name.trim(),
-          email: email ? email.trim() : `${rollNo.toLowerCase()}@bec.edu.in`,
-          rollNo: rollNo.trim(),
-          department: department || 'Engineering',
-          year: year || '1st Year',
-          phone: phone ? phone.trim() : '+91 90000 00000',
-          routeId,
-          busId,
-          stopId: stopId || (route && route.stops.length > 0 ? route.stops[0].id : null),
-          status: 'approved',
-          boardedToday: false,
-          boardedTime: null,
-          qrToken: `BEC-STU-${String(count + 1).padStart(2, '0')}-${rollNo.trim()}`
-        });
-        await newStu.save();
-        savedStudent = newStu.toObject();
+        return res.status(409).json({ error: `A student account already exists for Registration ID "${cleanRollNo}".` });
       }
     }
 
-    // Mirror to local cache
-    const existingIdx = db.students.findIndex(s => s.rollNo?.toLowerCase() === rollNo.trim().toLowerCase());
-    if (existingIdx !== -1) {
-      db.students[existingIdx] = {
-        ...db.students[existingIdx],
-        name: name.trim(),
-        email: email ? email.trim() : db.students[existingIdx].email,
-        rollNo: rollNo.trim(),
-        department: department || db.students[existingIdx].department,
-        year: year || db.students[existingIdx].year,
-        phone: phone ? phone.trim() : db.students[existingIdx].phone,
-        routeId,
-        busId,
-        stopId: stopId || (route && route.stops.length > 0 ? route.stops[0].id : null),
-        status: 'approved'
-      };
-      if (!savedStudent) savedStudent = db.students[existingIdx];
-    } else {
-      const nextNum = db.students.reduce((max, s) => {
-        const num = parseInt(s.id?.replace('STU-', '') || '0', 10);
-        return !isNaN(num) && num > max ? num : max;
-      }, 0) + 1;
+    const existingMem = db.students.find(s => s.rollNo && s.rollNo.toUpperCase() === cleanRollNo);
+    if (existingMem) {
+      return res.status(409).json({ error: `A student account already exists for Registration ID "${cleanRollNo}".` });
+    }
 
-      const newStudentObj = {
-        id: `STU-${String(nextNum).padStart(2, '0')}`,
+    if (isMongoConnected()) {
+      const count = await Student.countDocuments();
+      const nextId = `STU-${String(count + 1).padStart(2, '0')}`;
+      const newStu = new Student({
+        id: nextId,
         name: name.trim(),
-        email: email ? email.trim() : `${rollNo.toLowerCase()}@bec.edu.in`,
-        rollNo: rollNo.trim(),
+        email: email ? email.trim() : `${cleanRollNo.toLowerCase()}@bec.edu.in`,
+        rollNo: cleanRollNo,
         department: department || 'Engineering',
         year: year || '1st Year',
         phone: phone ? phone.trim() : '+91 90000 00000',
@@ -565,11 +523,36 @@ app.post('/api/students/register', async (req, res) => {
         status: 'approved',
         boardedToday: false,
         boardedTime: null,
-        qrToken: `BEC-STU-${String(nextNum).padStart(2, '0')}-${rollNo.trim()}`
-      };
-      db.students.push(newStudentObj);
-      if (!savedStudent) savedStudent = newStudentObj;
+        qrToken: `BEC-STU-${String(count + 1).padStart(2, '0')}-${cleanRollNo}`
+      });
+      await newStu.save();
+      savedStudent = newStu.toObject();
     }
+
+    // Mirror to local cache
+    const nextNum = db.students.reduce((max, s) => {
+      const num = parseInt(s.id?.replace('STU-', '') || '0', 10);
+      return !isNaN(num) && num > max ? num : max;
+    }, 0) + 1;
+
+    const newStudentObj = {
+      id: `STU-${String(nextNum).padStart(2, '0')}`,
+      name: name.trim(),
+      email: email ? email.trim() : `${cleanRollNo.toLowerCase()}@bec.edu.in`,
+      rollNo: cleanRollNo,
+      department: department || 'Engineering',
+      year: year || '1st Year',
+      phone: phone ? phone.trim() : '+91 90000 00000',
+      routeId,
+      busId,
+      stopId: stopId || (route && route.stops.length > 0 ? route.stops[0].id : null),
+      status: 'approved',
+      boardedToday: false,
+      boardedTime: null,
+      qrToken: `BEC-STU-${String(nextNum).padStart(2, '0')}-${cleanRollNo}`
+    };
+    db.students.push(newStudentObj);
+    if (!savedStudent) savedStudent = newStudentObj;
 
     saveLocalState();
 

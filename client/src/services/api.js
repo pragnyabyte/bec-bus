@@ -196,19 +196,52 @@ export const api = {
 
   registerStudent: async (studentData, onStepChange) => {
     const { stopId, boardingStop, boarding_stop, ...cleanStudentData } = studentData;
+    const cleanRollNo = (cleanStudentData.rollNo || '').trim().toUpperCase().replace(/\s+/g, '');
 
-    // 1. Execute stepped registration in Firebase (Auth + Cloud Firestore)
-    const fbRes = await firebaseRegisterStudentFullFlow(cleanStudentData, onStepChange);
-
-    // 2. If running locally with Express, sync with local backend in background
+    // 1. Sync with backend API (Express & MongoDB) if active
+    let backendStudent = null;
     if (isLocalhost && API_BASE) {
-      fastFetch(`${API_BASE}/students/register`, {
-        method: 'POST',
-        body: JSON.stringify(cleanStudentData)
-      }).catch(() => {});
+      try {
+        const res = await fastFetch(`${API_BASE}/students/register`, {
+          method: 'POST',
+          body: JSON.stringify({
+            ...cleanStudentData,
+            rollNo: cleanRollNo
+          })
+        });
+        if (res && res.status === 409) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `A student account already exists for Registration ID "${cleanRollNo}".`);
+        }
+        if (res && res.ok) {
+          backendStudent = await res.json().catch(() => null);
+        }
+      } catch (err) {
+        if (err.message && (err.message.includes('already exists') || err.message.includes('duplicate'))) {
+          throw err;
+        }
+        console.warn('[API registerStudent] Local backend notice:', err.message);
+      }
     }
 
-    return fbRes;
+    // 2. Execute stepped registration in Firebase (Auth + Cloud Firestore + Local Cache)
+    const fbRes = await firebaseRegisterStudentFullFlow({
+      ...cleanStudentData,
+      rollNo: cleanRollNo
+    }, onStepChange);
+
+    const mergedStudent = {
+      ...(backendStudent || {}),
+      ...(fbRes?.student || {}),
+      routeId: cleanStudentData.routeId,
+      busId: cleanStudentData.routeId === 'R-102' ? 'BUS-02' : 'BUS-01'
+    };
+
+    return {
+      ...fbRes,
+      success: true,
+      student: mergedStudent
+    };
   },
 
   loginStudent: async (credentials) => {

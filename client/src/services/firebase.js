@@ -144,11 +144,17 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
 
   console.log('[Student Registration] Step 1: Initiating registration for', { name: name.trim(), rollNo: cleanRollNo, routeId });
 
-  // 1b. Duplicate Check (Requirement 7)
+  // 1b. Duplicate Check (Requirement 6)
   const existingStudent = await firebaseFindStudent(cleanRollNo);
-  if (existingStudent) {
+  const demoStudents = [
+    { id: 'STU-01', rollNo: 'CS-2024-001' },
+    { id: 'STU-02', rollNo: 'CS-2024-002' },
+    { id: 'STU-03', rollNo: '25078' }
+  ];
+  const isDemo = demoStudents.some(d => d.rollNo.toUpperCase() === cleanRollNo || d.id.toUpperCase() === cleanRollNo);
+  if (existingStudent || isDemo) {
     console.warn('[Student Registration] Duplicate student detected for rollNo:', cleanRollNo);
-    throw new Error('A student account already exists for this Registration ID.');
+    throw new Error(`A student account already exists for Registration ID "${cleanRollNo}". Please sign in instead.`);
   }
 
   // 1c. Safe synthetic email when College Email is empty (Requirement 5)
@@ -206,7 +212,12 @@ export async function firebaseRegisterStudentFullFlow(params, onStepChange = () 
       authErr.code === 'auth/operation-not-allowed' ||
       authErr.code === 'auth/admin-restricted-operation' ||
       authErr.code === 'auth/network-request-failed' ||
-      (authErr.message && authErr.message.includes('network'))
+      authErr.code === 'timeout/request-timed-out' ||
+      (authErr.message && (
+        authErr.message.includes('network') ||
+        authErr.message.toLowerCase().includes('timed out') ||
+        authErr.message.includes('Firebase Auth')
+      ))
     ) {
       console.warn(`[Firebase Auth Notice]: Auth provider notice (${authErr.code || authErr.message}). Generating secure student transit UID.`);
       firebaseUid = `BEC-STU-${cleanRollNo}`;

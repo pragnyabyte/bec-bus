@@ -81,6 +81,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
   const [driverSubmittingStep, setDriverSubmittingStep] = useState('');   // '' | 'account' | 'pass'
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [registeredSuccessData, setRegisteredSuccessData] = useState(null);
 
   // Submission protection ref to prevent duplicate clicks
   const isSubmittingRef = useRef(false);
@@ -90,6 +91,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
     setSelectedRole(role);
     setErrorMsg('');
     setSuccessMsg('');
+    setRegisteredSuccessData(null);
     if (role === 'student') setStudentMode('login');
     if (role === 'driver') setDriverMode('login');
   };
@@ -149,22 +151,24 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
 
     setErrorMsg('');
     setSuccessMsg('');
+    setRegisteredSuccessData(null);
 
     const name = regStudentName.trim();
     const rollNo = regStudentRoll.trim();
     const phone = regStudentPhone.trim();
     const email = regStudentEmail.trim();
 
-    // 8. Validate before Firebase
+    // 1. Properly validate all required fields
     if (!name || name.length < 2) {
-      setErrorMsg('Please enter a valid Full Name (minimum 2 characters).');
+      setErrorMsg('Please enter your Full Name (minimum 2 characters).');
       return;
     }
     if (!rollNo || rollNo.length < 3) {
-      setErrorMsg('Please enter a valid Registration ID / Roll Number (minimum 3 characters).');
+      setErrorMsg('Please enter your Registration ID / Roll Number (minimum 3 characters).');
       return;
     }
-    if (!phone || phone.replace(/\D/g, '').length < 7) {
+    const cleanPhoneDigits = phone.replace(/\D/g, '');
+    if (!phone || cleanPhoneDigits.length < 7) {
       setErrorMsg('Please enter a valid Contact Mobile Number (at least 7 digits).');
       return;
     }
@@ -173,11 +177,11 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       return;
     }
     if (!regStudentDept) {
-      setErrorMsg('Please select a Department.');
+      setErrorMsg('Please select your Department.');
       return;
     }
     if (!regStudentYear) {
-      setErrorMsg('Please select a Year of Study.');
+      setErrorMsg('Please select your Year of Study.');
       return;
     }
     if (!regStudentRouteId) {
@@ -185,7 +189,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
       return;
     }
 
-    // 4. Prevent double submission: lock immediately
+    // Lock submission & show loading
     isSubmittingRef.current = true;
     setLoading(true);
     setStudentSubmittingStep('account');
@@ -206,7 +210,7 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         routeId: regStudentRouteId
       };
 
-      // 1. Trace & execute registration flow: Step 1 (Auth) -> Step 2 (Firestore pass)
+      // Execute registration via existing Firebase & database services
       const res = await api.registerStudent(payload, (step) => {
         setStudentSubmittingStep(step);
       });
@@ -215,21 +219,37 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
         throw new Error(res?.error || 'Registration failed. Please check your connection and try again.');
       }
 
-      setSuccessMsg(`Welcome, ${name}! Your student account & pass are active.`);
+      // Compute display details for assigned route and bus (Bus 1 / Bus 2 mapping)
+      const assignedRoute = activeRoutes.find(r => r.id === regStudentRouteId) || activeRoutes[0];
+      const assignedBusName = (regStudentRouteId === 'R-102' || res.student.busId === 'BUS-02')
+        ? 'Bus 2 (Patia Route • OD-02-BEC-1002)'
+        : 'Bus 1 (Baramunda Route • OD-02-BEC-1001)';
+      const startingStopName = assignedRoute?.stops?.[0]?.name || (regStudentRouteId === 'R-102' ? 'Patia Big Bazaar' : 'Baramunda Bus Stand');
 
-      // 6. Navigate immediately to Student Dashboard / Bus Pass
-      onAuthenticated({
-        role: 'student',
-        user: res.student,
+      const fullStudentDetails = {
+        ...res.student,
+        assignedRoute,
+        assignedBusName,
+        startingStopName
+      };
+
+      // Set registered details & clear confirmation message
+      setRegisteredSuccessData({
+        student: fullStudentDetails,
         token: res?.token || `token-${Date.now()}`
       });
+
+      setSuccessMsg('Registration completed successfully! Your bus pass has been created.');
+
+      // Pre-fill student credentials for signing in
+      setStudentName(name);
+      setStudentIdentifier(cleanRollNo);
     } catch (err) {
       console.error('[Student Registration Failure]:', err);
-      // Failsafe error display & reset button immediately
-      const msg = err.message || 'Registration is taking too long. Please check your internet connection and try again.';
+      const msg = err.message || 'Registration could not be completed. Please verify your details and try again.';
       setErrorMsg(msg);
+      setSuccessMsg('');
     } finally {
-      // Always reset button & loading state on failure or completion
       isSubmittingRef.current = false;
       setLoading(false);
       setStudentSubmittingStep('');
@@ -695,8 +715,201 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                   </button>
                 </div>
               </div>
+            ) : registeredSuccessData ? (
+              // Student Registration Success View (Requirements 3 & 4)
+              <div id="student-registration-success-card">
+                <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                  <div style={{
+                    width: '52px',
+                    height: '52px',
+                    borderRadius: '50%',
+                    background: '#dcfce7',
+                    color: '#16a34a',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '0.65rem',
+                    boxShadow: '0 4px 12px rgba(22, 163, 74, 0.2)'
+                  }}>
+                    <CheckCircle2 size={30} />
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', color: '#0f172a', fontWeight: 800, margin: '0 0 6px 0' }}>
+                    Registration completed successfully!
+                  </h3>
+                  <p style={{ color: '#166534', fontSize: '0.875rem', fontWeight: 600, margin: 0 }}>
+                    Your bus pass has been created and approved for campus transit.
+                  </p>
+                </div>
+
+                {/* Student's Registered Details & Bus Assignment Card */}
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #e2e8f0',
+                  borderRadius: '16px',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.65rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Bus size={18} style={{ color: '#0284c7' }} />
+                      <span style={{ fontWeight: 800, fontSize: '0.925rem', color: '#0f172a' }}>
+                        Registered Pass Details
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      background: '#dcfce7',
+                      color: '#15803d',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid #bbf7d0',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <CheckCircle2 size={12} /> Active & Approved
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', fontSize: '0.825rem' }}>
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Student Name</span>
+                      <b style={{ color: '#0f172a', fontSize: '0.9rem' }}>{registeredSuccessData.student.name}</b>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Registration ID / Roll No</span>
+                      <b style={{ color: '#0284c7', fontSize: '0.9rem' }}>{registeredSuccessData.student.rollNo}</b>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Department</span>
+                      <b style={{ color: '#334155' }}>{registeredSuccessData.student.department}</b>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Year of Study</span>
+                      <b style={{ color: '#334155' }}>{registeredSuccessData.student.year}</b>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Contact Phone</span>
+                      <b style={{ color: '#334155' }}>{registeredSuccessData.student.phone}</b>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Assigned Bus Route</span>
+                      <b style={{ color: '#0284c7' }}>
+                        {registeredSuccessData.student.assignedRoute?.code ? `${registeredSuccessData.student.assignedRoute.code} - ` : ''}{registeredSuccessData.student.assignedRoute?.name || 'Assigned Transit Route'}
+                      </b>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Assigned Fleet Bus</span>
+                      <b style={{ color: '#0f172a' }}>
+                        {registeredSuccessData.student.assignedBusName}
+                      </b>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Digital Pass Status</span>
+                      <b style={{ color: '#16a34a' }}>Approved • Ready to Board</b>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary & Secondary Action Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onAuthenticated({
+                        role: 'student',
+                        user: registeredSuccessData.student,
+                        token: registeredSuccessData.token
+                      });
+                    }}
+                    id="btn-proceed-to-student-portal"
+                    className="btn btn-primary"
+                    style={{
+                      width: '100%',
+                      padding: '0.85rem',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+                      boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span>Proceed to Student Portal / View Pass</span>
+                    <ArrowLeft size={18} style={{ transform: 'rotate(180deg)' }} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStudentMode('login');
+                      setStudentName(registeredSuccessData.student.name);
+                      setStudentIdentifier(registeredSuccessData.student.rollNo);
+                      setRegisteredSuccessData(null);
+                      setSuccessMsg('Registration completed! Please sign in with your Name and Registration ID.');
+                    }}
+                    id="btn-goto-signin-with-registered-creds"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '12px',
+                      border: '1.5px solid #0284c7',
+                      background: '#f0f9ff',
+                      color: '#0284c7',
+                      fontWeight: 700,
+                      fontSize: '0.925rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <LogIn size={18} />
+                    <span>Sign In with Registered ID</span>
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegisteredSuccessData(null);
+                      setRegStudentName('');
+                      setRegStudentRoll('');
+                      setRegStudentPhone('');
+                      setRegStudentEmail('');
+                      setSuccessMsg('');
+                      setErrorMsg('');
+                    }}
+                    id="btn-register-another-student"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    + Register another student
+                  </button>
+                </div>
+              </div>
             ) : (
-              // Student Registration View
+              // Student Registration Form View
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                   <button
@@ -884,14 +1097,23 @@ export default function AuthPage({ routes = [], onAuthenticated }) {
                       opacity: loading ? 0.85 : 1
                     }}
                   >
-                    <UserPlus size={18} />
-                    <span>
-                      {studentSubmittingStep === 'account'
-                        ? 'Creating Account...'
-                        : studentSubmittingStep === 'pass'
-                        ? 'Creating Bus Pass...'
-                        : 'Create Account & Pass'}
-                    </span>
+                    {loading ? (
+                      <>
+                        <div className="pulse-dot online" style={{ width: '10px', height: '10px', background: '#ffffff', flexShrink: 0 }} />
+                        <span>
+                          {studentSubmittingStep === 'account'
+                            ? 'Creating Student Account...'
+                            : studentSubmittingStep === 'pass'
+                            ? 'Generating Bus Pass...'
+                            : 'Creating Account & Pass...'}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={18} />
+                        <span>Create Account & Pass</span>
+                      </>
+                    )}
                   </button>
                 </form>
 
