@@ -514,7 +514,9 @@ export async function firebaseSignOutUser() {
 
 // Backwards compatibility aliases
 export const firebaseRegisterStudent = firebaseRegisterStudentFullFlow;
+export const firebaseRegisterStudentFull = firebaseRegisterStudentFullFlow;
 export const firebaseRegisterDriver = firebaseRegisterDriverFullFlow;
+export const firebaseRegisterDriverFull = firebaseRegisterDriverFullFlow;
 export const firebaseCreateAuthUser = async (email, password) => {
   try {
     return await createUserWithEmailAndPassword(auth, email, password);
@@ -605,15 +607,21 @@ export async function firebaseGetRoutes() {
 }
 
 export async function firebaseGetBuses() {
-  if (!isFirebaseConfigured) return DEFAULT_BUSES;
-  try {
-    const snap = await withTimeout(getDocs(collection(db, 'buses')), 2500, null);
-    if (snap && !snap.empty) {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (list.length > 0) return list;
-    }
-  } catch (e) {}
-  return DEFAULT_BUSES;
+  const busMap = new Map();
+  DEFAULT_BUSES.forEach(b => busMap.set(b.id, { ...b }));
+
+  if (isFirebaseConfigured) {
+    try {
+      const snap = await withTimeout(getDocs(collection(db, 'buses')), 2500, null);
+      if (snap && !snap.empty) {
+        snap.docs.forEach(d => {
+          const data = { id: d.id, ...d.data() };
+          busMap.set(d.id, { ...(busMap.get(d.id) || {}), ...data });
+        });
+      }
+    } catch (e) {}
+  }
+  return Array.from(busMap.values());
 }
 
 export async function firebaseGetDrivers() {

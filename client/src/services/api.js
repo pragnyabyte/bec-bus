@@ -11,7 +11,11 @@ import {
   firebaseFindStudent,
   firebaseFindDriver,
   firebaseRegisterStudentFullFlow,
+  firebaseRegisterStudentFull,
+  firebaseRegisterStudent,
   firebaseRegisterDriverFullFlow,
+  firebaseRegisterDriverFull,
+  firebaseRegisterDriver,
   firebaseGetComplaints,
   firebaseSubmitComplaint,
   firebaseReplyComplaint,
@@ -23,12 +27,14 @@ import {
   DEFAULT_ROUTES,
   DEFAULT_BUSES,
   DEFAULT_DRIVERS
-} from './firebase';
+} from './firebase.js';
 
 // Determine backend URL for production or local environment:
 // In production: serverless Firebase Spark mode (direct Firestore & Firebase Auth)
 // In local dev on localhost: connects to http://localhost:5000 (Express & MongoDB)
-const envApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL;
+const envApiUrl = (typeof import.meta !== 'undefined' && import.meta.env) 
+  ? (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL) 
+  : undefined;
 const isLocalhost = typeof window !== 'undefined' && (
   window.location.hostname === 'localhost' || 
   window.location.hostname === '127.0.0.1' ||
@@ -184,6 +190,14 @@ export const api = {
       if (be && be.length > 0) return be;
     }
     return firebaseGetRoutes();
+  },
+
+  getDrivers: async () => {
+    if (isLocalhost && API_BASE) {
+      const be = await safeJson(authFetch(`${API_BASE}/overview`), null);
+      if (be && be.drivers && be.drivers.length > 0) return be.drivers;
+    }
+    return firebaseGetDrivers();
   },
 
   getStudents: async () => {
@@ -654,5 +668,26 @@ export const api = {
       authFetch(`${API_BASE}/reconnect-db`, { method: 'POST' }).catch(() => {});
     }
     return { success: true };
-  }
+  },
+
+  findStudent: firebaseFindStudent,
+  findDriver: firebaseFindDriver,
+  registerStudentFull: (studentData, onStepChange) => api.registerStudent(studentData, onStepChange),
+  registerDriverFull: (driverData, onStepChange) => api.registerDriver(driverData, onStepChange)
 };
+
+export {
+  firebaseFindStudent,
+  firebaseFindDriver,
+  firebaseRegisterStudentFullFlow,
+  firebaseRegisterStudentFull,
+  firebaseRegisterStudent,
+  firebaseRegisterDriverFullFlow,
+  firebaseRegisterDriverFull,
+  firebaseRegisterDriver,
+  firebaseGetStudents,
+  firebaseGetBuses,
+  firebaseGetRoutes,
+  firebaseGetDrivers
+};
+
